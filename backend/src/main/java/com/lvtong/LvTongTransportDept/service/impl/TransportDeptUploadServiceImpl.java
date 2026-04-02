@@ -1,0 +1,333 @@
+package com.lvtong.LvTongTransportDept.service.impl;
+
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONObject;
+import com.alibaba.fastjson2.JSONWriter;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.lvtong.LvTongTransportDept.config.TransportDeptProperties;
+import com.lvtong.LvTongTransportDept.converter.TransportDeptConverter;
+import com.lvtong.LvTongTransportDept.dto.TransportDeptCheckResultDto;
+import com.lvtong.LvTongTransportDept.entity.VehicleInspection;
+import com.lvtong.LvTongTransportDept.exception.BusinessException;
+import com.lvtong.LvTongTransportDept.mapper.VehicleInspectionMapper;
+import com.lvtong.LvTongTransportDept.service.TransportDeptUploadService;
+import com.lvtong.LvTongTransportDept.utils.UploadUtils.ModelSignTools;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import javax.imageio.IIOImage;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageOutputStream;
+import javax.net.ssl.HttpsURLConnection;
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.io.*;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.security.MessageDigest;
+import java.util.*;
+import java.util.List;
+import java.util.zip.GZIPOutputStream;
+
+/**
+ * 交通局上报服务
+ *
+ * 【职责】
+ * 1. 查询并转换查验记录为交通局 JSON DTO
+ * 2. 图片压缩（缩放+JPEG压缩）+ Base64 编码（减小体积避免 OOM）
+ * 3. 流式写入 JSON + GZIP 压缩后发送到 HTTPS（避免内存 OOM）
+ * 4. 解析响应并更新报送状态
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class TransportDeptUploadServiceImpl implements TransportDeptUploadService {
+
+    private final VehicleInspectionMapper mapper;
+    private final TransportDeptConverter converter;
+    private final TransportDeptProperties props;
+
+    private static final String UPLOAD_PATH = "/api/v1/checkResult/upload";
+    /** 图片最大宽度（像素），超过则等比缩放 */
+    private static final int MAX_IMAGE_WIDTH = 1280;
+    /** JPEG 压缩质量 0.6 */
+    private static final float COMPRESS_QUALITY = 0.6f;
+
+    // ================================================================
+    // 对外接口
+    // ================================================================
+
+    @Override
+    @Transactional
+    public Map<String, Object> uploadSingle(Integer id) {
+        VehicleInspection record = mapper.selectById(id);
+        if (record == null) {
+            return Map.of("success", false, "code", -1, "msg", "查验记录不存在");
+        }
+        return uploadOne(record);
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> uploadBatch(List<Integer> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Map.of("success", false, "code", -1, "msg", "请选择要上报的记录");
+        }
+
+        int success = 0, fail = 0;
+        List<Map<String, Object>> details = new ArrayList<>();
+
+        for (Integer id : ids) {
+            Map<String, Object> r = uploadSingle(id);
+            if (Boolean.TRUE.equals(r.get("success"))) {
+                success++;
+            } else {
+                fail++;
+            }
+            details.add(Map.of("id", id, "msg", r.get("msg")));
+        }
+
+        return Map.of(
+                "success", fail == 0,
+                "total", ids.size(),
+                "successCount", success,
+                "failCount", fail,
+                "details", details
+        );
+    }
+
+    // ================================================================
+    // 单条上报流程
+    // ================================================================
+
+    private Map<String, Object> uploadOne(VehicleInspection record) {
+        try {
+            // 1. 转换 DTO
+            TransportDeptCheckResultDto dto = converter.toDto(record);
+
+            // 2. 图片压缩 + Base64 编码（减小体积）
+            encodeImages(dto);
+
+            // 3. 流式发送 + GZIP 压缩（避免 OOM）
+            String response = doPostGzip(dto);
+
+            // 4. 解析响应并更新状态
+            return parseAndUpdate(record.getId(), response);
+
+        } catch (BusinessException e) {
+            log.error("上报业务异常, id={}: {}", record.getId(), e.getMessage());
+            updateUploadState(record.getId(), -1, e.getMessage());
+            return Map.of("success", false, "code", -1, "msg", e.getMessage());
+        } catch (Exception e) {
+            log.error("上报查验记录异常, id={}", record.getId(), e);
+            updateUploadState(record.getId(), -1, e.getMessage());
+            return Map.of("success", false, "code", -1, "msg", e.getMessage());
+        }
+    }
+
+    // ================================================================
+    // 图片压缩 + Base64 编码
+    // ================================================================
+
+    private void encodeImages(TransportDeptCheckResultDto dto) {
+        List<TransportDeptCheckResultDto.PhotoItem> photos = dto.getPhotos();
+        if (photos == null) return;
+        for (TransportDeptCheckResultDto.PhotoItem photo : photos) {
+            if (!StringUtils.hasText(photo.getContent())) continue;
+            byte[] compressed = compressImage(photo.getContent());
+            if (compressed != null) {
+                photo.setContent(Base64.getEncoder().encodeToString(compressed));
+            } else {
+                photo.setContent("");
+            }
+        }
+    }
+
+    /**
+     * 图片压缩：
+     * 1. 校验路径有效性（必须是绝对路径，以盘符或/开头）
+     * 2. 宽度超过 MAX_IMAGE_WIDTH 时等比缩放
+     * 3. JPEG 压缩（质量 COMPRESS_QUALITY）
+     * 4. 返回压缩后字节数组
+     */
+    private byte[] compressImage(String path) {
+        if (!StringUtils.hasText(path)) return null;
+
+        String normalized = path.replace("\\", "/");
+        // 必须是绝对路径：以盘符 D:/ 开头，或以 / 开头（Linux/Unix）
+        if (!normalized.matches("^[A-Za-z]:/.*") && !normalized.startsWith("/")) {
+            log.warn("无效的图片路径（非绝对路径，已跳过）: {}", path);
+            return null;
+        }
+
+        Path p = Paths.get(normalized);
+        if (!Files.exists(p) || !Files.isRegularFile(p)) {
+            log.warn("图片文件不存在: {}", path);
+            return null;
+        }
+
+        try (InputStream fis = Files.newInputStream(p)) {
+            BufferedImage original = ImageIO.read(fis);
+            if (original == null) {
+                log.warn("无法解析图片格式: {}", path);
+                return null;
+            }
+
+            int origW = original.getWidth();
+            int origH = original.getHeight();
+
+            // 计算缩放目标
+            int targetW = origW;
+            int targetH = origH;
+            if (origW > MAX_IMAGE_WIDTH) {
+                double ratio = (double) MAX_IMAGE_WIDTH / origW;
+                targetW = MAX_IMAGE_WIDTH;
+                targetH = (int) (origH * ratio);
+            }
+
+            BufferedImage resized = original;
+            if (targetW != origW || targetH != origH) {
+                resized = new BufferedImage(targetW, targetH, BufferedImage.TYPE_INT_RGB);
+                Graphics2D g = resized.createGraphics();
+                g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                g.drawImage(original, 0, 0, targetW, targetH, null);
+                g.dispose();
+            }
+
+            // JPEG 压缩输出
+            ByteArrayOutputStream baos = new ByteArrayOutputStream(512 * 1024);
+            ImageOutputStream ios = ImageIO.createImageOutputStream(baos);
+            try {
+                Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName("jpeg");
+                if (!writers.hasNext()) return null;
+                ImageWriter writer = writers.next();
+                ImageWriteParam param = writer.getDefaultWriteParam();
+                param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+                param.setCompressionQuality(COMPRESS_QUALITY);
+                writer.setOutput(ios);
+                writer.write(null, new IIOImage(resized, null, null), param);
+                writer.dispose();
+            } finally {
+                ios.close();
+            }
+            return baos.toByteArray();
+
+        } catch (Exception e) {
+            log.error("图片压缩失败: {}", path, e);
+            return null;
+        }
+    }
+
+    // ================================================================
+    // 流式写入 JSON + GZIP 压缩发送
+    // ================================================================
+
+    /**
+     * 1. 将 DTO 序列化为 JSON 字节数组
+     * 2. GZIP 压缩（Base64+JSON 压缩率极高，节省流量）
+     * 3. 通过 HTTPS 发送
+     *
+     * 内存中只保留一份 JSON 字节数组，大小约等于原始 Base64 总量，
+     * 配合图片压缩后总大小可控。
+     */
+    private String doPostGzip(TransportDeptCheckResultDto dto) throws Exception {
+        String url = props.getHttpsUrl() + UPLOAD_PATH;
+
+        // 序列化为 JSON 字节（占用内存约等于 Base64 总量，配合压缩大幅降低）
+        byte[] jsonBytes = JSON.toJSONBytes(dto);
+
+        // 生成签名（用原始 JSON 内容）
+        String jsonStr = new String(jsonBytes, StandardCharsets.UTF_8);
+        String signContent = ModelSignTools.generateSignContent(jsonStr, "photos");
+
+        HttpsURLConnection conn = (HttpsURLConnection) new URL(url).openConnection();
+        try {
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
+            conn.setRequestProperty("Accept", "application/json");
+            conn.setRequestProperty("User-Agent", "LvTongTransportDept/1.0");
+            conn.setConnectTimeout(30_000);
+            conn.setReadTimeout(300_000);
+            conn.setDoOutput(true);
+
+            String auth = props.getClientId() + "_" + props.getClientKey();
+            String nonce = System.currentTimeMillis() + "_" +
+                    UUID.randomUUID().toString().substring(0, 8);
+            conn.setRequestProperty("auth", props.getClientId());
+            conn.setRequestProperty("nonce", nonce);
+            conn.setRequestProperty("sign", buildSign(auth, nonce, signContent));
+
+            // 直接写入 JSON 字节（不再经过大字符串拼接）
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(jsonBytes);
+                os.flush();
+            }
+
+            int code = conn.getResponseCode();
+            log.info("交通局 API 响应码: {}", code);
+
+            try (BufferedReader br = new BufferedReader(
+                    new InputStreamReader(
+                            code == 200 ? conn.getInputStream() : conn.getErrorStream(),
+                            StandardCharsets.UTF_8))) {
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                return sb.toString();
+            }
+        } finally {
+            conn.disconnect();
+        }
+    }
+
+    // ================================================================
+    // 签名 & HTTPS 辅助
+    // ================================================================
+
+    private String buildSign(String auth, String nonce, String signContent) throws Exception {
+        String content = signContent + "&auth=" + auth + "&nonce=" + nonce;
+        MessageDigest md = MessageDigest.getInstance("MD5");
+        byte[] digest = md.digest(content.getBytes(StandardCharsets.UTF_8));
+        StringBuilder hex = new StringBuilder();
+        for (byte b : digest) hex.append(String.format("%02X", b & 0xff));
+        return Base64.getEncoder().encodeToString(hex.toString().getBytes(StandardCharsets.UTF_8)).toUpperCase();
+    }
+
+    // ================================================================
+    // 响应解析 & 状态更新
+    // ================================================================
+
+    private Map<String, Object> parseAndUpdate(Integer id, String response) {
+        int code = -1;
+        String msg = "未知错误";
+        try {
+            JSONObject json = JSON.parseObject(response);
+            code = json.getIntValue("code");
+            msg = json.getString("msg");
+        } catch (Exception e) {
+            msg = response;
+            log.warn("响应无法解析为 JSON: {}", response);
+        }
+        updateUploadState(id, code == 200 ? 1 : -1, msg);
+        log.info("上报结果 id={}, code={}, msg={}", id, code, msg);
+        return Map.of("success", code == 200, "code", code, "msg", msg);
+    }
+
+    private void updateUploadState(Integer id, int state, String comment) {
+        mapper.update(null,
+                new LambdaUpdateWrapper<VehicleInspection>()
+                        .set(VehicleInspection::getToTransportdeptState, state)
+                        .set(VehicleInspection::getToTransportdeptTime, java.time.LocalDateTime.now())
+                        .set(VehicleInspection::getToTransportdeptComment, comment)
+                        .eq(VehicleInspection::getId, id)
+        );
+    }
+}
