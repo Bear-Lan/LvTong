@@ -165,6 +165,21 @@ export function getProductList() {
   })
 }
 
+/**
+ * 获取不合格类型选项列表（用于下拉选择）
+ *
+ * 【适用场景】
+ * InspectionEdit.vue 不合格类型下拉框加载选项时调用。
+ *
+ * @returns {Promise} 选项列表 [{ value: 11, label: '车货总质量超限' }, ...]
+ */
+export function getNopassTypeOptions() {
+  return request({
+    url: '/inspection/nopass-types',
+    method: 'get'
+  })
+}
+
 // ================================================================
 // Dashboard 统计接口
 // ================================================================

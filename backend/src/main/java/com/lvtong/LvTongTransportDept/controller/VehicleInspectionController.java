@@ -155,6 +155,17 @@ public class VehicleInspectionController {
     }
 
     /**
+     * 获取不合格类型选项列表（用于下拉选择）
+     * 返回所有不合格类型映射，前端直接渲染下拉选项
+     */
+    @GetMapping("/nopass-types")
+    @Operation(summary = "获取不合格类型选项", description = "返回所有不合格类型映射，用于下拉选择")
+    public ApiResponse<List<Map<String, Object>>> getNopassTypes() {
+        List<Map<String, Object>> options = VehicleConstants.getNopassTypeOptions();
+        return ApiResponse.success(options);
+    }
+
+    /**
      * 根据 ID 查询单条查验记录
      */
     @GetMapping("/{id}")

@@ -153,10 +153,13 @@
         class="data-table"
         :header-cell-style="{ background: '#f5f7fa', color: '#606266', fontWeight: '600', fontSize: '14px' }"
       >
-        <!-- 车牌号码：显示车牌+颜色标签 -->
-        <el-table-column label="车牌号码" width="180" align="center">
+        <!-- 车牌号码：显示车牌+颜色背景 -->
+        <el-table-column label="车牌号码" width="200" align="center">
           <template #default="{ row }">
-            <div class="plate-cell">
+            <div
+              class="plate-cell"
+              :style="{ background: getPlateColor(row.passcodeVehicleColorName) }"
+            >
               <el-radio
                 v-model="selectedRadio"
                 :value="row.id"
@@ -164,9 +167,7 @@
                 @click.stop
               />
               <span class="plate-num">{{ row.plateNumber }}</span>
-              <el-tag v-if="row.plateNumberGc" size="small" class="plate-color-tag">
-                {{ row.plateNumberGc }}
-              </el-tag>
+              <span v-if="row.plateNumberGc" class="trailer-num">(挂车号码：{{ row.plateNumberGc }})</span>
             </div>
           </template>
         </el-table-column>
@@ -649,6 +650,27 @@ const getResultTagType = (status) => {
 }
 
 /**
+ * getPlateColor：根据通行颜色返回车牌背景色
+ * 0-蓝色，1-黄色，2-黑色，3-白色，4-渐变绿色，5-黄绿双拼色，
+ * 6-蓝白渐变色，7-临时牌照（灰色），11-绿色，12-红色
+ */
+const getPlateColor = (colorName) => {
+  const colorMap = {
+    '0': '#1e56a8',   // 蓝色
+    '1': '#f5b829',   // 黄色
+    '2': '#303133',   // 黑色
+    '3': '#ffffff',   // 白色
+    '4': 'linear-gradient(135deg, #67c23a, #2d8a3e)',  // 渐变绿色
+    '5': 'linear-gradient(135deg, #f5b829, #67c23a)',   // 黄绿双拼色
+    '6': 'linear-gradient(135deg, #1e56a8, #ffffff)',  // 蓝白渐变色
+    '7': '#909399',   // 临时牌照灰色
+    '11': '#67c23a',  // 绿色
+    '12': '#e6a23c',  // 红色
+  }
+  return colorMap[colorName] || '#f5f7fa'
+}
+
+/**
  * getLoadRateClass：根据满载率返回样式类名
  * ≥80% → load-high（绿色，深绿色），表示绿通合格
  * ≥60% → load-mid（橙色），需要注意
@@ -789,12 +811,16 @@ onMounted(async () => {
 
 /* ========== 单元格内容样式 ========== */
 
-/* 车牌单元格：居中 + 间距 */
+/* 车牌单元格：居中 + 间距 + 圆角背景 */
 .plate-cell {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  width: fit-content;
+  margin: 0 auto;
 }
 
 .plate-cell :deep(.el-radio) {
@@ -811,6 +837,13 @@ onMounted(async () => {
   font-family: 'Consolas', 'Monaco', monospace;
   letter-spacing: 1px;
   font-size: 13px;
+}
+
+/* 挂车号码 */
+.trailer-num {
+  font-size: 11px;
+  color: #909399;
+  white-space: nowrap;
 }
 
 .plate-color-tag {

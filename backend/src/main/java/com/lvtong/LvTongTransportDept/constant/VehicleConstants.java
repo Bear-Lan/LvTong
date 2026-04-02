@@ -1,5 +1,8 @@
 package com.lvtong.LvTongTransportDept.constant;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  * 车辆查验业务常量类
  *
@@ -403,5 +406,39 @@ public class VehicleConstants {
             // ---- 兜底 ----
             default: return type; // 未知类型时原样返回编号，便于人工核对
         }
+    }
+
+    /**
+     * 获取所有不合格类型的映射列表（用于前端下拉选项）
+     * @return List<Map> 每个元素包含 value 和 label
+     */
+    public static List<Map<String, Object>> getNopassTypeOptions() {
+        List<Map<String, Object>> options = new java.util.ArrayList<>();
+        // 绿通类
+        options.add(Map.of("value", 11, "label", "车货总质量超限"));
+        options.add(Map.of("value", 12, "label", "外廓尺寸超限"));
+        options.add(Map.of("value", 13, "label", "货物非《目录》内"));
+        options.add(Map.of("value", 14, "label", "货物属深加工产品"));
+        options.add(Map.of("value", 15, "label", "货物冷冻发硬、腐烂、变质"));
+        options.add(Map.of("value", 18, "label", "未达核定载质量和车厢容积80%以上"));
+        options.add(Map.of("value", 19, "label", "混装非鲜活农产品"));
+        options.add(Map.of("value", 20, "label", "混装《目录》外鲜活农产品超20%"));
+        options.add(Map.of("value", 21, "label", "假冒绿通"));
+        options.add(Map.of("value", 22, "label", "未提供行驶证原件"));
+        options.add(Map.of("value", 23, "label", "提供的电子证件无法核定载质量"));
+        options.add(Map.of("value", 24, "label", "行驶证过期"));
+        options.add(Map.of("value", 25, "label", "行驶证标注仅可运送不可拆解物体"));
+        options.add(Map.of("value", 26, "label", "动物检疫合格证明问题"));
+        // 收割机类
+        options.add(Map.of("value", 31, "label", "《作业证》无效"));
+        options.add(Map.of("value", 33, "label", "车货总质量超限"));
+        options.add(Map.of("value", 34, "label", "外廓尺寸超限"));
+        options.add(Map.of("value", 35, "label", "收割机未悬挂正式号牌"));
+        options.add(Map.of("value", 38, "label", "混装其他物品"));
+        options.add(Map.of("value", 39, "label", "无《作业证》"));
+        options.add(Map.of("value", 40, "label", "未提供行驶证原件"));
+        options.add(Map.of("value", 41, "label", "提供的电子证件无法核定载质量"));
+        options.add(Map.of("value", 42, "label", "行驶证过期"));
+        return options;
     }
 }

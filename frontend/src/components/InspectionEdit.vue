@@ -8,7 +8,7 @@
   <el-dialog
     v-model="visible"
     :title="isEdit ? '编辑查验记录' : '新增查验记录'"
-    width="800px"
+    width="1200px"
     destroy-on-close
     class="inspection-edit-dialog"
   >
@@ -166,16 +166,12 @@
           <el-col :span="8">
             <el-form-item label="不合格类型" prop="nopassType">
               <el-select v-model="form.nopassType" placeholder="合格则不填" clearable style="width: 100%;">
-                <el-option label="车货总质量超限" :value="11" />
-                <el-option label="外廓尺寸超限" :value="12" />
-                <el-option label="货物非《目录》内" :value="13" />
-                <el-option label="货物属深加工产品" :value="14" />
-                <el-option label="货物冷冻发硬/腐烂/变质" :value="15" />
-                <el-option label="未达80%装载" :value="18" />
-                <el-option label="混装非鲜活农产品" :value="19" />
-                <el-option label="假冒绿通" :value="21" />
-                <el-option label="未提供行驶证原件" :value="22" />
-                <el-option label="行驶证过期" :value="24" />
+                <el-option
+                  v-for="opt in nopassTypeOptions"
+                  :key="opt.value"
+                  :label="opt.label"
+                  :value="opt.value"
+                />
               </el-select>
             </el-form-item>
           </el-col>
@@ -262,9 +258,16 @@
           <el-col :span="8">
             <el-form-item label="通行颜色" prop="passcodeVehicleColorName">
               <el-select v-model="form.passcodeVehicleColorName" placeholder="请选择" clearable :disabled="isEdit" style="width: 100%;">
-                <el-option label="绿通" value="1" />
-                <el-option label="非绿通" value="2" />
-                <el-option label="ETC" value="3" />
+                <el-option label="蓝色" value="0" />
+                <el-option label="黄色" value="1" />
+                <el-option label="黑色" value="2" />
+                <el-option label="白色" value="3" />
+                <el-option label="渐变绿色" value="4" />
+                <el-option label="黄绿双拼色" value="5" />
+                <el-option label="蓝白渐变色" value="6" />
+                <el-option label="临时牌照(灰色)" value="7" />
+                <el-option label="绿色" value="11" />
+                <el-option label="红色" value="12" />
               </el-select>
             </el-form-item>
           </el-col>
@@ -441,7 +444,7 @@
     <el-dialog
       v-model="goodsDialogVisible"
       title="选择货物类型"
-      width="820px"
+      width="1000px"
       destroy-on-close
       class="goods-dialog"
     >
@@ -579,7 +582,7 @@
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, Picture, Delete, Close } from '@element-plus/icons-vue'
-import { createInspection, updateInspection, getProductList } from '@/api/vehicleInspection'
+import { createInspection, updateInspection, getProductList, getNopassTypeOptions } from '@/api/vehicleInspection'
 import { getUserPhoneList } from '@/api/user'
 import { uploadImage } from '@/api/upload'
 
@@ -676,6 +679,9 @@ const allCategories = ref([])
 
 /** 核验员列表（从接口动态获取） */
 const reviewers = ref([])
+
+/** 不合格类型选项（从接口动态获取） */
+const nopassTypeOptions = ref([])
 
 // ================================================================
 // 图片上传
@@ -799,6 +805,21 @@ const loadReviewers = async () => {
     }
   } catch {
     // 核验员加载失败不影响查验记录操作
+  }
+}
+
+/**
+ * loadNopassTypes：加载不合格类型选项
+ * 从后端获取映射好的选项列表，用于下拉选择
+ */
+const loadNopassTypes = async () => {
+  try {
+    const res = await getNopassTypeOptions()
+    if (res.code === 200) {
+      nopassTypeOptions.value = res.data || []
+    }
+  } catch {
+    ElMessage.error('不合格类型加载失败')
   }
 }
 
@@ -1023,7 +1044,13 @@ watch(() => props.row, (row) => {
     Object.keys(form).forEach(key => {
       // 仅处理 row 中有值的字段
       if (row[key] !== undefined && row[key] !== null) {
-        form[key] = row[key]
+        // 数字类型字段需要转换（后端返回的可能是字符串）
+        const numFields = ['loadRate', 'passcodeFee', 'passcodePayFee']
+        if (numFields.includes(key) && typeof row[key] === 'string') {
+          form[key] = row[key] === '' ? null : Number(row[key])
+        } else {
+          form[key] = row[key]
+        }
       }
     })
     // 同步 goodsType 到已选品种数组
@@ -1128,6 +1155,7 @@ const handleSubmit = async () => {
 onMounted(() => {
   loadProducts()
   loadReviewers()
+  loadNopassTypes()
 })
 </script>
 
@@ -1270,9 +1298,9 @@ onMounted(() => {
 
 .variety-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(5, 1fr);
   gap: 10px;
-  max-height: 360px;
+  max-height: 480px;
   overflow-y: auto;
   padding: 4px;
 }
