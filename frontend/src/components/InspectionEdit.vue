@@ -207,6 +207,12 @@
               </el-select>
             </el-form-item>
           </el-col>
+          <!-- 班组（手动填写） -->
+          <el-col :span="8">
+            <el-form-item label="班组" prop="groupId">
+              <el-input v-model="form.groupId" placeholder="请输入班组" clearable style="width: 100%;" />
+            </el-form-item>
+          </el-col>
           <!-- 查验时间（编辑时只读） -->
           <el-col :span="8">
             <el-form-item label="查验时间" prop="inspectionTime">
@@ -508,8 +514,13 @@
             <div class="card-name">{{ v.varietyName }}</div>
             <div v-if="getAliasesText(v.aliases)" class="card-aliases">{{ getAliasesText(v.aliases) }}</div>
           </div>
-          <div class="card-icon">
-            <img v-if="getVarietyImage(v.varietyName)" :src="getVarietyImage(v.varietyName)" class="variety-img" />
+          <div class="card-icon-wrapper">
+            <img
+              v-if="getVarietyImage(v.varietyName)"
+              :src="getVarietyImage(v.varietyName)"
+              :alt="v.varietyName"
+              class="variety-img"
+            />
             <el-icon v-else size="20" color="#c0c4cc"><Picture /></el-icon>
           </div>
         </div>
@@ -571,6 +582,29 @@ import { Plus, Picture, Delete, Close } from '@element-plus/icons-vue'
 import { createInspection, updateInspection, getProductList } from '@/api/vehicleInspection'
 import { getUserPhoneList } from '@/api/user'
 import { uploadImage } from '@/api/upload'
+
+// 批量导入品种图片
+const varietyImages = import.meta.glob('@/assets/variety_img/*.png', { eager: true })
+
+/**
+ * 根据品种名称获取对应的图片
+ * @param {string} varietyName - 品种名称
+ * @returns {string|null} 图片 URL 或 null
+ */
+const getVarietyImage = (varietyName) => {
+  if (!varietyName) return null
+  // 直接匹配：图片名称 = 品种名称
+  let imagePath = varietyImages[`/src/assets/variety_img/${varietyName}.png`]?.default
+  if (imagePath) return imagePath
+  // 模糊匹配：尝试匹配图片名称包含品种名称的情况
+  for (const path in varietyImages) {
+    const fileName = path.split('/').pop().replace('.png', '')
+    if (fileName.includes(varietyName) || varietyName.includes(fileName)) {
+      return varietyImages[path].default
+    }
+  }
+  return null
+}
 
 // ================================================================
 // Props & Emits
@@ -818,32 +852,6 @@ const getVarietyName = (code) => {
 }
 
 /**
- * 根据 varietyName 获取本地图片路径
- */
-const getVarietyImage = (varietyName) => {
-  if (!varietyName) return ''
-  // 模糊匹配：检查图片名是否包含在 varietyName 中，或 varietyName 是否包含图片名
-  // 例如：varietyName="木耳（不含干木耳）" 可以匹配图片"木耳"
-  // 例如：varietyName="大白菜" 可以匹配图片"大白菜"
-
-  // 直接匹配
-  let imgName = varietyName + '.png'
-  try {
-    return new URL(`../../assets/variety_img/${imgName}`, import.meta.url).href
-  } catch {}
-
-  // 模糊匹配：去掉 varietyName 中的特殊字符后匹配
-  const cleanName = varietyName.replace(/[（）()\s不含]/g, '')
-  imgName = cleanName + '.png'
-  try {
-    return new URL(`../../assets/variety_img/${imgName}`, import.meta.url).href
-  } catch {}
-
-  // 如果还是匹配不到，返回空（显示默认图标）
-  return ''
-}
-
-/**
  * 解析 aliases JSON 字符串，返回逗号分隔的别名文字
  */
 const getAliasesText = (aliasesJson) => {
@@ -882,6 +890,7 @@ const form = reactive({
   nopassType: null,    // 仅 resultStatus=2 时填写
   operatorName: '',
   inspectionTime: '',
+  groupId: '',
   reviewerPhone: '',
   // 通行码信息
   passcodeVehicleColorName: '',
@@ -958,6 +967,7 @@ const resetForm = () => {
     nopassType: null,
     operatorName: '',
     inspectionTime: '',
+    groupId: '',
     reviewerPhone: '',
     passcodeVehicleColorName: '',
     passcodeTransPayType: '',
@@ -1315,7 +1325,7 @@ onMounted(() => {
   min-width: 0;
 }
 
-.card-icon {
+.card-icon-wrapper {
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -1323,11 +1333,12 @@ onMounted(() => {
   width: 36px;
   height: 36px;
   border-radius: 6px;
+  background: #f5f7fa;
   margin-left: 8px;
   overflow: hidden;
 }
 
-.card-icon .variety-img {
+.variety-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
