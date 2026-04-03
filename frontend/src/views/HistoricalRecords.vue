@@ -263,16 +263,13 @@
           </template>
         </el-table-column>
 
-        <!-- 操作列：固定在右侧，查看/编辑/删除 -->
-        <el-table-column label="操作" width="180" fixed="right" align="center">
+        <!-- 操作列：固定在右侧，查看/删除 -->
+        <el-table-column label="操作" width="120" fixed="right" align="center">
           <template #default="{ row }">
             <div class="action-btns">
               <!-- .stop 阻止冒泡，避免触发行的 @row-click -->
               <el-button link type="primary" size="small" @click.stop="handleView(row)">
                 <el-icon><View /></el-icon> 详情
-              </el-button>
-              <el-button link type="primary" size="small" @click.stop="handleEdit(row)">
-                <el-icon><Edit /></el-icon> 编辑
               </el-button>
             </div>
           </template>
@@ -295,20 +292,12 @@
       </div>
     </el-card>
 
-    <!-- ========== 详情弹窗 ========== -->
-    <!-- 详情弹窗通过 v-model 控制显示，row 传入当前选中行的完整数据 -->
+    <!-- ========== 详情弹窗（可编辑） ========== -->
+    <!-- 点击详情直接进入编辑模式 -->
     <InspectionDetail
       v-model="detailVisible"
       :row="currentRow"
-      @refresh="loadData"
-    />
-
-    <!-- ========== 编辑/新增弹窗 ========== -->
-    <!-- isEdit 区分模式，row 传入当前选中行（新增时为空对象） -->
-    <InspectionEdit
-      v-model="editVisible"
-      :row="currentRow"
-      :is-edit="isEdit"
+      :editable="true"
       @refresh="loadData"
     />
   </div>
@@ -324,7 +313,7 @@
  *
  * 【子组件通信】
  * - InspectionDetail：详情弹窗，通过 currentRow 传入选中行数据
- * - InspectionEdit：新增/编辑弹窗，通过 isEdit 区分模式
+ * - InspectionDetail：详情弹窗（可编辑），通过 currentRow 传入选中行数据
  *
  * 【数据流】
  * 1. onMounted → loadData() → 请求列表 API → 更新 tableData
@@ -342,7 +331,6 @@ import { getUserPhoneList } from '@/api/user'
 import { uploadBatch } from '@/api/transportDept'
 import { useUserStore } from '@/stores/user'
 import InspectionDetail from '@/components/InspectionDetail.vue'
-import InspectionEdit from '@/components/InspectionEdit.vue'
 
 // ================================================================
 // 状态定义
@@ -365,12 +353,6 @@ const uploadLoading = ref(false)
 
 /** 详情弹窗显示状态 */
 const detailVisible = ref(false)
-
-/** 编辑弹窗显示状态 */
-const editVisible = ref(false)
-
-/** 详情弹窗时为 true；新增弹窗时为 false */
-const isEdit = ref(false)
 
 /** 日期范围选择器绑定的值，格式：[开始时间, 结束时间] */
 const dateRange = ref([])
@@ -612,16 +594,6 @@ const handlePageChange = () => {
 const handleView = (row) => {
   currentRow.value = { ...row }
   detailVisible.value = true
-}
-
-/**
- * handleEdit：编辑记录
- * 复制选中行数据，isEdit=true，打开编辑弹窗（编辑模式）。
- */
-const handleEdit = (row) => {
-  currentRow.value = { ...row }
-  isEdit.value = true
-  editVisible.value = true
 }
 
 // ================================================================

@@ -7,7 +7,7 @@
   -->
   <el-dialog
     v-model="visible"
-    title="查验详情"
+    :title="editable ? '编辑查验记录' : '查验详情'"
     width="95vw"
     destroy-on-close
     class="inspection-detail-dialog"
@@ -194,7 +194,12 @@
               <span class="data-label">出口交易编号</span>
               <span class="data-value mono">{{ row.passcodeTransactionId || '-' }}</span>
             </div>
-            <div class="data-row">
+            <!-- 备注内容：可编辑时显示输入框 -->
+            <div class="data-row" v-if="editable">
+              <span class="data-label">备注内容</span>
+              <el-input v-model="form.historyRecord" placeholder="历史查验记录备注" size="small" style="width: 100%;" />
+            </div>
+            <div class="data-row" v-else>
               <span class="data-label">备注内容</span>
               <span class="data-value">{{ row.historyRecord || '-' }}</span>
             </div>
@@ -202,19 +207,65 @@
 
           <!-- 第二列：车辆与货物信息 -->
           <div class="data-col">
-            <div class="data-row">
+            <!-- 货车类型：可编辑时显示下拉 -->
+            <div class="data-row" v-if="editable">
+              <span class="data-label">货车类型</span>
+              <el-select v-model="form.vehicleType" placeholder="请选择" clearable size="small" style="width: 100%;">
+                <el-option label="一型货车" value="11" />
+                <el-option label="二型货车" value="12" />
+                <el-option label="三型货车" value="13" />
+                <el-option label="四型货车" value="14" />
+                <el-option label="五型货车" value="15" />
+                <el-option label="六型货车" value="16" />
+              </el-select>
+            </div>
+            <div class="data-row" v-else>
               <span class="data-label">货车类型</span>
               <span class="data-value primary">{{ row.vehicleTypeText || '-' }}</span>
             </div>
-            <div class="data-row">
+            <!-- 货箱类型：可编辑时显示下拉 -->
+            <div class="data-row" v-if="editable">
+              <span class="data-label">货箱类型</span>
+              <el-select v-model="form.vehicleContainertype" placeholder="请选择" clearable size="small" style="width: 100%;">
+                <el-option label="罐式货车" value="1" />
+                <el-option label="敞篷货车（平板式）" value="2.1" />
+                <el-option label="敞篷货车（栅栏式）" value="2.2" />
+                <el-option label="普通货车(篷布包裹式)" value="3.1" />
+                <el-option label="厢式货车(封闭货车)" value="4.1" />
+                <el-option label="特殊结构货车(水箱式)" value="5.1" />
+              </el-select>
+            </div>
+            <div class="data-row" v-else>
               <span class="data-label">货箱类型</span>
               <span class="data-value">{{ row.vehicleContainerTypeText || '-' }}</span>
             </div>
-            <div class="data-row">
+            <!-- 满载率：可编辑时显示输入框 -->
+            <div class="data-row" v-if="editable">
+              <span class="data-label">满载率(%)</span>
+              <el-input-number v-model="form.loadRate" :min="0" :max="100" :precision="2" size="small" style="width: 100%;" placeholder="0-100" />
+            </div>
+            <div class="data-row" v-else>
               <span class="data-label">满载率(%)</span>
               <span class="data-value">{{ row.loadRate != null ? row.loadRate + '%' : '-' }}</span>
             </div>
-            <div class="data-row">
+            <!-- 货物名称：可编辑时显示选择品种 -->
+            <div class="data-row" v-if="editable">
+              <span class="data-label">货物名称</span>
+              <div class="goods-type-field">
+                <div class="selected-tags" v-if="selectedProducts.length > 0">
+                  <el-tag
+                    v-for="code in selectedProducts"
+                    :key="code"
+                    closable
+                    @close="removeProduct(code)"
+                  >{{ getVarietyName(code) }}</el-tag>
+                </div>
+                <el-button size="small" @click="openGoodsDialog">
+                  <el-icon><Plus /></el-icon> 选择品种
+                </el-button>
+              </div>
+            </div>
+            <div class="data-row" v-else>
               <span class="data-label">货物名称</span>
               <span class="data-value">{{ row.goodsTypeName || '-' }}</span>
             </div>
@@ -234,7 +285,12 @@
               <span class="data-label">应收金额(元)</span>
               <span class="data-value">{{ row.passcodePayFee || '-' }}</span>
             </div>
-            <div class="data-row">
+            <!-- 货车长宽高：可编辑时显示输入框 -->
+            <div class="data-row" v-if="editable">
+              <span class="data-label">货车长宽高</span>
+              <el-input v-model="form.vehicleSize" placeholder="如：18000×2500×4000" size="small" style="width: 100%;" />
+            </div>
+            <div class="data-row" v-else>
               <span class="data-label">货车长宽高</span>
               <span class="data-value mono">{{ formatVehicleSize(row.vehicleSize) }}</span>
             </div>
@@ -242,7 +298,12 @@
               <span class="data-label">通过省份个数</span>
               <span class="data-value">{{ row.passcodeProvinceCount || '-' }}</span>
             </div>
-            <div class="data-row">
+            <!-- 司机电话：可编辑时显示输入框 -->
+            <div class="data-row" v-if="editable">
+              <span class="data-label">司机电话</span>
+              <el-input v-model="form.driverPhone" placeholder="请输入手机号" size="small" style="width: 100%;" />
+            </div>
+            <div class="data-row" v-else>
               <span class="data-label">司机电话</span>
               <span class="data-value">{{ row.driverPhone || '-' }}</span>
             </div>
@@ -286,24 +347,68 @@
       <!-- 底部结论栏 -->
       <div class="result-bar">
         <div class="result-bar-main">
-          <el-tag :type="getResultTagType(row.resultStatus)" size="large" effect="dark" class="result-badge">
-            {{ row.resultStatusText || '-' }}
-          </el-tag>
+          <!-- 查验结果：可编辑时显示下拉 -->
+          <template v-if="editable">
+            <el-select v-model="form.resultStatus" size="large" style="width: 120px;">
+              <el-option label="待查验" :value="0" />
+              <el-option label="合格" :value="1" />
+              <el-option label="不合格" :value="2" />
+            </el-select>
+          </template>
+          <template v-else>
+            <el-tag :type="getResultTagType(row.resultStatus)" size="large" effect="dark" class="result-badge">
+              {{ row.resultStatusText || '-' }}
+            </el-tag>
+          </template>
         </div>
         <div class="result-bar-items">
-          <div class="result-item">
+          <!-- 查验员：可编辑时显示输入框 -->
+          <div class="result-item" v-if="editable">
+            <span class="result-label">查验员</span>
+            <el-input v-model="form.operatorName" placeholder="查验操作员姓名" size="small" style="width: 120px;" />
+          </div>
+          <div class="result-item" v-else>
             <span class="result-label">查验员</span>
             <span class="result-value">{{ row.operatorName || '-' }}</span>
           </div>
-          <div class="result-item">
+          <!-- 复核员：可编辑时显示下拉 -->
+          <div class="result-item" v-if="editable">
+            <span class="result-label">复核员</span>
+            <el-select v-model="form.reviewerPhone" placeholder="请选择核验员" clearable filterable size="small" style="width: 150px;">
+              <el-option
+                v-for="r in reviewers"
+                :key="r.phone"
+                :label="r.realName + ' ' + r.phone"
+                :value="r.phone"
+              />
+            </el-select>
+          </div>
+          <div class="result-item" v-else>
             <span class="result-label">复核员</span>
             <span class="result-value">{{ row.reviewerPhone || '-' }}</span>
           </div>
-          <div class="result-item">
+          <!-- 班组：可编辑时显示输入框 -->
+          <div class="result-item" v-if="editable">
             <span class="result-label">班组</span>
-            <span class="result-value">-</span>
+            <el-input v-model="form.groupId" placeholder="请输入班组" size="small" style="width: 100px;" />
           </div>
-          <div class="result-item" v-if="row.resultStatus === 2">
+          <div class="result-item" v-else>
+            <span class="result-label">班组</span>
+            <span class="result-value">{{ row.groupId || '-' }}</span>
+          </div>
+          <!-- 不合格类型：可编辑时显示下拉选择 -->
+          <div class="result-item" v-if="editable">
+            <span class="result-label">不合格类型</span>
+            <el-select v-model="form.nopassType" placeholder="合格则不填" clearable size="small" style="width: 200px;">
+              <el-option
+                v-for="opt in nopassTypeOptions"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+              />
+            </el-select>
+          </div>
+          <div class="result-item" v-else-if="row.resultStatus === 2">
             <span class="result-label">不合格类型</span>
             <span class="result-value danger">{{ row.nopassTypeText || row.nopassType || '-' }}</span>
           </div>
@@ -346,6 +451,113 @@
 
     </div><!-- /detail-body -->
 
+    <!-- 货物类型选择弹窗 -->
+    <el-dialog
+      v-model="goodsDialogVisible"
+      title="选择货物类型"
+      width="1000px"
+      destroy-on-close
+      class="goods-dialog"
+      append-to-body
+    >
+      <div class="goods-dialog-toolbar">
+        <el-select
+          v-model="filterProductType"
+          placeholder="按产品大类筛选"
+          clearable
+          size="default"
+          style="width: 180px;"
+        >
+          <el-option
+            v-for="pt in productTypeOptions"
+            :key="pt"
+            :label="pt"
+            :value="pt"
+          />
+        </el-select>
+        <el-select
+          v-model="filterCategory"
+          placeholder="按类别筛选"
+          clearable
+          size="default"
+          style="width: 180px;"
+          :disabled="!filterProductType"
+        >
+          <el-option
+            v-for="cat in categoryOptions"
+            :key="cat"
+            :label="cat"
+            :value="cat"
+          />
+        </el-select>
+        <el-input
+          v-model="filterVarietyName"
+          placeholder="搜索品种名称"
+          clearable
+          size="default"
+          style="flex: 1; min-width: 160px;"
+        />
+      </div>
+
+      <div v-if="tempSelected.length > 0" class="temp-selected">
+        <span class="temp-label">已选：</span>
+        <el-tag
+          v-for="code in tempSelected"
+          :key="code"
+          closable
+          type="success"
+          size="small"
+          @close="removeTemp(code)"
+        >{{ getVarietyName(code) }}</el-tag>
+      </div>
+
+      <div class="variety-card-grid">
+        <div
+          v-for="v in displayedVarieties"
+          :key="v.productCode"
+          class="variety-card"
+          :class="{ selected: tempSelected.includes(v.productCode) }"
+          @click="toggleTemp(v.productCode)"
+        >
+          <div class="card-left">
+            <div class="card-type">{{ v.productType }}</div>
+            <div class="card-name">{{ v.varietyName }}</div>
+            <div v-if="getAliasesText(v.aliases)" class="card-aliases">{{ getAliasesText(v.aliases) }}</div>
+          </div>
+          <div class="card-icon-wrapper">
+            <img
+              v-if="getVarietyImage(v.varietyName)"
+              :src="getVarietyImage(v.varietyName)"
+              :alt="v.varietyName"
+              class="variety-img"
+            />
+            <el-icon v-else size="20" color="#c0c4cc"><Picture /></el-icon>
+          </div>
+        </div>
+        <div v-if="displayedVarieties.length === 0" class="no-data">
+          暂无匹配的品种
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="dialog-footer-inner">
+          <span class="selected-count">已选 {{ tempSelected.length }} 个品种</span>
+          <div style="display: flex; gap: 10px;">
+            <el-button @click="goodsDialogVisible = false">取消</el-button>
+            <el-button type="primary" @click="confirmGoodsDialog">确定</el-button>
+          </div>
+        </div>
+      </template>
+    </el-dialog>
+
+    <!-- 底部按钮：编辑模式下显示保存按钮 -->
+    <template #footer v-if="editable">
+      <div class="dialog-footer">
+        <el-button @click="visible = false">取消</el-button>
+        <el-button type="primary" @click="handleSubmit" :loading="submitting">保存修改</el-button>
+      </div>
+    </template>
+
   </el-dialog>
 </template>
 
@@ -366,8 +578,11 @@
  * destroy-on-close 确保关闭弹窗时销毁 DOM，重开时状态干净。
  */
 
-import { computed } from 'vue'
-import { Picture, CircleCheck, WarningFilled, InfoFilled } from '@element-plus/icons-vue'
+import { computed, ref, reactive, watch, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
+import { Plus, Picture, CircleCheck, WarningFilled, InfoFilled } from '@element-plus/icons-vue'
+import { getProductList, getNopassTypeOptions, updateInspection } from '@/api/vehicleInspection'
+import { getUserPhoneList } from '@/api/user'
 
 // ================================================================
 // Props & Emits
@@ -376,10 +591,12 @@ import { Picture, CircleCheck, WarningFilled, InfoFilled } from '@element-plus/i
 /**
  * modelValue：控制弹窗显示（v-model）
  * row：当前选中行的完整数据对象（从 HistoricalRecords 传入）
+ * editable：是否为编辑模式（默认 false，展示模式）
  */
 const props = defineProps({
   modelValue: Boolean,
-  row: { type: Object, default: () => ({}) }
+  row: { type: Object, default: () => ({}) },
+  editable: { type: Boolean, default: false }
 })
 
 /**
@@ -477,6 +694,243 @@ const formatVehicleSize = (size) => {
   }
   return size
 }
+
+// ================================================================
+// 编辑模式相关
+// ================================================================
+
+/** 货物类型选中值（数组） */
+const selectedProducts = ref([])
+const goodsDialogVisible = ref(false)
+const tempSelected = ref([])
+const filterProductType = ref('')
+const filterCategory = ref('')
+const filterVarietyName = ref('')
+
+/** 不合格类型选项 */
+const nopassTypeOptions = ref([])
+
+/** 核验员列表 */
+const reviewers = ref([])
+
+/** 提交按钮 loading */
+const submitting = ref(false)
+
+/** 表单数据 */
+const form = reactive({
+  // 货物信息
+  goodsType: '',
+  loadRate: null,
+  vehicleSize: '',
+  // 查验信息
+  resultStatus: null,
+  nopassType: null,
+  operatorName: '',
+  reviewerPhone: '',
+  groupId: '',
+  // 备注
+  historyRecord: '',
+  // 车辆信息
+  vehicleType: '',
+  vehicleContainertype: '',
+  driverPhone: ''
+})
+
+/** 品种数据缓存 */
+let allVarieties = []
+const productTypeOptions = ref([])
+const allCategories = ref([])
+
+// 品种图片
+const varietyImages = import.meta.glob('@/assets/variety_img/*.png', { eager: true })
+
+const getVarietyImage = (varietyName) => {
+  if (!varietyName) return null
+  let imagePath = varietyImages[`/src/assets/variety_img/${varietyName}.png`]?.default
+  if (imagePath) return imagePath
+  for (const path in varietyImages) {
+    const fileName = path.split('/').pop().replace('.png', '')
+    if (fileName.includes(varietyName) || varietyName.includes(fileName)) {
+      return varietyImages[path].default
+    }
+  }
+  return null
+}
+
+const categoryOptions = computed(() => {
+  if (!filterProductType.value) return allCategories.value
+  return [...new Set(
+    allVarieties
+      .filter(v => v.productType === filterProductType.value)
+      .map(v => v.category)
+      .filter(c => c)
+  )].sort()
+})
+
+const displayedVarieties = computed(() => {
+  let list = allVarieties
+  if (filterProductType.value) {
+    list = list.filter(v => v.productType === filterProductType.value)
+  }
+  if (filterCategory.value) {
+    list = list.filter(v => v.category === filterCategory.value)
+  }
+  if (filterVarietyName.value.trim()) {
+    const kw = filterVarietyName.value.trim().toLowerCase()
+    list = list.filter(v => v.varietyName.toLowerCase().includes(kw))
+  }
+  return list
+})
+
+const getVarietyName = (code) => {
+  const v = allVarieties.find(v => v.productCode === code)
+  return v ? v.varietyName : code
+}
+
+const getAliasesText = (aliasesJson) => {
+  if (!aliasesJson) return ''
+  try {
+    const arr = JSON.parse(aliasesJson)
+    return Array.isArray(arr) ? arr.join('、') : ''
+  } catch {
+    return ''
+  }
+}
+
+const loadProducts = async () => {
+  try {
+    const res = await getProductList()
+    if (res.code === 200) {
+      allVarieties = res.data.varieties || []
+      productTypeOptions.value = res.data.productTypes || []
+      allCategories.value = res.data.categories || []
+    }
+  } catch {
+    ElMessage.error('货物类型加载失败')
+  }
+}
+
+const loadNopassTypes = async () => {
+  try {
+    const res = await getNopassTypeOptions()
+    if (res.code === 200) {
+      nopassTypeOptions.value = res.data || []
+    }
+  } catch {
+    ElMessage.error('不合格类型加载失败')
+  }
+}
+
+const loadReviewers = async () => {
+  try {
+    const res = await getUserPhoneList()
+    if (res.code === 200) {
+      reviewers.value = res.data || []
+    }
+  } catch {
+    // 核验员加载失败不影响查验记录操作
+  }
+}
+
+const openGoodsDialog = () => {
+  tempSelected.value = [...selectedProducts.value]
+  filterProductType.value = ''
+  filterCategory.value = ''
+  filterVarietyName.value = ''
+  goodsDialogVisible.value = true
+}
+
+const toggleTemp = (code) => {
+  const idx = tempSelected.value.indexOf(code)
+  if (idx >= 0) {
+    tempSelected.value.splice(idx, 1)
+  } else {
+    tempSelected.value.push(code)
+  }
+}
+
+const removeTemp = (code) => {
+  tempSelected.value = tempSelected.value.filter(c => c !== code)
+}
+
+const confirmGoodsDialog = () => {
+  selectedProducts.value = [...tempSelected.value]
+  goodsDialogVisible.value = false
+}
+
+const removeProduct = (code) => {
+  selectedProducts.value = selectedProducts.value.filter(c => c !== code)
+}
+
+const handleSubmit = async () => {
+  submitting.value = true
+  try {
+    const data = {}
+    // 货物类型
+    if (selectedProducts.value && selectedProducts.value.length > 0) {
+      data.goodsType = [...selectedProducts.value].join('|')
+    } else {
+      data.goodsType = ''
+    }
+    // 货物信息
+    data.loadRate = form.loadRate
+    data.vehicleSize = form.vehicleSize
+    // 查验信息
+    data.resultStatus = form.resultStatus
+    data.nopassType = form.nopassType
+    data.operatorName = form.operatorName
+    data.reviewerPhone = form.reviewerPhone
+    data.groupId = form.groupId
+    data.historyRecord = form.historyRecord
+    // 车辆信息
+    data.vehicleType = form.vehicleType
+    data.vehicleContainertype = form.vehicleContainertype
+    data.driverPhone = form.driverPhone
+
+    const res = await updateInspection(props.row.id, data)
+    if (res.code === 200) {
+      ElMessage.success('修改成功')
+      visible.value = false
+      emit('refresh')
+    } else {
+      ElMessage.error(res.message || '操作失败')
+    }
+  } catch {
+    ElMessage.error('操作失败，请重试')
+  } finally {
+    submitting.value = false
+  }
+}
+
+// 监听 row 变化，同步数据到表单
+watch(() => props.row, (row) => {
+  if (props.editable && row && row.id) {
+    // 货物类型
+    selectedProducts.value = row.goodsType
+      ? row.goodsType.split('|').map(c => c.trim()).filter(c => c)
+      : []
+    // 货物信息
+    form.loadRate = typeof row.loadRate === 'string' ? (row.loadRate === '' ? null : Number(row.loadRate)) : row.loadRate
+    form.vehicleSize = row.vehicleSize || ''
+    // 查验信息
+    form.resultStatus = row.resultStatus
+    form.nopassType = row.nopassType
+    form.operatorName = row.operatorName || ''
+    form.reviewerPhone = row.reviewerPhone || ''
+    form.groupId = row.groupId || ''
+    form.historyRecord = row.historyRecord || ''
+    // 车辆信息
+    form.vehicleType = row.vehicleType || ''
+    form.vehicleContainertype = row.vehicleContainerType || ''
+    form.driverPhone = row.driverPhone || ''
+  }
+}, { immediate: true })
+
+onMounted(() => {
+  loadProducts()
+  loadNopassTypes()
+  loadReviewers()
+})
 </script>
 
 <style scoped>
@@ -980,5 +1434,158 @@ const formatVehicleSize = (size) => {
   .conclusion-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* ========== 货物类型字段 ========== */
+.goods-type-field {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.selected-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex: 1;
+}
+
+/* ========== 货物类型弹窗 ========== */
+.goods-dialog :deep(.el-dialog__body) {
+  padding: 16px 20px 8px;
+}
+
+.goods-dialog-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.temp-selected {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px 12px;
+  background: #f0f9eb;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  max-height: 80px;
+  overflow-y: auto;
+}
+
+.temp-label {
+  font-size: 12px;
+  color: #67c23a;
+  font-weight: 600;
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+
+.variety-card-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  max-height: 480px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.variety-card {
+  border: 1px solid #e4e7ed;
+  border-radius: 6px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #fff;
+  display: flex;
+  align-items: center;
+}
+
+.variety-card:hover {
+  border-color: #409eff;
+  background: #ecf5ff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.15);
+}
+
+.variety-card.selected {
+  border-color: #67c23a;
+  background: #f0f9eb;
+  box-shadow: 0 2px 8px rgba(103, 194, 58, 0.2);
+}
+
+.card-type {
+  font-size: 11px;
+  color: #909399;
+  margin-bottom: 4px;
+}
+
+.card-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 2px;
+}
+
+.card-aliases {
+  font-size: 11px;
+  color: #a0a8b6;
+  line-height: 1.4;
+}
+
+.card-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.card-icon-wrapper {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  background: #f5f7fa;
+  margin-left: 8px;
+  overflow: hidden;
+}
+
+.variety-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.no-data {
+  grid-column: 1 / -1;
+  color: #c0c4cc;
+  font-size: 13px;
+  text-align: center;
+  padding: 40px 0;
+}
+
+.dialog-footer-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.selected-count {
+  font-size: 13px;
+  color: #909399;
+}
+
+/* ========== 底部按钮 ========== */
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 }
 </style>
