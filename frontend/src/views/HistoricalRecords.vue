@@ -526,10 +526,7 @@ const handleReset = () => {
 }
 
 /**
- * handleUpload：上报选中的查验记录到交通部平台
- * 1. 检查是否已选择记录
- * 2. 提取选中记录的 ID
- * 3. 调用批量上报接口
+ * handleUpload：打开图片编辑弹窗
  */
 const handleUpload = async () => {
   if (!selectedRadio.value) {

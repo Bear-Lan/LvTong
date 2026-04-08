@@ -25,13 +25,13 @@ export function uploadSingleWithExclude(id, excludePhotoTypes) {
 }
 
 /**
- * 批量上报查验记录到交通部平台
+ * 批量上报查验记录到交通部平台（暂未使用）
  * @param {number[]} ids - 查验记录 ID 数组
  */
-export function uploadBatch(ids) {
-  return request({
-    url: '/transport-dept/upload/batch',
-    method: 'post',
-    data: ids
-  })
-}
+// export function uploadBatch(ids) {
+//   return request({
+//     url: '/transport-dept/upload/batch',
+//     method: 'post',
+//     data: ids
+//   })
+// }
