@@ -55,7 +55,7 @@ public class TransportDeptUploadServiceImpl implements TransportDeptUploadServic
     private final TransportDeptConverter converter;
     private final TransportDeptProperties props;
 
-    private static final String UPLOAD_PATH = "/api/v1/checkResult/upload";
+    private static final String UPLOAD_PATH = "/greenpass/signapi/channel/uploadCheckResult";
     /** 图片最大宽度（像素），超过则等比缩放 */
     private static final int MAX_IMAGE_WIDTH = 1280;
     /** JPEG 压缩质量 0.6 */
@@ -68,11 +68,17 @@ public class TransportDeptUploadServiceImpl implements TransportDeptUploadServic
     @Override
     @Transactional
     public Map<String, Object> uploadSingle(Integer id) {
+        return uploadSingle(id, null);
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> uploadSingle(Integer id, List<String> excludePhotoTypes) {
         VehicleInspection record = mapper.selectById(id);
         if (record == null) {
             return Map.of("success", false, "code", -1, "msg", "查验记录不存在");
         }
-        return uploadOne(record);
+        return uploadOne(record, excludePhotoTypes);
     }
 
     @Override
@@ -108,18 +114,15 @@ public class TransportDeptUploadServiceImpl implements TransportDeptUploadServic
     // 单条上报流程
     // ================================================================
 
-    private Map<String, Object> uploadOne(VehicleInspection record) {
+    private Map<String, Object> uploadOne(VehicleInspection record, List<String> excludePhotoTypes) {
         try {
-            // 1. 转换 DTO
-            TransportDeptCheckResultDto dto = converter.toDto(record);
+            // 1. 转换 DTO（带排除图片类型）
+            TransportDeptCheckResultDto dto = converter.toDto(record, excludePhotoTypes);
 
-            // 2. 图片压缩 + Base64 编码（减小体积）
-            encodeImages(dto);
+            // 2. 按样例方式发送（不用压缩）
+            String response = doPost(dto);
 
-            // 3. 流式发送 + GZIP 压缩（避免 OOM）
-            String response = doPostGzip(dto);
-
-            // 4. 解析响应并更新状态
+            // 3. 解析响应并更新状态
             return parseAndUpdate(record.getId(), response);
 
         } catch (BusinessException e) {
@@ -134,140 +137,51 @@ public class TransportDeptUploadServiceImpl implements TransportDeptUploadServic
     }
 
     // ================================================================
-    // 图片压缩 + Base64 编码
-    // ================================================================
-
-    private void encodeImages(TransportDeptCheckResultDto dto) {
-        List<TransportDeptCheckResultDto.PhotoItem> photos = dto.getPhotos();
-        if (photos == null) return;
-        for (TransportDeptCheckResultDto.PhotoItem photo : photos) {
-            if (!StringUtils.hasText(photo.getContent())) continue;
-            byte[] compressed = compressImage(photo.getContent());
-            if (compressed != null) {
-                photo.setContent(Base64.getEncoder().encodeToString(compressed));
-            } else {
-                photo.setContent("");
-            }
-        }
-    }
-
-    /**
-     * 图片压缩：
-     * 1. 校验路径有效性（必须是绝对路径，以盘符或/开头）
-     * 2. 宽度超过 MAX_IMAGE_WIDTH 时等比缩放
-     * 3. JPEG 压缩（质量 COMPRESS_QUALITY）
-     * 4. 返回压缩后字节数组
-     */
-    private byte[] compressImage(String path) {
-        if (!StringUtils.hasText(path)) return null;
-
-        String normalized = path.replace("\\", "/");
-        // 必须是绝对路径：以盘符 D:/ 开头，或以 / 开头（Linux/Unix）
-        if (!normalized.matches("^[A-Za-z]:/.*") && !normalized.startsWith("/")) {
-            log.warn("无效的图片路径（非绝对路径，已跳过）: {}", path);
-            return null;
-        }
-
-        Path p = Paths.get(normalized);
-        if (!Files.exists(p) || !Files.isRegularFile(p)) {
-            log.warn("图片文件不存在: {}", path);
-            return null;
-        }
-
-        try (InputStream fis = Files.newInputStream(p)) {
-            BufferedImage original = ImageIO.read(fis);
-            if (original == null) {
-                log.warn("无法解析图片格式: {}", path);
-                return null;
-            }
-
-            int origW = original.getWidth();
-            int origH = original.getHeight();
-
-            // 计算缩放目标
-            int targetW = origW;
-            int targetH = origH;
-            if (origW > MAX_IMAGE_WIDTH) {
-                double ratio = (double) MAX_IMAGE_WIDTH / origW;
-                targetW = MAX_IMAGE_WIDTH;
-                targetH = (int) (origH * ratio);
-            }
-
-            BufferedImage resized = original;
-            if (targetW != origW || targetH != origH) {
-                resized = new BufferedImage(targetW, targetH, BufferedImage.TYPE_INT_RGB);
-                Graphics2D g = resized.createGraphics();
-                g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-                g.drawImage(original, 0, 0, targetW, targetH, null);
-                g.dispose();
-            }
-
-            // JPEG 压缩输出
-            ByteArrayOutputStream baos = new ByteArrayOutputStream(512 * 1024);
-            ImageOutputStream ios = ImageIO.createImageOutputStream(baos);
-            try {
-                Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName("jpeg");
-                if (!writers.hasNext()) return null;
-                ImageWriter writer = writers.next();
-                ImageWriteParam param = writer.getDefaultWriteParam();
-                param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-                param.setCompressionQuality(COMPRESS_QUALITY);
-                writer.setOutput(ios);
-                writer.write(null, new IIOImage(resized, null, null), param);
-                writer.dispose();
-            } finally {
-                ios.close();
-            }
-            return baos.toByteArray();
-
-        } catch (Exception e) {
-            log.error("图片压缩失败: {}", path, e);
-            return null;
-        }
-    }
-
-    // ================================================================
-    // 流式写入 JSON + GZIP 压缩发送
+    // 按样例方式发送（不用压缩）
     // ================================================================
 
     /**
-     * 1. 将 DTO 序列化为 JSON 字节数组
-     * 2. GZIP 压缩（Base64+JSON 压缩率极高，节省流量）
-     * 3. 通过 HTTPS 发送
-     *
-     * 内存中只保留一份 JSON 字节数组，大小约等于原始 Base64 总量，
-     * 配合图片压缩后总大小可控。
+     * 按样例方式上传：
+     * 1. DTO 直接序列化 JSON
+     * 2. 生成签名
+     * 3. HTTPS 发送
      */
-    private String doPostGzip(TransportDeptCheckResultDto dto) throws Exception {
+    private String doPost(TransportDeptCheckResultDto dto) throws Exception {
         String url = props.getHttpsUrl() + UPLOAD_PATH;
+        String jsonStr = JSON.toJSONString(dto);
 
-        // 序列化为 JSON 字节（占用内存约等于 Base64 总量，配合压缩大幅降低）
-        byte[] jsonBytes = JSON.toJSONBytes(dto);
+        // 生成签名
+        String signContent = ModelSignTools.generateSignContent(jsonStr);
 
-        // 生成签名（用原始 JSON 内容）
-        String jsonStr = new String(jsonBytes, StandardCharsets.UTF_8);
-        String signContent = ModelSignTools.generateSignContent(jsonStr, "photos");
+        log.info("待签名字符串: {}", signContent);
 
         HttpsURLConnection conn = (HttpsURLConnection) new URL(url).openConnection();
         try {
+            // 设置请求参数
             conn.setRequestMethod("POST");
-            conn.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
             conn.setRequestProperty("Accept", "application/json");
-            conn.setRequestProperty("User-Agent", "LvTongTransportDept/1.0");
-            conn.setConnectTimeout(30_000);
-            conn.setReadTimeout(300_000);
+            conn.setRequestProperty("User-Agent", "Java HTTPS Client");
+            conn.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
+
+            // 设置连接参数
+            conn.setConnectTimeout(30000);  // 30秒连接超时
+            conn.setReadTimeout(300000);    // 300秒读取超时
             conn.setDoOutput(true);
 
             String auth = props.getClientId() + "_" + props.getClientKey();
-            String nonce = System.currentTimeMillis() + "_" +
-                    UUID.randomUUID().toString().substring(0, 8);
+            // nonce 格式：yyyyMMddHHmmss_随机字符串（与样例一致）
+            String nonce = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
+                    + "_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+            String sign = buildSign(auth, nonce, signContent);
+
+            log.info("auth: {}, nonce: {}, sign: {}", auth, nonce, sign);
+
             conn.setRequestProperty("auth", props.getClientId());
             conn.setRequestProperty("nonce", nonce);
-            conn.setRequestProperty("sign", buildSign(auth, nonce, signContent));
+            conn.setRequestProperty("sign", sign);
 
-            // 直接写入 JSON 字节（不再经过大字符串拼接）
             try (OutputStream os = conn.getOutputStream()) {
-                os.write(jsonBytes);
+                os.write(jsonStr.getBytes(StandardCharsets.UTF_8));
                 os.flush();
             }
 
@@ -287,6 +201,8 @@ public class TransportDeptUploadServiceImpl implements TransportDeptUploadServic
             conn.disconnect();
         }
     }
+
+
 
     // ================================================================
     // 签名 & HTTPS 辅助
@@ -317,7 +233,6 @@ public class TransportDeptUploadServiceImpl implements TransportDeptUploadServic
             log.warn("响应无法解析为 JSON: {}", response);
         }
         updateUploadState(id, code == 200 ? 1 : -1, msg);
-        log.info("上报结果 id={}, code={}, msg={}", id, code, msg);
         return Map.of("success", code == 200, "code", code, "msg", msg);
     }
 
