@@ -2,7 +2,7 @@ package com.lvtong.LvTongTransportDept.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.lvtong.LvTongTransportDept.entity.UserEntity;
-import org.apache.ibatis.annotations.Mapper;
+
 
 /**
  * 用户 Mapper

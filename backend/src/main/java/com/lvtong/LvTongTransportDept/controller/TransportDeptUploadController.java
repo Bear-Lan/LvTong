@@ -35,6 +35,19 @@ public class TransportDeptUploadController {
         return ApiResponse.error((String) result.get("msg"));
     }
 
+    @Operation(summary = "上报单条查验记录（指定排除图片）", description = "上报时排除指定的图片")
+    @PostMapping("/upload/{id}/exclude")
+    public ApiResponse<Map<String, Object>> uploadSingleWithExclude(
+            @Parameter(description = "查验记录 ID") @PathVariable Integer id,
+            @Parameter(description = "排除的图片标识列表：证据链照片用typeId如11/12/13/99，货物照用goods_0/goods_1等下标")
+            @RequestBody List<String> excludeList) {
+        Map<String, Object> result = uploadService.uploadSingle(id, excludeList);
+        if (Boolean.TRUE.equals(result.get("success"))) {
+            return ApiResponse.success("上报成功", result);
+        }
+        return ApiResponse.error((String) result.get("msg"));
+    }
+
     @Operation(summary = "批量上报查验记录", description = "将多条查验记录批量上报至交通局平台")
     @PostMapping("/upload/batch")
     public ApiResponse<Map<String, Object>> uploadBatch(

@@ -16,7 +16,9 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * VehicleInspection → TransportDeptCheckResultDto 转换器
@@ -39,9 +41,19 @@ public class TransportDeptConverter {
      * 将查验记录转换为交通局上报 DTO
      */
     public TransportDeptCheckResultDto toDto(VehicleInspection r) {
+        return toDto(r, null);
+    }
+
+    /**
+     * 将查验记录转换为交通局上报 DTO（支持排除指定图片）
+     *
+     * @param r 查验记录
+     * @param excludePhotoTypes 要排除的图片类型ID列表，如 [11,12,13]
+     */
+    public TransportDeptCheckResultDto toDto(VehicleInspection r, List<String> excludePhotoTypes) {
         TransportDeptCheckResultDto dto = new TransportDeptCheckResultDto();
 
-        // checkId = 电话_yyyyMMddHHmmss_电话
+        // checkId = 电话yyyyMMddHHmmss_电话
         String phone = StringUtils.hasText(r.getDriverPhone()) ? r.getDriverPhone() : "";
         dto.setCheckId(phone + formatInspectTime(r.getInspectionTime()) + "_" + phone);
 
@@ -55,9 +67,10 @@ public class TransportDeptConverter {
         dto.setVehicleType(r.getVehicleType());
         dto.setCrateType(getOrDefault(r.getVehicleContainertype(), "3.1"));
         dto.setWeightCheckBasis("2");
+        dto.setEnWeight(parseIntOr(r.getPasscodeEnWeight(),0));
         dto.setExWeight(parseIntOr(r.getPasscodeExWeight(), 0));
-        dto.setLoadRate(parseDoubleOr(r.getLoadRate(), 0.0));
         dto.setVehicleSize(r.getVehicleSize());
+        dto.setLoadRate(parseDoubleOr(r.getLoadRate(), 0.0));
         dto.setCheckTime(r.getPasscodeExTime());
         dto.setEnStationId(r.getPasscodeEnStationId());
         dto.setExStationId(r.getPasscodeExStationId());
@@ -77,7 +90,7 @@ public class TransportDeptConverter {
         dto.setProvinceCount(parseIntOr(r.getPasscodeProvinceCount(), 1));
         dto.setMemo("");
         dto.setOperation(1);
-        dto.setPhotos(buildPhotos(r));
+        dto.setPhotos(buildPhotos(r, excludePhotoTypes));
 
         return dto;
     }
@@ -88,7 +101,7 @@ public class TransportDeptConverter {
 
     private String buildVehicleId(VehicleInspection r) {
         String plate = getOrDefault(r.getPlateNumber(), "");
-        String color = getOrDefault(r.getPlateNumberGc(), "0");
+        String color = getOrDefault(r.getPasscodeVehicleColorName(), "0");
         return plate + "_" + color;
     }
 
@@ -99,22 +112,23 @@ public class TransportDeptConverter {
 
     private int parseMediaType(String val) {
         if (val == null) return 9;
-        switch (val.trim()) {
-            case "1":    return 1;   // OBU
-            case "2":    return 2;   // CPC卡
-            case "3":    return 3;   // 纸券
-            case "4":    return 4;   // M1卡
-            case "0":    return 1;   // 0 也视为 OBU
-            case "OBU":  return 1;
-            case "CPU":  return 2;
-            case "PAPER":return 3;
-            default:     return 9;   // 无通行介质
-        }
+        return switch (val.trim()) {
+            case "1" -> 1;   // OBU
+            case "2" -> 2;   // CPC卡
+            case "3" -> 3;   // 纸券
+            case "4" -> 4;   // M1卡
+            case "0" -> 1;   // 0 也视为 OBU
+            case "OBU" -> 1;
+            case "CPU" -> 2;
+            case "PAPER" -> 3;
+            case "M1卡" -> 4;
+            default -> 9;   // 无通行介质
+        };
     }
 
     private int parseTransPayType(String val) {
         if (val == null) return 1;
-        if (val.contains("刷卡")) return 2;
+        if (val.contains("刷卡")||val.contains("2")) return 2;
         return 1;
     }
 
@@ -174,18 +188,67 @@ public class TransportDeptConverter {
      * 这样可以分离"数据结构定义"和"文件 I/O 操作"的职责。
      */
     public List<PhotoItem> buildPhotos(VehicleInspection r) {
+        return buildPhotos(r, null);
+    }
+
+    /**
+     * 构建照片列表（支持排除指定图片类型）
+     *
+     * @param r 查验记录
+     * @param excludeList 排除的图片标识列表：
+     *                    证据链照片用typeId如11/12/13/99，
+     *                    11-车头，12-车尾，13-行驶证，24-货物照（通行凭证、透视影像、车身照、货物照），99-车顶照
+     *                    货物照用goods_0/goods_1等下标格式
+     */
+    public List<PhotoItem> buildPhotos(VehicleInspection r, List<String> excludeList) {
         List<PhotoItem> photos = new ArrayList<>();
 
-        addPhoto(photos, r.getHeadImagePath(), "11");
-        addPhoto(photos, r.getTailImagePath(), "12");
-        addPhoto(photos, r.getLicenseImagePath(), "13");
-        addPhoto(photos, r.getTopImagePath(), "99");
+        // 创建排除集合，便于快速查找
+        Set<String> excludeSet = excludeList != null
+                ? new HashSet<>(excludeList)
+                : new HashSet<>();
 
-        // 货物照支持多个，中英文逗号均可分隔
+        // 只有不在排除列表中时才添加
+        //11-车头
+        if (!excludeSet.contains("11")) {
+            addPhoto(photos, r.getHeadImagePath(), "11");
+        }
+        //12-车尾
+        if (!excludeSet.contains("12")) {
+            addPhoto(photos, r.getTailImagePath(), "12");
+        }
+        //13-行驶证
+        if (!excludeSet.contains("13")) {
+            addPhoto(photos, r.getLicenseImagePath(), "13");
+        }
+        //99-车顶照
+        if (!excludeSet.contains("99")) {
+            addPhoto(photos, r.getTopImagePath(), "99");
+        }
+        //24-货物照，货物照支持多个，中英文逗号均可分隔，（通行凭证、透视影像、车身照、货物照）
+        //通行证
+        if(!excludeSet.contains("passcodeImagePath")){
+            addPhoto(photos,r.getPasscodeImagePath(),"24");
+        }
+        //透视影像
+        if(!excludeSet.contains("transparentImagePath")){
+            addPhoto(photos,r.getTransparentImagePath(),"24");
+        }
+        //车身照
+        if(!excludeSet.contains("bodyImagePath")){
+            addPhoto(photos,r.getBodyImagePath(),"24");
+        }
+        //货物照
         if (StringUtils.hasText(r.getGoodsImagePath())) {
+            int goodsIdx = 0;
             for (String path : r.getGoodsImagePath().split("[,，]")) {
                 if (StringUtils.hasText(path)) {
-                    addPhoto(photos, path.trim(), "24");
+                    // 检查该货物照是否被排除（下标格式：goods_0, goods_1, ...）
+                    String excludeKey = "goods_" + goodsIdx;
+                    if (!excludeSet.contains(excludeKey)) {
+                        addPhoto(photos, path.trim(), "24");
+                    }
+                    goodsIdx++;
                 }
             }
         }
@@ -215,6 +278,7 @@ public class TransportDeptConverter {
      */
     private String extractPhotoTime(String imagePath) {
         if (!StringUtils.hasText(imagePath)) return "";
+        imagePath=normalizePath(imagePath);
         int lastSlash = imagePath.lastIndexOf('/');
         if (lastSlash < 0) return "";
         String name = imagePath.substring(lastSlash + 1, imagePath.lastIndexOf('.'));

@@ -6,7 +6,7 @@
       <div class="deco-circle"></div>
 
       <div class="left-content">
-        <h1 class="brand-name">绿通快检系统</h1>
+        <h1 class="brand-name">硚孝高速毛陈收费站绿通快检系统</h1>
 
         <p class="top-tagline">X透视成像·AI大数据模型·创新查验机制</p>
 
@@ -134,8 +134,8 @@ const handleLogin = async () => {
 
 /* ==================== Left Panel ==================== */
 .left-panel {
-  flex: 1.2;
-  background: linear-gradient(135deg, #a855f7 0%, #6d28d9 50%, #5b21b6 100%);
+  flex: 1;
+  background: linear-gradient(135deg, #5FBA9E 0%, #5FBA9E 50%, #5FBA9E 100%);
   position: relative;
   overflow: hidden;
   display: flex;
@@ -144,6 +144,7 @@ const handleLogin = async () => {
   justify-content: center;
   padding: 60px 40px;
   box-sizing: border-box;
+  min-width: 0;
 }
 
 .deco-circle {
@@ -176,6 +177,7 @@ const handleLogin = async () => {
   margin: 0;
   letter-spacing: 6px;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .top-tagline {
@@ -224,51 +226,60 @@ const handleLogin = async () => {
 
 /* ==================== Right Panel ==================== */
 .right-panel {
-  flex: 0.8;
+  flex: 1;
   min-width: 400px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fff;
+  background: #F0F4F3;
   padding: 60px 40px;
   box-sizing: border-box;
 }
 
 .login-card {
-  width: 320px;
+  width: 450px;
 }
 
 .right-header {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 24px;
+  margin-bottom: 32px;
 }
 
 .logo {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   object-fit: contain;
-  margin-right: 12px;
+  margin-right: 10px;
 }
 
 .right-title {
-  font-size: 36px;
+  font-size: 32px;
   font-weight: 600;
-  color: #1a1a1a;
+  color: #064e3b;
   letter-spacing: 3px;
 }
 
 .login-title {
-  font-size: 26px;
-  font-weight: 600;
-  color: #1a1a1a;
+  font-size: 20px;
+  font-weight: 400;
+  color: #6b7280;
   margin: 0 0 32px;
   text-align: center;
 }
 
 .login-form {
   margin-bottom: 0;
+}
+
+.login-form :deep(.el-input__wrapper) {
+  height: 48px;
+}
+
+.login-form :deep(.el-input__inner) {
+  height: 48px;
+  line-height: 48px;
 }
 
 .form-options {
@@ -279,15 +290,15 @@ const handleLogin = async () => {
   width: 100%;
   height: 48px;
   font-size: 16px;
-  background: linear-gradient(135deg, #a855f7 0%, #6d28d9 100%);
+  background: linear-gradient(135deg, #5FBA9E 0%, #5FBA9E 100%);
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   color: #fff;
   letter-spacing: 4px;
 }
 
 .login-btn:hover {
-  background: linear-gradient(135deg, #9333ea 0%, #5b21b6 100%);
+  background: linear-gradient(135deg, #5FBA9E 0%, #5FBA9E 100%);
 }
 
 .bottom-links {
@@ -330,11 +341,12 @@ const handleLogin = async () => {
   .left-panel {
     flex: 0 0 auto;
     padding: 50px 30px 40px;
+    min-width: 100%;
   }
 
   .brand-name {
-    font-size: 36px;
-    letter-spacing: 4px;
+    font-size: 28px;
+    letter-spacing: 2px;
   }
 
   .feature-list {

@@ -11,9 +11,9 @@
         :default-active="activeMenu"
         :collapse="isCollapsed"
         router
-        background-color="#1a1a2e"
-        text-color="#a0a0b0"
-        active-text-color="#a855f7"
+        background-color="#1A3D38"
+        text-color="#a0b0a8"
+        active-text-color="#22c55e"
       >
         <el-menu-item index="/dashboard">
           <el-icon><HomeFilled /></el-icon>
@@ -107,7 +107,7 @@ const handleCommand = (command) => {
 /* 侧边栏 */
 .sidebar {
   width: 220px;
-  background: #1a1a2e;
+  background: #1A3D38;
   transition: width 0.3s;
   display: flex;
   flex-direction: column;
@@ -153,11 +153,11 @@ const handleCommand = (command) => {
 }
 
 :deep(.el-menu-item:hover) {
-  background-color: rgba(168, 85, 247, 0.1) !important;
+  background-color: rgba(34, 197, 94, 0.1) !important;
 }
 
 :deep(.el-menu-item.is-active) {
-  background-color: rgba(168, 85, 247, 0.15) !important;
+  background-color: rgba(34, 197, 94, 0.15) !important;
 }
 
 /* 主体区域 */

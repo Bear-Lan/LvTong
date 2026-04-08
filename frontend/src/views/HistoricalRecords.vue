@@ -152,22 +152,26 @@
         v-loading="loading"
         class="data-table"
         :header-cell-style="{ background: '#f5f7fa', color: '#606266', fontWeight: '600', fontSize: '14px' }"
+        @row-click="handleRowClick"
+        :row-class-name="getRowClassName"
       >
         <!-- 车牌号码：显示车牌+颜色背景 -->
-        <el-table-column label="车牌号码" width="200" align="center">
+        <el-table-column label="车牌号码" width="160" align="center">
           <template #default="{ row }">
-            <div
-              class="plate-cell"
-              :style="{ background: getPlateColor(row.passcodeVehicleColorName) }"
-            >
-              <el-radio
-                v-model="selectedRadio"
-                :value="row.id"
+            <div class="plate-wrapper">
+              <el-checkbox
+                :model-value="selectedRadio === row.id"
                 size="small"
                 @click.stop
+                @change="(val) => handleCheckboxChange(row, val)"
               />
-              <span class="plate-num">{{ row.plateNumber }}</span>
-              <span v-if="row.plateNumberGc" class="trailer-num">(挂车号码：{{ row.plateNumberGc }})</span>
+              <div
+                class="plate-cell"
+                :class="{ 'row-selected': selectedRadio === row.id }"
+                :style="{ background: getPlateColor(row.passcodeVehicleColorName) }"
+              >
+                <span class="plate-num">{{ row.plateNumber }}</span>
+              </div>
             </div>
           </template>
         </el-table-column>
@@ -300,6 +304,13 @@
       :editable="true"
       @refresh="loadData"
     />
+
+    <!-- 图片编辑弹窗：上报前管理图片 -->
+    <ImageEditDialog
+      v-model="imageEditVisible"
+      :row="currentRow"
+      @success="loadData"
+    />
   </div>
 </template>
 
@@ -325,12 +336,12 @@
 
 import { ref, reactive, computed, onMounted } from 'vue'
 import {Search, RefreshLeft, Van, View, Edit, Upload} from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { getInspectionList } from '@/api/vehicleInspection'
 import { getUserPhoneList } from '@/api/user'
-import { uploadBatch } from '@/api/transportDept'
 import { useUserStore } from '@/stores/user'
 import InspectionDetail from '@/components/InspectionDetail.vue'
+import ImageEditDialog from '@/components/ImageEditDialog.vue'
 
 // ================================================================
 // 状态定义
@@ -345,7 +356,7 @@ const tableData = ref([])
 /** 当前选中行（用于详情/编辑/行高亮） */
 const currentRow = ref({})
 
-/** 当前选中的单条记录ID（用于上报） */
+/** 当前选中的记录ID（用于上报） */
 const selectedRadio = ref(null)
 
 /** 上报按钮 loading */
@@ -353,6 +364,9 @@ const uploadLoading = ref(false)
 
 /** 详情弹窗显示状态 */
 const detailVisible = ref(false)
+
+/** 图片编辑弹窗显示状态 */
+const imageEditVisible = ref(false)
 
 /** 日期范围选择器绑定的值，格式：[开始时间, 结束时间] */
 const dateRange = ref([])
@@ -523,32 +537,16 @@ const handleUpload = async () => {
     return
   }
 
-  // 确认提示
-  try {
-    await ElMessageBox.confirm(
-      '确定要上报选中的查验记录到交通部平台吗？',
-      '确认上报',
-      { type: 'warning', confirmButtonText: '确认上报', cancelButtonText: '取消' }
-    )
-  } catch {
-    return // 用户取消
+  // 找到选中的行数据
+  const selectedRow = tableData.value.find(row => row.id === selectedRadio.value)
+  if (!selectedRow) {
+    ElMessage.warning('找不到选中的记录')
+    return
   }
 
-  uploadLoading.value = true
-  try {
-    const res = await uploadBatch([selectedRadio.value])
-    if (res.code === 200) {
-      const { successCount, failCount } = res.data || {}
-      ElMessage.success(`上报完成：成功 ${successCount} 条，失败 ${failCount} 条`)
-      selectedRadio.value = null
-    } else {
-      ElMessage.error(res.message || '上报失败')
-    }
-  } catch {
-    ElMessage.error('上报失败，请检查网络或联系管理员')
-  } finally {
-    uploadLoading.value = false
-  }
+  // 设置当前行数据，打开图片编辑弹窗
+  currentRow.value = { ...selectedRow }
+  imageEditVisible.value = true
 }
 
 // ================================================================
@@ -594,6 +592,40 @@ const handlePageChange = () => {
 const handleView = (row) => {
   currentRow.value = { ...row }
   detailVisible.value = true
+}
+
+/**
+ * handleRowClick：点击行选中/取消选中
+ * - 点击已选中行：取消选中
+ * - 点击未选中行：选中
+ */
+const handleRowClick = (row) => {
+  const id = row.id
+  if (selectedRadio.value === id) {
+    selectedRadio.value = null
+  } else {
+    selectedRadio.value = id
+  }
+}
+
+/**
+ * handleCheckboxChange：勾选框状态变化时触发
+ * @param {Object} row - 当前行数据
+ * @param {Boolean} val - 勾选状态
+ */
+const handleCheckboxChange = (row, val) => {
+  if (val) {
+    selectedRadio.value = row.id
+  } else {
+    selectedRadio.value = null
+  }
+}
+
+/**
+ * getRowClassName：行样式类名，用于高亮选中行
+ */
+const getRowClassName = ({ row }) => {
+  return selectedRadio.value === row.id ? 'selected-row' : ''
 }
 
 // ================================================================
@@ -784,6 +816,13 @@ onMounted(async () => {
 /* ========== 单元格内容样式 ========== */
 
 /* 车牌单元格：居中 + 间距 + 圆角背景 */
+.plate-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0px;
+}
+
 .plate-cell {
   display: flex;
   align-items: center;
@@ -795,12 +834,20 @@ onMounted(async () => {
   margin: 0 auto;
 }
 
-.plate-cell :deep(.el-radio) {
+.plate-cell :deep(.el-checkbox) {
   margin-right: 0;
 }
 
-.plate-cell :deep(.el-radio__label) {
-  display: none;
+/* 选中行样式 - 黄色背景仅在车牌区域 */
+.plate-cell.row-selected {
+  background-color: #f5b829 !important;
+  outline: 2px solid #e6a23c;
+  outline-offset: -2px;
+}
+
+/* el-table 选中行高亮 */
+:deep(.selected-row td) {
+  background-color: var(--el-color-primary-light-9) !important;
 }
 
 .plate-num {

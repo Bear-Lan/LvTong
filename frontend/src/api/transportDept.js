@@ -12,6 +12,19 @@ export function uploadSingle(id) {
 }
 
 /**
+ * 上报单条查验记录到交通部平台（排除指定图片）
+ * @param {number} id - 查验记录 ID
+ * @param {string[]} excludePhotoTypes - 要排除的图片类型ID列表，如 [11,12,13]
+ */
+export function uploadSingleWithExclude(id, excludePhotoTypes) {
+  return request({
+    url: `/transport-dept/upload/${id}/exclude`,
+    method: 'post',
+    data: excludePhotoTypes
+  })
+}
+
+/**
  * 批量上报查验记录到交通部平台
  * @param {number[]} ids - 查验记录 ID 数组
  */

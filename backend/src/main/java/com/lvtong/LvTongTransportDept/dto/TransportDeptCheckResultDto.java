@@ -2,6 +2,7 @@ package com.lvtong.LvTongTransportDept.dto;
 
 import com.alibaba.fastjson2.annotation.JSONField;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import lombok.Data;
 
 import java.util.List;
@@ -14,6 +15,13 @@ import java.util.List;
  * 独立于此系统的内部实体（VehicleInspection），避免业务模型与外部接口耦合。
  */
 @Data
+@JsonPropertyOrder({
+        "groupId", "fee", "weightCheckBasis", "memo", "checkResult", "photos", "payFee",
+        "driverTelephone", "vehicleClass", "vehicleId", "vehicleSign", "vehicleType",
+        "freightTypes", "loadRate", "passId", "mediaType", "inspector", "reviewer",
+        "enStationId", "transactionId", "exStationId", "exWeight", "checkTime",
+        "provinceCount", "exTime", "transPayType", "checkId", "operation", "crateType"
+})
 public class TransportDeptCheckResultDto {
 
     // ================================================================
@@ -46,6 +54,9 @@ public class TransportDeptCheckResultDto {
 
     /** 重量检测依据（1=动态称重，2=静态称重，3=目测） */
     private String weightCheckBasis;
+
+    /** 入口重量(KG) */
+    private Integer enWeight;
 
     /** 出口重量(KG) */
     private Integer exWeight;
@@ -123,13 +134,21 @@ public class TransportDeptCheckResultDto {
 
     @Data
     public static class PhotoItem {
-        /** 照片类型编号（11=车头，12=车尾，13=行驶证，24=货物，99=车顶） */
-        private String typeId;
+        /*
+           (必填：是)
+           照片编号,最多 20 位字符
+         */
+        public String id;
 
-        /** Base64 编码的图片内容 */
-        private String content;
+        public String typeId;
 
-        /** 照片拍摄时间（ISO 格式） */
-        private String time;
+        public String content;
+
+        public String time;
+
+        public String position;
+
+
+
     }
 }
