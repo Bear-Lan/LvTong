@@ -587,7 +587,7 @@
 
 import { computed, ref, reactive, watch, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Plus, Picture, CircleCheck, WarningFilled, InfoFilled } from '@element-plus/icons-vue'
+import { Plus, Picture } from '@element-plus/icons-vue'
 import { getProductList, getNopassTypeOptions, updateInspection } from '@/api/vehicleInspection'
 import { getUserPhoneList } from '@/api/user'
 
@@ -624,23 +624,6 @@ const visible = computed({
 // ================================================================
 // 样式辅助函数
 // ================================================================
-
-/**
- * getResultClass：根据查验结果返回对应样式类名
- *
- * @param {number|null} status 查验结果（1=合格, 2=不合格, 0=待查验）
- * @returns {'pass'|'fail'|'pending'} 对应的 CSS 类名
- *
- * 对应样式：
- * - pass    → 绿色背景+绿色文字（合格）
- * - fail    → 红色背景+红色文字（不合格）
- * - pending → 灰色背景+灰色文字（待查验）
- */
-const getResultClass = (status) => {
-  if (status === 1) return 'pass'
-  if (status === 2) return 'fail'
-  return 'pending'
-}
 
 /**
  * getResultTagType：根据查验结果返回 el-tag 类型
