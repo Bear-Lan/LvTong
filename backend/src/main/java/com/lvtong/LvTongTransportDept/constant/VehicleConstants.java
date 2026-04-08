@@ -92,13 +92,16 @@ public class VehicleConstants {
     /**
      * 将人工复核状态码转换为可读文本
      *
-     * @param state 复核状态（0=未复核, 1=已复核）
+     * @param state 复核状态（0=未审核, 1=审核, 2=审核未通过）
      * @return 中文可读文本，null 时返回 "-"
      */
     public static String getManualReviewText(Integer state) {
         if (state == null) return "-";
-        // 只有两种状态，非 1 即为"未复核"
-        return state == REVIEW_DONE ? "已复核" : "未复核";
+        return switch (state) {
+            case 1 -> "已审核";
+            case 2 -> "审核未通过";
+            default -> "未审核";
+        };
     }
 
     // ================================================================

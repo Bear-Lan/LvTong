@@ -42,6 +42,9 @@ public class UserController {
                     Map<String, String> item = new java.util.HashMap<>();
                     item.put("phone", u.getPhone());
                     item.put("realName", u.getRealName() != null ? u.getRealName() : u.getUsername());
+                    if (u.getGroupId() != null) {
+                        item.put("groupId", String.valueOf(u.getGroupId()));
+                    }
                     return item;
                 })
                 .distinct()

@@ -9,6 +9,7 @@
     v-model="visible"
     :title="editable ? '编辑查验记录' : '查验详情'"
     width="95vw"
+    top="0vh"
     destroy-on-close
     class="inspection-detail-dialog"
   >
@@ -19,14 +20,15 @@
       <!-- ================== 左侧栏（约 2/3） ================== -->
       <div class="detail-left">
 
-        <!-- 第一区域：证据链照片（6张，不含货物照）
-             点击图片可放大预览（el-image 的 preview 功能）。 -->
+        <!-- 第一区域：证据链照片
+             第一行：车头照、车尾照、行驶证、顶部照、通行凭证（5列）
+             第二行：透视影像、车身照（2列，重点图片） -->
         <div class="detail-section evidence-section">
           <div class="section-header">
             <span class="section-title">证据链照片</span>
             <span class="section-sub">点击图片可放大查看</span>
           </div>
-          <!-- 6列等宽网格布局 -->
+          <!-- 第一行：5列等宽网格 -->
           <div class="evidence-grid">
 
             <!-- 车头照（type-tag=11） -->
@@ -86,25 +88,6 @@
               </div>
             </div>
 
-            <!-- 透视影像（ETC X光扫描） -->
-            <div class="evidence-item" :class="{ 'no-image': !row.transparentImagePath }">
-              <div class="evidence-img-box" v-if="row.transparentImagePath">
-                <el-image
-                  :src="formatImageUrl(row.transparentImagePath)"
-                  fit="contain"
-                  :preview-src-list="[formatImageUrl(row.transparentImagePath)]"
-                  class="evidence-img"
-                  :initial-index="3"
-                />
-              </div>
-              <div class="evidence-placeholder" v-else>
-                <el-icon><Picture /></el-icon>
-              </div>
-              <div class="evidence-label">
-                <span class="type-tag">X光</span>透视影像
-              </div>
-            </div>
-
             <!-- 顶部照 -->
             <div class="evidence-item" :class="{ 'no-image': !row.topImagePath }">
               <div class="evidence-img-box" v-if="row.topImagePath">
@@ -113,7 +96,7 @@
                   fit="contain"
                   :preview-src-list="[formatImageUrl(row.topImagePath)]"
                   class="evidence-img"
-                  :initial-index="4"
+                  :initial-index="3"
                 />
               </div>
               <div class="evidence-placeholder" v-else>
@@ -121,25 +104,6 @@
               </div>
               <div class="evidence-label">
                 <span class="type-tag">26</span>顶部照
-              </div>
-            </div>
-
-            <!-- 车身照（type-tag=25） -->
-            <div class="evidence-item" :class="{ 'no-image': !row.bodyImagePath }">
-              <div class="evidence-img-box" v-if="row.bodyImagePath">
-                <el-image
-                  :src="formatImageUrl(row.bodyImagePath)"
-                  fit="contain"
-                  :preview-src-list="[formatImageUrl(row.bodyImagePath)]"
-                  class="evidence-img"
-                  :initial-index="5"
-                />
-              </div>
-              <div class="evidence-placeholder" v-else>
-                <el-icon><Picture /></el-icon>
-              </div>
-              <div class="evidence-label">
-                <span class="type-tag">25</span>车身照
               </div>
             </div>
 
@@ -151,7 +115,7 @@
                   fit="contain"
                   :preview-src-list="[formatImageUrl(row.passcodeImagePath)]"
                   class="evidence-img"
-                  :initial-index="6"
+                  :initial-index="4"
                 />
               </div>
               <div class="evidence-placeholder" v-else>
@@ -161,7 +125,47 @@
                 <span class="type-tag">凭证</span>通行凭证
               </div>
             </div>
+          </div>
 
+          <!-- 第二行：透视影像 + 车身照（重要图片，2列各占50%） -->
+          <div class="evidence-grid evidence-grid-2col">
+            <!-- 透视影像（ETC X光扫描） -->
+            <div class="evidence-item evidence-item-horizontal" :class="{ 'no-image': !row.transparentImagePath }">
+              <div class="evidence-label-left">
+                <span class="type-tag">X光</span>透视影像
+              </div>
+              <div class="evidence-img-box" v-if="row.transparentImagePath">
+                <el-image
+                  :src="formatImageUrl(row.transparentImagePath)"
+                  fit="contain"
+                  :preview-src-list="[formatImageUrl(row.transparentImagePath)]"
+                  class="evidence-img"
+                  :initial-index="5"
+                />
+              </div>
+              <div class="evidence-placeholder" v-else>
+                <el-icon><Picture /></el-icon>
+              </div>
+            </div>
+
+            <!-- 车身照（type-tag=25） -->
+            <div class="evidence-item evidence-item-horizontal" :class="{ 'no-image': !row.bodyImagePath }">
+              <div class="evidence-label-left">
+                <span class="type-tag">25</span>车身照
+              </div>
+              <div class="evidence-img-box" v-if="row.bodyImagePath">
+                <el-image
+                  :src="formatImageUrl(row.bodyImagePath)"
+                  fit="contain"
+                  :preview-src-list="[formatImageUrl(row.bodyImagePath)]"
+                  class="evidence-img"
+                  :initial-index="6"
+                />
+              </div>
+              <div class="evidence-placeholder" v-else>
+                <el-icon><Picture /></el-icon>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -339,6 +343,17 @@
               <span class="data-label">查验依据</span>
               <span class="data-value">{{ row.inspectionBasis || '等待开发' }}</span>
             </div>
+            <div class="data-row">
+              <span class="data-label">复核结果</span>
+              <el-select v-if="editable" v-model="form.manualReviewState" placeholder="请选择" size="small" style="width: 140px;">
+                <el-option label="未审核" :value="0" />
+                <el-option label="已审核" :value="1" />
+                <el-option label="审核未通过" :value="2" />
+              </el-select>
+              <span v-else class="data-value">
+                {{ row.manualReviewText || '未审核' }}
+              </span>
+            </div>
           </div>
 
         </div>
@@ -362,19 +377,15 @@
           </template>
         </div>
         <div class="result-bar-items">
-          <!-- 查验员：可编辑时显示输入框 -->
-          <div class="result-item" v-if="editable">
-            <span class="result-label">查验员</span>
-            <el-input v-model="form.operatorName" placeholder="查验操作员姓名" size="small" style="width: 120px;" />
-          </div>
-          <div class="result-item" v-else>
-            <span class="result-label">查验员</span>
-            <span class="result-value">{{ row.operatorName || '-' }}</span>
+          <!-- 验货员：显示 inspector_phone，不可编辑 -->
+          <div class="result-item">
+            <span class="result-label">验货员</span>
+            <span class="result-value">{{ row.inspectorPhone || '-' }}</span>
           </div>
           <!-- 复核员：可编辑时显示下拉 -->
           <div class="result-item" v-if="editable">
             <span class="result-label">复核员</span>
-            <el-select v-model="form.reviewerPhone" placeholder="请选择核验员" clearable filterable size="small" style="width: 150px;">
+            <el-select v-model="form.reviewerPhone" placeholder="请选择核验员" clearable filterable size="small" style="width: 150px;" @change="handleReviewerChange">
               <el-option
                 v-for="r in reviewers"
                 :key="r.phone"
@@ -387,14 +398,10 @@
             <span class="result-label">复核员</span>
             <span class="result-value">{{ row.reviewerPhone || '-' }}</span>
           </div>
-          <!-- 班组：可编辑时显示输入框 -->
-          <div class="result-item" v-if="editable">
+          <!-- 班组：自动跟随复核员，不可编辑 -->
+          <div class="result-item">
             <span class="result-label">班组</span>
-            <el-input v-model="form.groupId" placeholder="请输入班组" size="small" style="width: 100px;" />
-          </div>
-          <div class="result-item" v-else>
-            <span class="result-label">班组</span>
-            <span class="result-value">{{ row.groupId || '-' }}</span>
+            <span class="result-value">{{ form.groupId || row.groupId || '-' }}</span>
           </div>
           <!-- 不合格类型：可编辑时显示下拉选择 -->
           <div class="result-item" v-if="editable">
@@ -727,6 +734,7 @@ const form = reactive({
   nopassType: null,
   operatorName: '',
   reviewerPhone: '',
+  manualReviewState: null,
   groupId: '',
   // 备注
   historyRecord: '',
@@ -832,6 +840,21 @@ const loadReviewers = async () => {
   }
 }
 
+/** 复核员切换时自动更新班组 */
+const handleReviewerChange = (phone) => {
+  if (!phone) {
+    form.groupId = ''
+    return
+  }
+  // 遍历查找匹配的复核员
+  for (const r of reviewers.value) {
+    if (r.phone === phone) {
+      form.groupId = r.groupId ? String(r.groupId) : ''
+      break
+    }
+  }
+}
+
 const openGoodsDialog = () => {
   tempSelected.value = [...selectedProducts.value]
   filterProductType.value = ''
@@ -880,6 +903,7 @@ const handleSubmit = async () => {
     data.nopassType = form.nopassType
     data.operatorName = form.operatorName
     data.reviewerPhone = form.reviewerPhone
+    data.manualReviewState = form.manualReviewState
     data.groupId = form.groupId
     data.historyRecord = form.historyRecord
     // 车辆信息
@@ -917,6 +941,7 @@ watch(() => props.row, (row) => {
     form.nopassType = row.nopassType
     form.operatorName = row.operatorName || ''
     form.reviewerPhone = row.reviewerPhone || ''
+    form.manualReviewState = row.manualReviewState
     form.groupId = row.groupId || ''
     form.historyRecord = row.historyRecord || ''
     // 车辆信息
@@ -934,9 +959,13 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* ========== 弹窗内边距 ========== */
+/* ========== 弹窗样式 ========== */
+.inspection-detail-dialog :deep(.el-dialog) {
+  max-height: 90vh; /* 内容过多时可滚动 */
+}
+
 .inspection-detail-dialog :deep(.el-dialog__body) {
-  padding: 0 24px 20px; /* 顶部标题区无边距，内容区左右24px，底部20px */
+  padding: 0 24px 20px;
 }
 
 /* ========== 区域通用样式 ========== */
@@ -974,10 +1003,8 @@ onMounted(() => {
 /* 整体两栏：左侧内容 + 右侧货物照 */
 .detail-body {
   display: flex;
-  align-items: stretch;
+  align-items: stretch; /* 恢复拉伸对齐，让左右两栏高度一致 */
   gap: 0;
-  max-height: 85vh;
-  overflow: hidden;
 }
 
 /* 左侧栏：约 80%，包含证据链/数据/结论 */
@@ -987,7 +1014,7 @@ onMounted(() => {
   border-right: 1px solid #e4e7ed;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 /* 右侧栏：约 20%，专用于货物照 */
@@ -997,14 +1024,59 @@ onMounted(() => {
   max-width: 18%;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
 }
 
 /* ========== 证据链照片区域（6列） ========== */
 
 .evidence-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 0;
+}
+
+/* 第二行：透视影像+车身照，2列各占50% */
+.evidence-grid-2col {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  border-top: 1px solid #ebeef5;
+}
+
+/* 第二行横向布局：标签在左，图片在右 */
+.evidence-item-horizontal {
+  display: flex;
+  align-items: center;
+  border-right: 1px solid #f0f0f0;
+  padding: 10px 12px;
+  gap: 12px;
+}
+
+.evidence-item-horizontal:last-child {
+  border-right: none;
+}
+
+.evidence-item-horizontal .evidence-label-left {
+  flex-shrink: 0;
+  font-size: 13px;
+  color: #606266;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.evidence-item-horizontal .evidence-img-box {
+  flex: 1;
+  height: 80px;
+  min-width: 0;
+}
+
+.evidence-item-horizontal .evidence-placeholder {
+  flex: 1;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fafafa;
+  color: #dcdfe6;
 }
 
 /* 每个照片格子：图片+标签+分隔线 */
@@ -1078,6 +1150,7 @@ onMounted(() => {
 
 .goods-photo-area {
   flex: 1;
+  max-height: 690px; /* 超过400px显示滚动条 */
   padding: 16px;
   overflow-y: auto;
 }
