@@ -24,17 +24,6 @@ public class TransportDeptUploadController {
     @Autowired
     private final TransportDeptUploadService uploadService;
 
-    @Operation(summary = "上报单条查验记录", description = "将指定的查验记录上报至交通局平台")
-    @PostMapping("/upload/{id}")
-    public ApiResponse<Map<String, Object>> uploadSingle(
-            @Parameter(description = "查验记录 ID") @PathVariable Integer id) {
-        Map<String, Object> result = uploadService.uploadSingle(id);
-        if (Boolean.TRUE.equals(result.get("success"))) {
-            return ApiResponse.success("上报成功", result);
-        }
-        return ApiResponse.error((String) result.get("msg"));
-    }
-
     @Operation(summary = "上报单条查验记录（指定排除图片）", description = "上报时排除指定的图片")
     @PostMapping("/upload/{id}/exclude")
     public ApiResponse<Map<String, Object>> uploadSingleWithExclude(
@@ -44,17 +33,6 @@ public class TransportDeptUploadController {
         Map<String, Object> result = uploadService.uploadSingle(id, excludeList);
         if (Boolean.TRUE.equals(result.get("success"))) {
             return ApiResponse.success("上报成功", result);
-        }
-        return ApiResponse.error((String) result.get("msg"));
-    }
-
-    @Operation(summary = "批量上报查验记录", description = "将多条查验记录批量上报至交通局平台")
-    @PostMapping("/upload/batch")
-    public ApiResponse<Map<String, Object>> uploadBatch(
-            @Parameter(description = "查验记录 ID 列表") @RequestBody List<Integer> ids) {
-        Map<String, Object> result = uploadService.uploadBatch(ids);
-        if (Boolean.TRUE.equals(result.get("success"))) {
-            return ApiResponse.success("批量上报完成", result);
         }
         return ApiResponse.error((String) result.get("msg"));
     }

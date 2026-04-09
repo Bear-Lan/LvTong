@@ -1,9 +1,7 @@
 <template>
   <!--
     查验详情弹窗
-    左右两栏布局：
-      - 左侧栏（约 2/3）：证据链照片、查验数据、查验结论
-      - 右侧栏（约 1/3）：货物照片（可滚动）
+    布局：证据链照片、查验数据、底部结论
   -->
   <el-dialog
     v-model="visible"
@@ -14,23 +12,14 @@
     class="inspection-detail-dialog"
   >
 
-    <!-- ================== 左右两栏整体布局 ================== -->
+    <!-- ================== 整体布局 ================== -->
     <div class="detail-body">
-
-      <!-- ================== 左侧栏（约 2/3） ================== -->
-      <div class="detail-left">
-
         <!-- 第一区域：证据链照片
              第一行：车头照、车尾照、行驶证、顶部照、通行凭证（5列）
-             第二行：透视影像、车身照（2列，重点图片） -->
+             第二行：透视影像+车身照（占50%）、货物照（占50%） -->
         <div class="detail-section evidence-section">
-          <div class="section-header">
-            <span class="section-title">证据链照片</span>
-            <span class="section-sub">点击图片可放大查看</span>
-          </div>
           <!-- 第一行：5列等宽网格 -->
-          <div class="evidence-grid">
-
+          <div class="evidence-grid-row-1">
             <!-- 车头照（type-tag=11） -->
             <div class="evidence-item" :class="{ 'no-image': !row.headImagePath }">
               <div class="evidence-img-box" v-if="row.headImagePath">
@@ -127,43 +116,68 @@
             </div>
           </div>
 
-          <!-- 第二行：透视影像 + 车身照（重要图片，2列各占50%） -->
-          <div class="evidence-grid evidence-grid-2col">
-            <!-- 透视影像（ETC X光扫描） -->
-            <div class="evidence-item evidence-item-horizontal" :class="{ 'no-image': !row.transparentImagePath }">
-              <div class="evidence-label-left">
-                <span class="type-tag">X光</span>透视影像
+          <!-- 第二行：左侧50%（透视+车身2列），右侧50%（货物照） -->
+          <div class="evidence-grid-row-2">
+            <!-- 左侧50%：透视影像 + 车身照（2列，等宽） -->
+            <div class="evidence-row-2-left">
+              <!-- 透视影像（ETC X光扫描） -->
+              <div class="evidence-item" :class="{ 'no-image': !row.transparentImagePath }">
+                <div class="evidence-img-box" v-if="row.transparentImagePath">
+                  <el-image
+                    :src="formatImageUrl(row.transparentImagePath)"
+                    fit="cover"
+                    :preview-src-list="[formatImageUrl(row.transparentImagePath)]"
+                    class="evidence-img"
+                    :initial-index="5"
+                  />
+                </div>
+                <div class="evidence-placeholder" v-else>
+                  <el-icon><Picture /></el-icon>
+                </div>
+                <div class="evidence-label">
+                  <span class="type-tag">X光</span>透视影像
+                </div>
               </div>
-              <div class="evidence-img-box" v-if="row.transparentImagePath">
-                <el-image
-                  :src="formatImageUrl(row.transparentImagePath)"
-                  fit="contain"
-                  :preview-src-list="[formatImageUrl(row.transparentImagePath)]"
-                  class="evidence-img"
-                  :initial-index="5"
-                />
-              </div>
-              <div class="evidence-placeholder" v-else>
-                <el-icon><Picture /></el-icon>
+
+              <!-- 车身照（type-tag=25） -->
+              <div class="evidence-item" :class="{ 'no-image': !row.bodyImagePath }">
+                <div class="evidence-img-box" v-if="row.bodyImagePath">
+                  <el-image
+                    :src="formatImageUrl(row.bodyImagePath)"
+                    fit="cover"
+                    :preview-src-list="[formatImageUrl(row.bodyImagePath)]"
+                    class="evidence-img"
+                    :initial-index="6"
+                  />
+                </div>
+                <div class="evidence-placeholder" v-else>
+                  <el-icon><Picture /></el-icon>
+                </div>
+                <div class="evidence-label">
+                  <span class="type-tag">25</span>车身照
+                </div>
               </div>
             </div>
 
-            <!-- 车身照（type-tag=25） -->
-            <div class="evidence-item evidence-item-horizontal" :class="{ 'no-image': !row.bodyImagePath }">
-              <div class="evidence-label-left">
-                <span class="type-tag">25</span>车身照
-              </div>
-              <div class="evidence-img-box" v-if="row.bodyImagePath">
+            <!-- 右侧50%：货物照 -->
+            <div class="evidence-item evidence-col-right" :class="{ 'no-image': goodsImages.length === 0 }">
+              <div class="goods-img-container" v-if="goodsImages.length > 0">
                 <el-image
-                  :src="formatImageUrl(row.bodyImagePath)"
-                  fit="contain"
-                  :preview-src-list="[formatImageUrl(row.bodyImagePath)]"
+                  v-for="(img, idx) in goodsImages"
+                  :key="idx"
+                  :src="formatImageUrl(img)"
+                  fit="cover"
+                  :preview-src-list="goodsImages.map(p => formatImageUrl(p))"
+                  :initial-index="idx"
                   class="evidence-img"
-                  :initial-index="6"
                 />
               </div>
               <div class="evidence-placeholder" v-else>
                 <el-icon><Picture /></el-icon>
+              </div>
+              <div class="evidence-label">
+                <span class="type-tag">货物</span>货物照
+                <span v-if="goodsImages.length > 0" class="goods-count">({{ goodsImages.length }}张)</span>
               </div>
             </div>
           </div>
@@ -171,11 +185,7 @@
 
       <!-- 第二区域：数据网格（4列） -->
       <div class="detail-section data-section">
-        <div class="section-header">
-          <span class="section-title">查验数据</span>
-        </div>
         <div class="data-grid">
-
           <!-- 第一列：基础通行信息 -->
           <div class="data-col">
             <div class="data-row">
@@ -421,40 +431,6 @@
           </div>
         </div>
       </div>
-
-      </div><!-- /detail-left -->
-
-      <!-- ================== 右侧栏（约 1/3）：货物照片 ================== -->
-      <div class="detail-right">
-        <div class="detail-section goods-section">
-          <div class="section-header">
-            <span class="section-title">货物照</span>
-            <span class="section-sub" v-if="goodsImages.length > 0">共 {{ goodsImages.length }} 张</span>
-          </div>
-          <div class="goods-photo-area">
-            <div v-if="goodsImages.length > 0" class="goods-photo-list">
-              <div
-                v-for="(img, idx) in goodsImages"
-                :key="idx"
-                class="goods-photo-item"
-              >
-                <el-image
-                  :src="formatImageUrl(img)"
-                  fit="contain"
-                  class="goods-photo-img"
-                  :preview-src-list="goodsImages.map(p => formatImageUrl(p))"
-                  :initial-index="idx"
-                />
-                <div class="goods-photo-label">货物照 {{ idx + 1 }}</div>
-              </div>
-            </div>
-            <div class="goods-photo-placeholder" v-else>
-              <el-icon size="40" color="#dcdfe6"><Picture /></el-icon>
-              <span>暂无货物照</span>
-            </div>
-          </div>
-        </div>
-      </div><!-- /detail-right -->
 
     </div><!-- /detail-body -->
 
@@ -958,242 +934,140 @@ onMounted(() => {
   border: 1px solid #ebeef5;
   border-radius: 8px;
   overflow: hidden;
+  position: relative;
 }
 
-/* 区域标题栏 */
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 14px;
-  background: #fafafa;
-  border-bottom: 1px solid #f0f0f0;
+
+
+/* ========== 证据链照片区域（Grid网格布局） ========== */
+
+.evidence-section {
+  padding: 12px 16px;
 }
 
-.section-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: #303133;
-}
-
-.section-sub {
-  font-size: 12px;
-  color: #909399;
-}
-
-/* ========== 左右两栏布局 ========== */
-
-/* 整体两栏：左侧内容 + 右侧货物照 */
-.detail-body {
-  display: flex;
-  align-items: stretch; /* 恢复拉伸对齐，让左右两栏高度一致 */
-  gap: 0;
-}
-
-/* 左侧栏：约 80%，包含证据链/数据/结论 */
-.detail-left {
-  flex: 1;
-  min-width: 0;
-  border-right: 1px solid #e4e7ed;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-}
-
-/* 右侧栏：约 20%，专用于货物照 */
-.detail-right {
-  flex: 0 0 18%;
-  min-width: 0;
-  max-width: 18%;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-}
-
-/* ========== 证据链照片区域（6列） ========== */
-
-.evidence-grid {
+/* 第一行：5列等宽网格 */
+.evidence-grid-row-1 {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 0;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 8px;
 }
 
-/* 第二行：透视影像+车身照，2列各占50% */
-.evidence-grid-2col {
+/* 第二行：左侧50%（透视+车身2列），右侧50%（货物照） */
+.evidence-grid-row-2 {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  border-top: 1px solid #ebeef5;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+  min-height: 110px;
 }
 
-/* 第二行横向布局：标签在左，图片在右 */
-.evidence-item-horizontal {
+/* 左侧50%容器：包含透视影像和车身照，2列等宽 */
+.evidence-row-2-left {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.evidence-col-right {
   display: flex;
+  flex-direction: column;
+}
+
+/* 货物照容器：水平平铺所有图片 */
+.goods-img-container {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  width: 100%;
+  gap: 4px;
+  max-height: 70px;
+  overflow: hidden;
+}
+
+.goods-img-container .evidence-img {
+  flex: 1;
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+}
+
+/* 照片卡片通用样式 */
+.evidence-item {
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  border-right: 1px solid #f0f0f0;
-  padding: 10px 12px;
-  gap: 12px;
+  background: #fff;
+  max-height: 90px;
+  position: relative;
 }
 
-.evidence-item-horizontal:last-child {
-  border-right: none;
+.evidence-item .evidence-img-box {
+  width: 100%;
+  height: 70px;
+  min-height: 70px;
 }
 
-.evidence-item-horizontal .evidence-label-left {
-  flex-shrink: 0;
-  font-size: 13px;
-  color: #606266;
-  font-weight: 500;
-  white-space: nowrap;
+.evidence-item .evidence-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-.evidence-item-horizontal .evidence-img-box {
-  flex: 1;
-  height: 80px;
-  min-width: 0;
-}
-
-.evidence-item-horizontal .evidence-placeholder {
-  flex: 1;
-  height: 80px;
+.evidence-item .evidence-placeholder {
+  width: 100%;
+  height: 60px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fafafa;
-  color: #dcdfe6;
-}
-
-/* 每个照片格子：图片+标签+分隔线 */
-.evidence-item {
-  border-right: 1px solid #f0f0f0;
-  text-align: center;
-}
-
-.evidence-item:last-child {
-  border-right: none; /* 最后一列去掉右边框 */
-}
-
-/* 图片容器：固定高度，灰色背景，鼠标变为放大镜 */
-.evidence-img-box {
-  height: 80px;
-  overflow: hidden;
   background: #f5f7fa;
-  cursor: zoom-in;
+  color: #dcdfe6;
+  border-radius: 4px;
 }
 
-.evidence-img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain; /* 保持比例，完整显示图片 */
+.evidence-item .evidence-label {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: rgba(64, 158, 255, 0.9);
+  color: #fff;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 0 6px 0 4px;
+  font-weight: 500;
+  text-align: right;
+  z-index: 1;
+  white-space: nowrap;
+}
+
+.evidence-item .type-tag {
+  display: inline-block;
+  padding: 1px 4px;
+  background: rgba(255, 255, 255, 0.3);
+  color: #fff;
+  border-radius: 3px;
+  font-size: 9px;
+  margin-right: 2px;
 }
 
 /* 无图片时的占位图标 */
 .evidence-placeholder {
-  height: 130px;
+  height: 80px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fafafa;
+  background: #f5f7fa;
   color: #dcdfe6;
-}
-
-/* 图片下方标签 */
-.evidence-label {
-  padding: 10px;
-  font-size: 13px;
-  color: #606266;
-  border-top: 1px solid #f0f0f0;
-  background: #fafafa;
-  font-weight: 500;
-}
-
-/*
-  type-tag：照片类型编号标签
-  蓝色小方块，紧跟在"车头照"等文字前面，
-  编号对应系统中的 photo_type 枚举值。
-*/
-.type-tag {
-  display: inline-block;
-  background: #409eff;
-  color: #fff;
-  font-size: 11px;
-  padding: 2px 6px;
-  border-radius: 3px;
-  margin-right: 4px;
-  font-weight: 700;
-}
-
-/* ========== 货物照区域（右侧栏） ========== */
-
-/* 右侧栏独立滚动 */
-.goods-section {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.goods-photo-area {
-  flex: 1;
-  max-height: 690px; /* 超过400px显示滚动条 */
-  padding: 16px;
-  overflow-y: auto;
-}
-
-/* 货物照竖向列表 */
-.goods-photo-list {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.goods-photo-list::-webkit-scrollbar {
-  width: 4px;
-}
-.goods-photo-list::-webkit-scrollbar-thumb {
-  background: #dcdfe6;
-  border-radius: 2px;
-}
-
-/* 每张货物照：图片 + 标签 */
-.goods-photo-item {
-  border-radius: 6px;
-  overflow: hidden;
-  border: 1px solid #ebeef5;
-  background: #f5f7fa;
-}
-
-.goods-photo-img {
+  border-radius: 4px;
   width: 100%;
-  height: 150px;
-  display: block;
-  cursor: zoom-in;
-  background: #f5f7fa;
-}
-
-.goods-photo-label {
-  text-align: center;
-  font-size: 13px;
-  color: #909399;
-  padding: 8px 0;
-  background: #fafafa;
-  border-top: 1px solid #ebeef5;
-  font-weight: 500;
-}
-
-/* 无货物照时的占位 */
-.goods-photo-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  height: 200px;
-  color: #d0d0d0;
-  font-size: 13px;
 }
 
 /* ========== 数据网格区域（4列） ========== */
-
-/* 5列等宽网格 */
 .data-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -1253,18 +1127,11 @@ onMounted(() => {
   font-weight: 700;
 }
 
-/* 编号/ID：等宽字体，适合长字符串 */
+/* 编号/ID：等宽字体 */
 .data-value.mono {
   font-family: 'Consolas', 'Monaco', monospace;
   font-size: 14px;
   color: #606266;
-}
-
-/* 金额：橙色大字体突出 */
-.data-value.money {
-  color: #e6a23c;
-  font-weight: 700;
-  font-size: 16px;
 }
 
 /* 车牌号：等宽粗体突出 */
@@ -1276,7 +1143,6 @@ onMounted(() => {
 }
 
 /* ========== 底部结论栏 ========== */
-
 .result-bar {
   display: flex;
   align-items: center;
@@ -1329,166 +1195,10 @@ onMounted(() => {
   color: #f56c6c;
 }
 
-/* ========== 结论区域（已废弃） ========== */
-
-/* 2列网格：左2右1 */
-.conclusion-grid {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 0;
-}
-
-.conclusion-card {
-  padding: 12px;
-  border-right: 1px solid #ebeef5;
-}
-
-.conclusion-card:last-child {
-  border-right: none;
-}
-
-/* 结论区小标题 */
-.conclusion-card-label {
-  font-size: 12px;
-  color: #909399;
-  margin-bottom: 8px;
-  font-weight: 500;
-}
-
-/*
-  查验结果大字：28px 超大字号，居中显示
-  三种状态对应三种配色方案
-*/
-.conclusion-big-text {
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: 2px;
-  text-align: center;
-  padding: 8px 0;
-  border-radius: 6px;
-  margin-bottom: 6px;
-}
-
-/* 合格：绿色背景+绿色文字 */
-.conclusion-big-text.pass {
-  background: #f0f9eb;
-  color: #67c23a;
-  border: 1px solid #c2e7b0;
-}
-
-/* 不合格：红色背景+红色文字 */
-.conclusion-big-text.fail {
-  background: #fef0f0;
-  color: #f56c6c;
-  border: 1px solid #fbc4c4;
-}
-
-/* 待查验：灰色背景+灰色文字 */
-.conclusion-big-text.pending {
-  background: #f4f4f5;
-  color: #909399;
-  border: 1px solid #d3d4d6;
-}
-
-/* 结论提示语：图标+文字居中 */
-.conclusion-card-tip {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: #909399;
-  justify-content: center;
-}
-
-/* 不合格类型文本 */
-.reason-text {
-  font-size: 16px;
-  font-weight: 700;
-  color: #303133;
-  padding: 12px 0;
-  text-align: center;
-  background: #f5f7fa;
-  border-radius: 6px;
-}
-
-.reason-text.danger {
-  color: #f56c6c; /* 不合格用红色 */
-  background: #fef0f0;
-}
-
-.reason-text.disabled {
-  color: #c0c4cc; /* 占位用浅灰 */
-  font-weight: 400;
-  font-size: 14px;
-}
-
-/* 不合格编号：红色等宽大字 */
-.nopass-code {
-  font-size: 20px;
-  font-weight: 800;
-  color: #f56c6c;
-  letter-spacing: 2px;
-  text-align: center;
-  padding: 6px 0;
-  font-family: 'Consolas', 'Monaco', monospace;
-}
-
-.nopass-code.disabled {
-  color: #dcdfe6;
-  font-size: 16px;
-}
-
-/* 操作员信息 */
-.operator-info {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.operator-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.op-label {
-  font-size: 12px;
-  color: #909399;
-}
-
-.op-value {
-  font-size: 13px;
-  color: #303133;
-  font-weight: 500;
-}
-
 /* ========== 响应式：小屏适配 ========== */
 @media (max-width: 900px) {
-  /* 两栏布局改为单列：右侧栏沉底 */
-  .detail-body {
-    flex-direction: column;
-  }
-
-  .detail-right {
-    max-width: 100%;
-    width: 100%;
-    border-top: 1px solid #e4e7ed;
-    border-right: none;
-  }
-
-  /* 证据照6列变3列 */
-  .evidence-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-
-  /* 数据网格4列变2列 */
   .data-grid {
     grid-template-columns: repeat(2, 1fr);
-  }
-
-  /* 结论区3列变1列 */
-  .conclusion-grid {
-    grid-template-columns: 1fr;
   }
 }
 

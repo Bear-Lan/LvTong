@@ -67,12 +67,6 @@ public class TransportDeptUploadServiceImpl implements TransportDeptUploadServic
 
     @Override
     @Transactional
-    public Map<String, Object> uploadSingle(Integer id) {
-        return uploadSingle(id, null);
-    }
-
-    @Override
-    @Transactional
     public Map<String, Object> uploadSingle(Integer id, List<String> excludePhotoTypes) {
         VehicleInspection record = mapper.selectById(id);
         if (record == null) {
@@ -81,34 +75,6 @@ public class TransportDeptUploadServiceImpl implements TransportDeptUploadServic
         return uploadOne(record, excludePhotoTypes);
     }
 
-    @Override
-    @Transactional
-    public Map<String, Object> uploadBatch(List<Integer> ids) {
-        if (ids == null || ids.isEmpty()) {
-            return Map.of("success", false, "code", -1, "msg", "请选择要上报的记录");
-        }
-
-        int success = 0, fail = 0;
-        List<Map<String, Object>> details = new ArrayList<>();
-
-        for (Integer id : ids) {
-            Map<String, Object> r = uploadSingle(id);
-            if (Boolean.TRUE.equals(r.get("success"))) {
-                success++;
-            } else {
-                fail++;
-            }
-            details.add(Map.of("id", id, "msg", r.get("msg")));
-        }
-
-        return Map.of(
-                "success", fail == 0,
-                "total", ids.size(),
-                "successCount", success,
-                "failCount", fail,
-                "details", details
-        );
-    }
 
     // ================================================================
     // 单条上报流程
@@ -135,10 +101,6 @@ public class TransportDeptUploadServiceImpl implements TransportDeptUploadServic
             return Map.of("success", false, "code", -1, "msg", e.getMessage());
         }
     }
-
-    // ================================================================
-    // 按样例方式发送（不用压缩）
-    // ================================================================
 
     /**
      * 按样例方式上传：
