@@ -25,7 +25,7 @@
               <div class="evidence-img-box" v-if="row.headImagePath">
                 <el-image
                   :src="formatImageUrl(row.headImagePath)"
-                  fit="contain"
+                  fit="fill"
                   :preview-src-list="[formatImageUrl(row.headImagePath)]"
                   class="evidence-img"
                   :initial-index="0"
@@ -44,7 +44,7 @@
               <div class="evidence-img-box" v-if="row.tailImagePath">
                 <el-image
                   :src="formatImageUrl(row.tailImagePath)"
-                  fit="contain"
+                  fit="fill"
                   :preview-src-list="[formatImageUrl(row.tailImagePath)]"
                   class="evidence-img"
                   :initial-index="1"
@@ -63,7 +63,7 @@
               <div class="evidence-img-box" v-if="row.licenseImagePath">
                 <el-image
                   :src="formatImageUrl(row.licenseImagePath)"
-                  fit="contain"
+                  fit="fill"
                   :preview-src-list="[formatImageUrl(row.licenseImagePath)]"
                   class="evidence-img"
                   :initial-index="2"
@@ -82,7 +82,7 @@
               <div class="evidence-img-box" v-if="row.topImagePath">
                 <el-image
                   :src="formatImageUrl(row.topImagePath)"
-                  fit="contain"
+                  fit="fill"
                   :preview-src-list="[formatImageUrl(row.topImagePath)]"
                   class="evidence-img"
                   :initial-index="3"
@@ -101,7 +101,7 @@
               <div class="evidence-img-box" v-if="row.passcodeImagePath">
                 <el-image
                   :src="formatImageUrl(row.passcodeImagePath)"
-                  fit="contain"
+                  fit="fill"
                   :preview-src-list="[formatImageUrl(row.passcodeImagePath)]"
                   class="evidence-img"
                   :initial-index="4"
@@ -125,7 +125,7 @@
                 <div class="evidence-img-box" v-if="row.transparentImagePath">
                   <el-image
                     :src="formatImageUrl(row.transparentImagePath)"
-                    fit="cover"
+                    fit="fill"
                     :preview-src-list="[formatImageUrl(row.transparentImagePath)]"
                     class="evidence-img"
                     :initial-index="5"
@@ -144,7 +144,7 @@
                 <div class="evidence-img-box" v-if="row.bodyImagePath">
                   <el-image
                     :src="formatImageUrl(row.bodyImagePath)"
-                    fit="cover"
+                    fit="fill"
                     :preview-src-list="[formatImageUrl(row.bodyImagePath)]"
                     class="evidence-img"
                     :initial-index="6"
@@ -166,7 +166,7 @@
                   v-for="(img, idx) in goodsImages"
                   :key="idx"
                   :src="formatImageUrl(img)"
-                  fit="cover"
+                  fit="fill"
                   :preview-src-list="goodsImages.map(p => formatImageUrl(p))"
                   :initial-index="idx"
                   class="evidence-img"
@@ -960,7 +960,6 @@ onMounted(() => {
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   width: 100%;
-  min-height: 110px;
 }
 
 /* 左侧50%容器：包含透视影像和车身照，2列等宽 */
@@ -983,7 +982,7 @@ onMounted(() => {
   flex: 1;
   width: 100%;
   gap: 4px;
-  max-height: 70px;
+  max-height: 100px;
   overflow: hidden;
 }
 
@@ -1003,14 +1002,12 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   background: #fff;
-  max-height: 90px;
   position: relative;
 }
 
 .evidence-item .evidence-img-box {
   width: 100%;
-  height: 70px;
-  min-height: 70px;
+  height: 100px;
 }
 
 .evidence-item .evidence-img {
