@@ -917,14 +917,21 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
-/* ========== 弹窗样式 ========== */
-.inspection-detail-dialog :deep(.el-dialog) {
-  max-height: 90vh; /* 内容过多时可滚动 */
+<style>
+.inspection-detail-dialog .el-dialog__header {
+  padding-bottom: 0 !important;
+  margin-bottom: 0 !important;
+}
+.inspection-detail-dialog .el-dialog__body {
+  padding: 10px 20px 20px !important;
 }
 
-.inspection-detail-dialog :deep(.el-dialog__body) {
-  padding: 0 24px 20px;
+</style>
+
+<style scoped>
+/* ========== 弹窗样式 ========== */
+.inspection-detail-dialog {
+  max-height: 95vh;
 }
 
 /* ========== 区域通用样式 ========== */
@@ -957,7 +964,7 @@ onMounted(() => {
 /* 第二行：左侧50%（透视+车身2列），右侧50%（货物照） */
 .evidence-grid-row-2 {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 3fr 2fr;
   gap: 8px;
   width: 100%;
 }
