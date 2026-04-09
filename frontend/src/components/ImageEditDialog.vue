@@ -13,26 +13,20 @@
       <span>请确认上报图片，可排除（删除）不需要的图片后上报交通部</span>
     </div>
 
-    <!-- 左右两栏整体布局 -->
+    <!-- ================== 整体布局 ================== -->
     <div class="detail-body">
-
-      <!-- 左侧栏：证据链照片 + 查验数据 -->
-      <div class="detail-left">
-
-        <!-- 证据链照片区域 -->
+        <!-- 证据链照片
+             第一行：车头照、车尾照、行驶证、顶部照、通行凭证（5列）
+             第二行：透视影像+车身照（占50%）、货物照（占50%） -->
         <div class="detail-section evidence-section">
-          <div class="section-header">
-            <span class="section-title">证据链照片</span>
-            <span class="section-sub">点击图片可放大查看，点击×排除该图片</span>
-          </div>
           <!-- 第一行：5列等宽网格 -->
-          <div class="evidence-grid">
+          <div class="evidence-grid-row-1">
             <!-- 车头照 -->
             <div class="evidence-item" :class="{ 'no-image': !row.headImagePath, 'excluded': excludedTypes.includes('11') }">
               <div class="evidence-img-box" v-if="row.headImagePath">
                 <el-image
                   :src="formatImageUrl(row.headImagePath)"
-                  fit="contain"
+                  fit="fill"
                   :preview-src-list="[formatImageUrl(row.headImagePath)]"
                   class="evidence-img"
                 />
@@ -55,7 +49,7 @@
               <div class="evidence-img-box" v-if="row.tailImagePath">
                 <el-image
                   :src="formatImageUrl(row.tailImagePath)"
-                  fit="contain"
+                  fit="fill"
                   :preview-src-list="[formatImageUrl(row.tailImagePath)]"
                   class="evidence-img"
                 />
@@ -78,7 +72,7 @@
               <div class="evidence-img-box" v-if="row.licenseImagePath">
                 <el-image
                   :src="formatImageUrl(row.licenseImagePath)"
-                  fit="contain"
+                  fit="fill"
                   :preview-src-list="[formatImageUrl(row.licenseImagePath)]"
                   class="evidence-img"
                 />
@@ -101,7 +95,7 @@
               <div class="evidence-img-box" v-if="row.topImagePath">
                 <el-image
                   :src="formatImageUrl(row.topImagePath)"
-                  fit="contain"
+                  fit="fill"
                   :preview-src-list="[formatImageUrl(row.topImagePath)]"
                   class="evidence-img"
                 />
@@ -124,7 +118,7 @@
               <div class="evidence-img-box" v-if="row.passcodeImagePath">
                 <el-image
                   :src="formatImageUrl(row.passcodeImagePath)"
-                  fit="contain"
+                  fit="fill"
                   :preview-src-list="[formatImageUrl(row.passcodeImagePath)]"
                   class="evidence-img"
                 />
@@ -143,238 +137,225 @@
             </div>
           </div>
 
-          <!-- 第二行：透视影像 + 车身照 -->
-          <div class="evidence-grid evidence-grid-2col">
-            <!-- 透视影像 -->
-            <div class="evidence-item evidence-item-horizontal" :class="{ 'no-image': !row.transparentImagePath, 'excluded': excludedTypes.includes('transparentImagePath') }">
-              <div class="evidence-label-left">
-                <span class="type-tag">X光</span>透视影像
-                <span v-if="excludedTypes.includes('25')" class="excluded-tag">已排除</span>
-              </div>
-              <div class="evidence-img-box" v-if="row.transparentImagePath">
-                <el-image
-                  :src="formatImageUrl(row.transparentImagePath)"
-                  fit="contain"
-                  :preview-src-list="[formatImageUrl(row.transparentImagePath)]"
-                  class="evidence-img"
-                />
-                <div class="delete-btn" @click.stop="toggleImage('transparentImagePath')">
-                  <el-icon v-if="excludedTypes.includes('25')"><Plus /></el-icon>
-                  <el-icon v-else><Close /></el-icon>
+          <!-- 第二行：左侧50%（透视+车身2列），右侧50%（货物照） -->
+          <div class="evidence-grid-row-2">
+            <!-- 左侧50%：透视影像 + 车身照（2列，等宽） -->
+            <div class="evidence-row-2-left">
+              <!-- 透视影像 -->
+              <div class="evidence-item" :class="{ 'no-image': !row.transparentImagePath, 'excluded': excludedTypes.includes('transparentImagePath') }">
+                <div class="evidence-img-box" v-if="row.transparentImagePath">
+                  <el-image
+                    :src="formatImageUrl(row.transparentImagePath)"
+                    fit="fill"
+                    :preview-src-list="[formatImageUrl(row.transparentImagePath)]"
+                    class="evidence-img"
+                  />
+                  <div class="delete-btn" @click.stop="toggleImage('transparentImagePath')">
+                    <el-icon v-if="excludedTypes.includes('transparentImagePath')"><Plus /></el-icon>
+                    <el-icon v-else><Close /></el-icon>
+                  </div>
+                </div>
+                <div class="evidence-placeholder" v-else>
+                  <el-icon><Picture /></el-icon>
+                </div>
+                <div class="evidence-label">
+                  <span class="type-tag">X光</span>透视影像
+                  <span v-if="excludedTypes.includes('transparentImagePath')" class="excluded-tag">已排除</span>
                 </div>
               </div>
-              <div class="evidence-placeholder" v-else>
-                <el-icon><Picture /></el-icon>
-              </div>
-            </div>
 
-            <!-- 车身照 -->
-            <div class="evidence-item evidence-item-horizontal" :class="{ 'no-image': !row.bodyImagePath, 'excluded': excludedTypes.includes('bodyImagePath') }">
-              <div class="evidence-label-left">
-                <span class="type-tag">25</span>车身照
-                <span v-if="excludedTypes.includes('25_body')" class="excluded-tag">已排除</span>
-              </div>
-              <div class="evidence-img-box" v-if="row.bodyImagePath">
-                <el-image
-                  :src="formatImageUrl(row.bodyImagePath)"
-                  fit="contain"
-                  :preview-src-list="[formatImageUrl(row.bodyImagePath)]"
-                  class="evidence-img"
-                />
-                <div class="delete-btn" @click.stop="toggleImage('bodyImagePath')">
-                  <el-icon v-if="excludedTypes.includes('25_body')"><Plus /></el-icon>
-                  <el-icon v-else><Close /></el-icon>
+              <!-- 车身照 -->
+              <div class="evidence-item" :class="{ 'no-image': !row.bodyImagePath, 'excluded': excludedTypes.includes('bodyImagePath') }">
+                <div class="evidence-img-box" v-if="row.bodyImagePath">
+                  <el-image
+                    :src="formatImageUrl(row.bodyImagePath)"
+                    fit="fill"
+                    :preview-src-list="[formatImageUrl(row.bodyImagePath)]"
+                    class="evidence-img"
+                  />
+                  <div class="delete-btn" @click.stop="toggleImage('bodyImagePath')">
+                    <el-icon v-if="excludedTypes.includes('bodyImagePath')"><Plus /></el-icon>
+                    <el-icon v-else><Close /></el-icon>
+                  </div>
+                </div>
+                <div class="evidence-placeholder" v-else>
+                  <el-icon><Picture /></el-icon>
+                </div>
+                <div class="evidence-label">
+                  <span class="type-tag">25</span>车身照
+                  <span v-if="excludedTypes.includes('bodyImagePath')" class="excluded-tag">已排除</span>
                 </div>
               </div>
-              <div class="evidence-placeholder" v-else>
-                <el-icon><Picture /></el-icon>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 查验数据区域 -->
-        <div class="detail-section data-section">
-          <div class="section-header">
-            <span class="section-title">查验数据</span>
-          </div>
-          <div class="data-grid">
-            <!-- 第一列：基础通行信息 -->
-            <div class="data-col">
-              <div class="data-row">
-                <span class="data-label">入口站名称</span>
-                <span class="data-value">{{ row.passcodeEnStationId || '-' }}</span>
-              </div>
-              <div class="data-row">
-                <span class="data-label">出口站名称</span>
-                <span class="data-value">{{ row.passcodeExStationId || '-' }}</span>
-              </div>
-              <div class="data-row">
-                <span class="data-label">出口交易时间</span>
-                <span class="data-value">{{ row.passcodeExTime || '-' }}</span>
-              </div>
-              <div class="data-row">
-                <span class="data-label">总交易金额(元)</span>
-                <span class="data-value">{{ row.passcodeFee || '-' }}</span>
-              </div>
-              <div class="data-row">
-                <span class="data-label">出口交易编号</span>
-                <span class="data-value mono">{{ row.passcodeTransactionId || '-' }}</span>
-              </div>
             </div>
 
-            <!-- 第二列：车辆与货物信息 -->
-            <div class="data-col">
-              <div class="data-row">
-                <span class="data-label">货车类型</span>
-                <span class="data-value primary">{{ row.vehicleTypeText || '-' }}</span>
-              </div>
-              <div class="data-row">
-                <span class="data-label">货箱类型</span>
-                <span class="data-value">{{ row.vehicleContainerTypeText || '-' }}</span>
-              </div>
-              <div class="data-row">
-                <span class="data-label">满载率(%)</span>
-                <span class="data-value">{{ row.loadRate != null ? row.loadRate + '%' : '-' }}</span>
-              </div>
-              <div class="data-row">
-                <span class="data-label">货物名称</span>
-                <span class="data-value">{{ row.goodsTypeName || '-' }}</span>
-              </div>
-              <div class="data-row">
-                <span class="data-label">入口重量(KG)</span>
-                <span class="data-value">{{ row.passcodeEnWeight || '-' }}</span>
-              </div>
-              <div class="data-row">
-                <span class="data-label">出口重量(KG)</span>
-                <span class="data-value">{{ row.passcodeExWeight || '-' }}</span>
-              </div>
-            </div>
-
-            <!-- 第三列：载重与费用信息 -->
-            <div class="data-col">
-              <div class="data-row">
-                <span class="data-label">应收金额(元)</span>
-                <span class="data-value">{{ row.passcodePayFee || '-' }}</span>
-              </div>
-              <div class="data-row">
-                <span class="data-label">货车长宽高</span>
-                <span class="data-value mono">{{ formatVehicleSize(row.vehicleSize) }}</span>
-              </div>
-              <div class="data-row">
-                <span class="data-label">通过省份个数</span>
-                <span class="data-value">{{ row.passcodeProvinceCount || '-' }}</span>
-              </div>
-              <div class="data-row">
-                <span class="data-label">司机电话</span>
-                <span class="data-value">{{ row.driverPhone || '-' }}</span>
-              </div>
-              <div class="data-row">
-                <span class="data-label">通行标识ID</span>
-                <span class="data-value mono">{{ row.passcodePassId || '-' }}</span>
-              </div>
-              <div class="data-row">
-                <span class="data-label">通行介质</span>
-                <span class="data-value">{{ row.passcodeMediaTypeText || '-' }}</span>
-              </div>
-            </div>
-
-            <!-- 第四列：车牌与状态信息 -->
-            <div class="data-col">
-              <div class="data-row">
-                <span class="data-label">车牌号码</span>
-                <span class="data-value plate">{{ row.plateNumber || '-' }}</span>
-              </div>
-              <div class="data-row">
-                <span class="data-label">挂车号码</span>
-                <span class="data-value">{{ row.plateNumberGc || '-' }}</span>
-              </div>
-              <div class="data-row">
-                <span class="data-label">交易支付方式</span>
-                <span class="data-value">{{ row.passcodeTransPayTypeText || '-' }}</span>
-              </div>
-              <div class="data-row">
-                <span class="data-label">车辆状态标识</span>
-                <span class="data-value">{{ row.passcodeVehicleSignText || '-' }}</span>
-              </div>
-              <div class="data-row">
-                <span class="data-label">查验依据</span>
-                <span class="data-value">{{ row.inspectionBasis || '-' }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 底部结论栏 -->
-        <div class="result-bar">
-          <div class="result-bar-main">
-            <el-tag :type="getResultTagType(row.resultStatus)" size="large" effect="dark" class="result-badge">
-              {{ row.resultStatusText || '-' }}
-            </el-tag>
-          </div>
-          <div class="result-bar-items">
-            <div class="result-item">
-              <span class="result-label">查验员</span>
-              <span class="result-value">{{ row.operatorName || '-' }}</span>
-            </div>
-            <div class="result-item">
-              <span class="result-label">复核员</span>
-              <span class="result-value">{{ row.reviewerPhone || '-' }}</span>
-            </div>
-            <div class="result-item">
-              <span class="result-label">班组</span>
-              <span class="result-value">{{ row.groupId || '-' }}</span>
-            </div>
-            <div class="result-item" v-if="row.resultStatus === 2">
-              <span class="result-label">不合格类型</span>
-              <span class="result-value danger">{{ row.nopassTypeText || row.nopassType || '-' }}</span>
-            </div>
-          </div>
-        </div>
-
-      </div><!-- /detail-left -->
-
-      <!-- 右侧栏：货物照片 -->
-      <div class="detail-right">
-        <div class="detail-section goods-section">
-          <div class="section-header">
-            <span class="section-title">货物照</span>
-            <span class="section-sub" v-if="goodsImages.length > 0">共 {{ goodsImages.length }} 张</span>
-          </div>
-          <div class="goods-photo-area">
-            <div v-if="goodsImages.length > 0" class="goods-photo-list">
-              <div
-                v-for="(img, idx) in goodsImages"
-                :key="idx"
-                class="goods-photo-item"
-                :class="{ 'excluded': excludedGoods.includes(idx) }"
-              >
-                <div class="goods-img-wrapper">
+            <!-- 右侧50%：货物照 -->
+            <div class="evidence-item evidence-col-right" :class="{ 'no-image': goodsImages.length === 0 }">
+              <div class="goods-img-container" v-if="goodsImages.length > 0">
+                <div
+                  v-for="(img, idx) in goodsImages"
+                  :key="idx"
+                  class="goods-img-wrapper"
+                  :class="{ 'excluded': excludedGoods.includes(idx) }"
+                >
                   <el-image
                     :src="formatImageUrl(img)"
-                    fit="contain"
-                    class="goods-photo-img"
+                    fit="fill"
                     :preview-src-list="goodsImages.map(p => formatImageUrl(p))"
                     :initial-index="idx"
+                    class="evidence-img"
                   />
                   <div class="delete-btn" @click.stop="toggleGoodsImage(idx)">
                     <el-icon v-if="excludedGoods.includes(idx)"><Plus /></el-icon>
                     <el-icon v-else><Close /></el-icon>
                   </div>
                 </div>
-                <div class="goods-photo-label">
-                  货物照 {{ idx + 1 }}
-                  <span v-if="excludedGoods.includes(idx)" class="excluded-tag">已排除</span>
-                </div>
               </div>
-            </div>
-            <div class="goods-photo-placeholder" v-else>
-              <el-icon size="40" color="#dcdfe6"><Picture /></el-icon>
-              <span>暂无货物照</span>
+              <div class="evidence-placeholder" v-else>
+                <el-icon><Picture /></el-icon>
+              </div>
+              <div class="evidence-label">
+                <span class="type-tag">货物</span>货物照
+                <span v-if="goodsImages.length > 0" class="goods-count">({{ goodsImages.length }}张)</span>
+              </div>
             </div>
           </div>
         </div>
-      </div><!-- /detail-right -->
+
+      <!-- 查验数据区域 -->
+      <div class="detail-section data-section">
+        <div class="data-grid">
+          <!-- 第一列：基础通行信息 -->
+          <div class="data-col">
+            <div class="data-row">
+              <span class="data-label">入口站名称</span>
+              <span class="data-value">{{ row.passcodeEnStationId || '-' }}</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">出口站名称</span>
+              <span class="data-value">{{ row.passcodeExStationId || '-' }}</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">出口交易时间</span>
+              <span class="data-value">{{ row.passcodeExTime || '-' }}</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">总交易金额(元)</span>
+              <span class="data-value">{{ row.passcodeFee || '-' }}</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">出口交易编号</span>
+              <span class="data-value mono">{{ row.passcodeTransactionId || '-' }}</span>
+            </div>
+          </div>
+
+          <!-- 第二列：车辆与货物信息 -->
+          <div class="data-col">
+            <div class="data-row">
+              <span class="data-label">货车类型</span>
+              <span class="data-value primary">{{ row.vehicleTypeText || '-' }}</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">货箱类型</span>
+              <span class="data-value">{{ row.vehicleContainerTypeText || '-' }}</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">满载率(%)</span>
+              <span class="data-value">{{ row.loadRate != null ? row.loadRate + '%' : '-' }}</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">货物名称</span>
+              <span class="data-value">{{ row.goodsTypeName || '-' }}</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">入口重量(KG)</span>
+              <span class="data-value">{{ row.passcodeEnWeight || '-' }}</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">出口重量(KG)</span>
+              <span class="data-value">{{ row.passcodeExWeight || '-' }}</span>
+            </div>
+          </div>
+
+          <!-- 第三列：载重与费用信息 -->
+          <div class="data-col">
+            <div class="data-row">
+              <span class="data-label">应收金额(元)</span>
+              <span class="data-value">{{ row.passcodePayFee || '-' }}</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">货车长宽高</span>
+              <span class="data-value mono">{{ formatVehicleSize(row.vehicleSize) }}</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">通过省份个数</span>
+              <span class="data-value">{{ row.passcodeProvinceCount || '-' }}</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">司机电话</span>
+              <span class="data-value">{{ row.driverPhone || '-' }}</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">通行标识ID</span>
+              <span class="data-value mono">{{ row.passcodePassId || '-' }}</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">通行介质</span>
+              <span class="data-value">{{ row.passcodeMediaTypeText || '-' }}</span>
+            </div>
+          </div>
+
+          <!-- 第四列：车牌与状态信息 -->
+          <div class="data-col">
+            <div class="data-row">
+              <span class="data-label">车牌号码</span>
+              <span class="data-value plate">{{ row.plateNumber || '-' }}</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">挂车号码</span>
+              <span class="data-value">{{ row.plateNumberGc || '-' }}</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">交易支付方式</span>
+              <span class="data-value">{{ row.passcodeTransPayTypeText || '-' }}</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">车辆状态标识</span>
+              <span class="data-value">{{ row.passcodeVehicleSignText || '-' }}</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">查验依据</span>
+              <span class="data-value">{{ row.inspectionBasis || '-' }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 底部结论栏 -->
+      <div class="result-bar">
+        <div class="result-bar-main">
+          <el-tag :type="getResultTagType(row.resultStatus)" size="large" effect="dark" class="result-badge">
+            {{ row.resultStatusText || '-' }}
+          </el-tag>
+        </div>
+        <div class="result-bar-items">
+          <div class="result-item">
+            <span class="result-label">验货员</span>
+            <span class="result-value">{{ row.inspectorPhone || '-' }}</span>
+          </div>
+          <div class="result-item">
+            <span class="result-label">复核员</span>
+            <span class="result-value">{{ row.reviewerPhone || '-' }}</span>
+          </div>
+          <div class="result-item">
+            <span class="result-label">班组</span>
+            <span class="result-value">{{ row.groupId || '-' }}</span>
+          </div>
+          <div class="result-item" v-if="row.resultStatus === 2">
+            <span class="result-label">不合格类型</span>
+            <span class="result-value danger">{{ row.nopassTypeText || row.nopassType || '-' }}</span>
+          </div>
+        </div>
+      </div>
 
     </div><!-- /detail-body -->
 
@@ -531,31 +512,6 @@ const handleConfirm = async () => {
   color: #e6a23c;
 }
 
-/* ========== 左右两栏布局 ========== */
-.detail-body {
-  display: flex;
-  align-items: stretch;
-  gap: 0;
-}
-
-.detail-left {
-  flex: 1;
-  min-width: 0;
-  border-right: 1px solid #e4e7ed;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-}
-
-.detail-right {
-  flex: 0 0 18%;
-  min-width: 0;
-  max-width: 18%;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-}
-
 /* ========== 区域通用样式 ========== */
 .detail-section {
   margin-bottom: 12px;
@@ -563,105 +519,137 @@ const handleConfirm = async () => {
   border: 1px solid #ebeef5;
   border-radius: 8px;
   overflow: hidden;
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 14px;
-  background: #fafafa;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.section-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: #303133;
-}
-
-.section-sub {
-  font-size: 12px;
-  color: #909399;
-}
-
-/* ========== 证据链照片 ========== */
-.evidence-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 0;
-}
-
-.evidence-grid-2col {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  border-top: 1px solid #ebeef5;
-}
-
-.evidence-item {
-  border-right: 1px solid #f0f0f0;
-  text-align: center;
   position: relative;
 }
 
-.evidence-item:last-child {
-  border-right: none;
+/* ========== 证据链照片区域（Grid网格布局） ========== */
+
+.evidence-section {
+  padding: 12px 16px;
+}
+
+/* 第一行：5列等宽网格 */
+.evidence-grid-row-1 {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+/* 第二行：左侧50%（透视+车身2列），右侧50%（货物照） */
+.evidence-grid-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+  max-height: 100px;
+  min-height: 100px;
+}
+
+/* 左侧50%容器：包含透视影像和车身照，2列等宽 */
+.evidence-row-2-left {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.evidence-col-right {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 货物照容器：水平平铺所有图片 */
+.goods-img-container {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  width: 100%;
+  gap: 4px;
+  max-height: 100px;
+  overflow: hidden;
+}
+
+.goods-img-container .evidence-img {
+  flex: 1;
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+}
+
+/* 照片卡片通用样式 */
+.evidence-item {
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #fff;
+  position: relative;
 }
 
 .evidence-item.excluded {
   opacity: 0.6;
 }
 
-.evidence-img-box {
-  height: 80px;
-  overflow: hidden;
-  background: #f5f7fa;
-  cursor: zoom-in;
+.evidence-item .evidence-img-box {
+  width: 100%;
+  height: 100px;
   position: relative;
 }
 
-.evidence-img {
+.evidence-item .evidence-img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
 }
 
-.evidence-placeholder {
-  height: 80px;
+.evidence-item .evidence-placeholder {
+  width: 100%;
+  height: 60px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fafafa;
+  background: #f5f7fa;
   color: #dcdfe6;
+  border-radius: 4px;
 }
 
-.evidence-label {
-  padding: 10px;
-  font-size: 13px;
-  color: #606266;
-  border-top: 1px solid #f0f0f0;
-  background: #fafafa;
-  font-weight: 500;
-}
-
-.type-tag {
-  display: inline-block;
-  background: #409eff;
+.evidence-item .evidence-label {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: rgba(64, 158, 255, 0.9);
   color: #fff;
-  font-size: 11px;
+  font-size: 10px;
   padding: 2px 6px;
+  border-radius: 0 6px 0 4px;
+  font-weight: 500;
+  text-align: right;
+  z-index: 1;
+  white-space: nowrap;
+}
+
+.evidence-item .type-tag {
+  display: inline-block;
+  padding: 1px 4px;
+  background: rgba(255, 255, 255, 0.3);
+  color: #fff;
   border-radius: 3px;
-  margin-right: 4px;
-  font-weight: 700;
+  font-size: 9px;
+  margin-right: 2px;
 }
 
 .excluded-tag {
   display: inline-block;
-  font-size: 11px;
-  color: #f56c6c;
-  margin-left: 4px;
+  font-size: 10px;
+  color: #fef0f0;
+  margin-left: 2px;
 }
 
+/* 删除按钮 */
 .delete-btn {
   position: absolute;
   top: 4px;
@@ -677,6 +665,7 @@ const handleConfirm = async () => {
   color: #fff;
   opacity: 0;
   transition: opacity 0.2s;
+  z-index: 2;
 }
 
 .evidence-img-box:hover .delete-btn,
@@ -688,36 +677,23 @@ const handleConfirm = async () => {
   background: #f56c6c;
 }
 
-/* 第二行横向布局 */
-.evidence-item-horizontal {
-  display: flex;
-  align-items: center;
-  border-right: 1px solid #f0f0f0;
-  padding: 10px 12px;
-  gap: 12px;
-}
-
-.evidence-item-horizontal:last-child {
-  border-right: none;
-}
-
-.evidence-label-left {
-  flex-shrink: 0;
-  font-size: 13px;
-  color: #606266;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.evidence-item-horizontal .evidence-img-box {
+/* 货物照单个图片包装器 */
+.goods-img-wrapper {
+  position: relative;
   flex: 1;
-  height: 80px;
   min-width: 0;
 }
 
-.evidence-item-horizontal .evidence-placeholder {
-  flex: 1;
+/* 无图片时的占位图标 */
+.evidence-placeholder {
   height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f7fa;
+  color: #dcdfe6;
+  border-radius: 4px;
+  width: 100%;
 }
 
 /* ========== 数据网格 ========== */
@@ -834,70 +810,6 @@ const handleConfirm = async () => {
   color: #f56c6c;
 }
 
-/* ========== 货物照片区域 ========== */
-.goods-section {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.goods-photo-area {
-  flex: 1;
-  max-height: 690px;
-  padding: 16px;
-  overflow-y: auto;
-}
-
-.goods-photo-list {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.goods-photo-item {
-  border-radius: 6px;
-  overflow: hidden;
-  border: 1px solid #ebeef5;
-  background: #f5f7fa;
-}
-
-.goods-photo-item.excluded {
-  opacity: 0.6;
-}
-
-.goods-img-wrapper {
-  position: relative;
-}
-
-.goods-photo-img {
-  width: 100%;
-  height: 150px;
-  display: block;
-  cursor: zoom-in;
-  background: #f5f7fa;
-}
-
-.goods-photo-label {
-  text-align: center;
-  font-size: 13px;
-  color: #909399;
-  padding: 8px 0;
-  background: #fafafa;
-  border-top: 1px solid #ebeef5;
-  font-weight: 500;
-}
-
-.goods-photo-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  height: 200px;
-  color: #d0d0d0;
-  font-size: 13px;
-}
-
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
@@ -905,21 +817,6 @@ const handleConfirm = async () => {
 }
 
 @media (max-width: 900px) {
-  .detail-body {
-    flex-direction: column;
-  }
-
-  .detail-right {
-    max-width: 100%;
-    width: 100%;
-    border-top: 1px solid #e4e7ed;
-    border-right: none;
-  }
-
-  .evidence-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-
   .data-grid {
     grid-template-columns: repeat(2, 1fr);
   }
