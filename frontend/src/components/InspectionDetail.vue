@@ -5,9 +5,8 @@
   -->
   <el-dialog
     v-model="visible"
-    :title="editable ? '编辑查验记录' : '查验详情'"
     width="95vw"
-    top="0vh"
+    top="1vh"
     destroy-on-close
     class="inspection-detail-dialog"
   >
@@ -936,7 +935,7 @@ onMounted(() => {
 
 /* ========== 区域通用样式 ========== */
 .detail-section {
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   background: #fff;
   border: 1px solid #ebeef5;
   border-radius: 8px;
@@ -949,7 +948,7 @@ onMounted(() => {
 /* ========== 证据链照片区域（Grid网格布局） ========== */
 
 .evidence-section {
-  padding: 12px 16px;
+  padding: 2px 2px;
 }
 
 /* 第一行：5列等宽网格 */
@@ -989,7 +988,6 @@ onMounted(() => {
   flex: 1;
   width: 100%;
   gap: 4px;
-  max-height: 100px;
   overflow: hidden;
 }
 
@@ -998,29 +996,33 @@ onMounted(() => {
   object-fit: cover;
   width: 100%;
   height: 100%;
+  max-height: 130px;
 }
 
 /* 照片卡片通用样式 */
 .evidence-item {
   border: 1px solid #ebeef5;
   border-radius: 6px;
-  padding: 8px;
+  padding: 2px;
   display: flex;
   flex-direction: column;
   align-items: center;
   background: #fff;
   position: relative;
 }
+.evidence-grid-row-1 .evidence-item .evidence-img-box {
+  width:100%;
+  height: 130px;
+}
 
-.evidence-item .evidence-img-box {
+.evidence-grid-row-2 .evidence-item .evidence-img-box {
   width: 100%;
-  height: 100px;
+  height: 120px;
 }
 
 .evidence-item .evidence-img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
 }
 
 .evidence-item .evidence-placeholder {
@@ -1092,9 +1094,9 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 14px;
+  padding: 6px 14px;
   border-bottom: 1px solid #f5f5f5;
-  min-height: 44px;
+  min-height: 36px;
 }
 
 .data-row:last-child {
@@ -1151,10 +1153,10 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 24px;
+  padding: 12px 20px;
   background: linear-gradient(135deg, #f0f9eb 0%, #e1f3e1 100%);
   border-top: 3px solid #67c23a;
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
 .result-bar-main {

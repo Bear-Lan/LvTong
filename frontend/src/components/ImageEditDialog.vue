@@ -491,6 +491,23 @@ const handleConfirm = async () => {
 }
 </script>
 
+<style>
+.inspection-detail-dialog .el-dialog__header {
+  padding-bottom: 0 !important;
+  margin-bottom: 0 !important;
+}
+.inspection-detail-dialog .el-dialog__body {
+  padding: 10px 20px 20px !important;
+}
+.evidence-grid-row-1 .evidence-item .evidence-img-box {
+  width: 100%;
+  height: 130px;
+}
+.evidence-grid-row-1 .evidence-item .evidence-img {
+  object-fit: fill;
+}
+</style>
+
 <style scoped>
 .inspection-detail-dialog :deep(.el-dialog) {
   max-height: 90vh;
@@ -514,7 +531,7 @@ const handleConfirm = async () => {
 
 /* ========== 区域通用样式 ========== */
 .detail-section {
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   background: #fff;
   border: 1px solid #ebeef5;
   border-radius: 8px;
@@ -582,7 +599,7 @@ const handleConfirm = async () => {
 .evidence-item {
   border: 1px solid #ebeef5;
   border-radius: 6px;
-  padding: 8px;
+  padding: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -715,9 +732,9 @@ const handleConfirm = async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 14px;
+  padding: 6px 14px;
   border-bottom: 1px solid #f5f5f5;
-  min-height: 44px;
+  min-height: 36px;
 }
 
 .data-row:last-child {
@@ -762,10 +779,10 @@ const handleConfirm = async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 24px;
+  padding: 12px 20px;
   background: linear-gradient(135deg, #f0f9eb 0%, #e1f3e1 100%);
   border-top: 3px solid #67c23a;
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
 .result-bar-main {
