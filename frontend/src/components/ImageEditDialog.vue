@@ -497,6 +497,7 @@ const handleConfirm = async () => {
       emit('success')
     } else {
       ElMessage.error(res.message || '上报失败')
+      emit('success')  // 上报失败也刷新页面，更新复核状态
     }
   } catch {
     ElMessage.error('上报失败，请重试')
