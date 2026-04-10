@@ -330,43 +330,35 @@
         </div>
       </div>
 
-      <!-- 底部结论栏 -->
-      <div class="result-bar">
-        <div class="result-bar-main">
-          <el-tag :type="getResultTagType(row.resultStatus)" size="large" effect="dark" class="result-badge">
-            {{ row.resultStatusText || '-' }}
-          </el-tag>
-        </div>
-        <div class="result-bar-items">
+      <!-- 底部结果与操作区（横向排列） -->
+      <div class="bottom-result-section" :class="{ 'is-success': row.resultStatus === 1, 'is-danger': row.resultStatus === 2 }">
+        <!-- 左侧：查验结果、不合格类型 -->
+        <div class="result-group">
+          <!-- 查验结果 -->
           <div class="result-item">
-            <span class="result-label">验货员</span>
-            <span class="result-value">{{ row.inspectorPhone || '-' }}</span>
+            <span class="result-label">查验结果</span>
+            <el-tag :type="getResultTagType(row.resultStatus)" size="small" effect="dark">
+              {{ row.resultStatusText || '-' }}
+            </el-tag>
           </div>
-          <div class="result-item">
-            <span class="result-label">复核员</span>
-            <span class="result-value">{{ row.reviewerPhone || '-' }}</span>
-          </div>
-          <div class="result-item">
-            <span class="result-label">班组</span>
-            <span class="result-value">{{ row.groupId || '-' }}</span>
-          </div>
+
+          <!-- 不合格类型 -->
           <div class="result-item" v-if="row.resultStatus === 2">
             <span class="result-label">不合格类型</span>
             <span class="result-value danger">{{ row.nopassTypeText || row.nopassType || '-' }}</span>
           </div>
         </div>
+
+        <!-- 右侧：操作按钮 -->
+        <div class="result-actions">
+          <el-button size="small" @click="visible = false">取消</el-button>
+          <el-button type="primary" size="small" @click="handleConfirm" :loading="uploading">
+            确认上报（已排除 {{ excludedCount }} 张图片）
+          </el-button>
+        </div>
       </div>
 
     </div><!-- /detail-body -->
-
-    <template #footer>
-      <div class="dialog-footer">
-        <el-button @click="visible = false">取消</el-button>
-        <el-button type="primary" @click="handleConfirm" :loading="uploading">
-          确认上报（已排除 {{ excludedCount }} 张图片）
-        </el-button>
-      </div>
-    </template>
   </el-dialog>
 </template>
 
@@ -828,15 +820,68 @@ const handleConfirm = async () => {
   color: #f56c6c;
 }
 
-.dialog-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
 @media (max-width: 900px) {
   .data-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+}
+
+/* ========== 底部结果与操作区 ========== */
+.bottom-result-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #f0f9eb 0%, #e1f3e1 100%);
+  border-top: 3px solid #67c23a;
+  flex-wrap: wrap;
+  transition: all 0.3s ease;
+}
+
+.bottom-result-section.is-success {
+  background: linear-gradient(135deg, #f0f9eb 0%, #e1f3e1 100%);
+  border-top-color: #67c23a;
+}
+
+.bottom-result-section.is-danger {
+  background: linear-gradient(135deg, #fef0f0 0%, #fde2e2 100%);
+  border-top-color: #f56c6c;
+}
+
+.bottom-result-section .result-group {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.bottom-result-section .result-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.bottom-result-section .result-label {
+  font-size: 13px;
+  color: #606266;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.bottom-result-section .result-value {
+  font-size: 14px;
+  color: #303133;
+  font-weight: 600;
+}
+
+.bottom-result-section .result-value.danger {
+  color: #f56c6c;
+}
+
+.result-actions {
+  display: flex;
+  gap: 10px;
+  margin-left: 20px;
 }
 </style>
