@@ -37,7 +37,7 @@ public class UserEntity {
     /** 手机号 */
     private String phone;
 
-    /** 所属班组 ID，关联 user_groups.id */
+    /** 所属班组 ID */
     @TableField("group_id")
     private Long groupId;
 

@@ -339,7 +339,6 @@ import {Search, RefreshLeft, Van, View, Edit, Upload} from '@element-plus/icons-
 import { ElMessage } from 'element-plus'
 import { getInspectionList } from '@/api/vehicleInspection'
 import { getUserPhoneList } from '@/api/user'
-import { useUserStore } from '@/stores/user'
 import InspectionDetail from '@/components/InspectionDetail.vue'
 import ImageEditDialog from '@/components/ImageEditDialog.vue'
 
@@ -426,14 +425,6 @@ const loadUserPhones = async () => {
     const res = await getUserPhoneList()
     if (res.code === 200) {
       reviewerPhones.value = res.data || []
-      // 默认选中当前登录用户的电话
-      const userStore = useUserStore()
-      if (userStore.userInfo?.phone) {
-        const found = reviewerPhones.value.find(r => r.phone === userStore.userInfo.phone)
-        if (found) {
-          searchForm.reviewerPhone = found.phone
-        }
-      }
     }
   } catch {
     // 加载失败不影响主流程

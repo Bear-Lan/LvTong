@@ -35,7 +35,6 @@ src/main/java/com/lvtong/LvTongTransportDept/
 │
 ├── controller/                                 # 接口层（RESTful）
 │   ├── UserController.java                   # 用户管理 /api/user
-│   ├── UserGroupController.java              # 用户组管理 /api/groups
 │   ├── VehicleInspectionController.java       # 车辆查验 /api/inspection
 │   ├── ImageController.java                   # 图片访问 /api/images
 │   ├── ImageUploadController.java            # 图片上传 /api/upload
@@ -49,19 +48,16 @@ src/main/java/com/lvtong/LvTongTransportDept/
 │
 ├── entity/                                     # 数据库实体类
 │   ├── UserEntity.java                       # 用户表（users）
-│   ├── UserGroup.java                        # 用户组表（user_groups）
 │   ├── VehicleInspection.java                 # 查验记录表（vehicle_inspections）
 │   └── AgriculturalProduct.java              # 农产品品种表（agricultural_products）
 │
 ├── mapper/                                     # MyBatis Mapper 接口
 │   ├── UserMapper.java                       # 用户 Mapper
-│   ├── UserGroupMapper.java                  # 用户组 Mapper
 │   ├── VehicleInspectionMapper.java           # 查验 Mapper
 │   └── AgriculturalProductMapper.java         # 农产品 Mapper
 │
 ├── service/                                    # 业务逻辑层
 │   ├── UserService.java                      # 用户业务逻辑
-│   ├── UserGroupService.java                 # 用户组业务逻辑
 │   ├── VehicleInspectionService.java         # 查验业务逻辑（含多条件查询）
 │   └── TransportDeptUploadService.java       # 交通局上报逻辑
 │

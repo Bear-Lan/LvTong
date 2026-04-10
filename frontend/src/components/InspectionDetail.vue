@@ -13,6 +13,8 @@
 
     <!-- ================== 整体布局 ================== -->
     <div class="detail-body">
+      <!-- 标题：右上角 -->
+      <div class="detail-title" v-if="editable">详细编辑页面</div>
         <!-- 第一区域：证据链照片
              第一行：车头照、车尾照、行驶证、顶部照、通行凭证（5列）
              第二行：透视影像+车身照（占50%）、货物照（占50%） -->
@@ -182,7 +184,7 @@
           </div>
         </div>
 
-      <!-- 第二区域：数据网格（4列） -->
+      <!-- 第二区域：数据网格（3列） -->
       <div class="detail-section data-section">
         <div class="data-grid">
           <!-- 第一列：基础通行信息 -->
@@ -204,17 +206,20 @@
               <span class="data-value">{{ row.passcodeFee || '-' }}</span>
             </div>
             <div class="data-row">
+              <span class="data-label">通行介质</span>
+              <span class="data-value">{{ row.passcodeMediaTypeText || '-' }}</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">通过省份个数</span>
+              <span class="data-value">{{ row.passcodeProvinceCount || '-' }}</span>
+            </div>
+            <div class="data-row">
               <span class="data-label">出口交易编号</span>
               <span class="data-value mono">{{ row.passcodeTransactionId || '-' }}</span>
             </div>
-            <!-- 备注内容：可编辑时显示输入框 -->
-            <div class="data-row" v-if="editable">
-              <span class="data-label">备注内容</span>
-              <el-input v-model="form.historyRecord" placeholder="历史查验记录备注" size="small" style="width: 100%;" />
-            </div>
-            <div class="data-row" v-else>
-              <span class="data-label">备注内容</span>
-              <span class="data-value">{{ row.historyRecord || '-' }}</span>
+            <div class="data-row">
+              <span class="data-label">通行标识ID</span>
+              <span class="data-value mono">{{ row.passcodePassId || '-' }}</span>
             </div>
           </div>
 
@@ -252,15 +257,6 @@
               <span class="data-label">货箱类型</span>
               <span class="data-value">{{ row.vehicleContainerTypeText || '-' }}</span>
             </div>
-            <!-- 满载率：可编辑时显示输入框 -->
-            <div class="data-row" v-if="editable">
-              <span class="data-label">满载率(%)</span>
-              <el-input-number v-model="form.loadRate" :min="0" :max="100" :precision="2" size="small" style="width: 100%;" placeholder="0-100" />
-            </div>
-            <div class="data-row" v-else>
-              <span class="data-label">满载率(%)</span>
-              <span class="data-value">{{ row.loadRate != null ? row.loadRate + '%' : '-' }}</span>
-            </div>
             <!-- 货物名称：可编辑时显示选择品种 -->
             <div class="data-row" v-if="editable">
               <span class="data-label">货物名称</span>
@@ -290,26 +286,55 @@
               <span class="data-label">出口重量(KG)</span>
               <span class="data-value">{{ row.passcodeExWeight || '-' }}</span>
             </div>
-          </div>
-
-          <!-- 第三列：载重与费用信息 -->
-          <div class="data-col">
             <div class="data-row">
               <span class="data-label">应收金额(元)</span>
               <span class="data-value">{{ row.passcodePayFee || '-' }}</span>
             </div>
-            <!-- 货车长宽高：可编辑时显示输入框 -->
-            <div class="data-row" v-if="editable">
-              <span class="data-label">货车长宽高</span>
-              <el-input v-model="form.vehicleSize" placeholder="如：18000×2500×4000" size="small" style="width: 100%;" />
-            </div>
-            <div class="data-row" v-else>
-              <span class="data-label">货车长宽高</span>
-              <span class="data-value mono">{{ formatVehicleSize(row.vehicleSize) }}</span>
+            <div class="data-row">
+              <span class="data-label">交易支付方式</span>
+              <span class="data-value">{{ row.passcodeTransPayTypeText || '-' }}</span>
             </div>
             <div class="data-row">
-              <span class="data-label">通过省份个数</span>
-              <span class="data-value">{{ row.passcodeProvinceCount || '-' }}</span>
+              <span class="data-label">车辆状态标识</span>
+              <span class="data-value">{{ row.passcodeVehicleSignText || '-' }}</span>
+            </div>
+          </div>
+
+          <!-- 第三列：车牌与查验信息 -->
+          <div class="data-col">
+            <div class="data-row">
+              <span class="data-label">车牌号码</span>
+              <span class="data-value plate">{{ row.plateNumber || '-' }}</span>
+            </div>
+            <!-- 货车长宽高：可编辑时显示弹窗输入 -->
+            <div class="data-row" v-if="editable">
+              <span class="data-label">货车长宽高(m)</span>
+              <el-input
+                v-model="displayVehicleSize"
+                placeholder="点击输入"
+                size="small"
+                style="width: 100%;"
+                readonly
+                class="vehicle-size-input"
+                @click="openVehicleSizeDialog"
+              >
+                <template #suffix>
+                  <el-icon><Edit /></el-icon>
+                </template>
+              </el-input>
+            </div>
+            <div class="data-row" v-else>
+              <span class="data-label">货车长宽高(m)</span>
+              <span class="data-value mono">{{ formatVehicleSize(row.vehicleSize) }}</span>
+            </div>
+            <!-- 满载率：可编辑时显示输入框 -->
+            <div class="data-row" v-if="editable">
+              <span class="data-label">满载率(%)</span>
+              <el-input-number v-model="form.loadRate" :min="0" :max="100" :precision="2" size="small" style="width: 100%;" placeholder="0-100" />
+            </div>
+            <div class="data-row" v-else>
+              <span class="data-label">满载率(%)</span>
+              <span class="data-value">{{ row.loadRate != null ? row.loadRate + '%' : '-' }}</span>
             </div>
             <!-- 司机电话：可编辑时显示输入框 -->
             <div class="data-row" v-if="editable">
@@ -321,101 +346,68 @@
               <span class="data-value">{{ row.driverPhone || '-' }}</span>
             </div>
             <div class="data-row">
-              <span class="data-label">通行标识ID</span>
-              <span class="data-value mono">{{ row.passcodePassId || '-' }}</span>
+              <span class="data-label">验货员</span>
+              <span class="data-value">{{ row.inspectorPhone || '-' }}</span>
             </div>
-            <div class="data-row">
-              <span class="data-label">通行介质</span>
-              <span class="data-value">{{ row.passcodeMediaTypeText || '-' }}</span>
-            </div>
-          </div>
-
-          <!-- 第四列：车牌与状态信息 -->
-          <div class="data-col">
-            <div class="data-row">
-              <span class="data-label">车牌号码</span>
-              <span class="data-value plate">{{ row.plateNumber || '-' }}</span>
-            </div>
-            <div class="data-row">
-              <span class="data-label">挂车号码</span>
-              <span class="data-value">{{ row.plateNumberGc || '-' }}</span>
-            </div>
-            <div class="data-row">
-              <span class="data-label">交易支付方式</span>
-              <span class="data-value">{{ row.passcodeTransPayTypeText || '-' }}</span>
-            </div>
-            <div class="data-row">
-              <span class="data-label">车辆状态标识</span>
-              <span class="data-value">{{ row.passcodeVehicleSignText || '-' }}</span>
-            </div>
-            <div class="data-row">
-              <span class="data-label">查验依据</span>
-              <span class="data-value">{{ row.inspectionBasis || '等待开发' }}</span>
-            </div>
-            <div class="data-row">
-              <span class="data-label">复核结果</span>
-              <el-select v-if="editable" v-model="form.manualReviewState" placeholder="请选择" size="small" style="width: 140px;">
-                <el-option label="未审核" :value="0" />
-                <el-option label="已审核" :value="1" />
-                <el-option label="审核未通过" :value="2" />
+            <!-- 复核员：可编辑时显示下拉 -->
+            <div class="data-row" v-if="editable">
+              <span class="data-label">复核员</span>
+              <el-select v-model="form.reviewerPhone" placeholder="请选择核验员" clearable filterable size="small" style="width: 100%;" @change="handleReviewerChange">
+                <el-option
+                  v-for="r in reviewers"
+                  :key="r.phone"
+                  :label="r.realName + ' ' + r.phone"
+                  :value="r.phone"
+                />
               </el-select>
-              <span v-else class="data-value">
-                {{ row.manualReviewText || '未审核' }}
-              </span>
             </div>
+            <div class="data-row" v-else>
+              <span class="data-label">复核员</span>
+              <span class="data-value">{{ row.reviewerPhone || '-' }}</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">班组</span>
+              <span class="data-value">班组{{ form.groupId || row.groupId || '-' }}</span>
+            </div>
+            <!-- 备注内容：可编辑时显示输入框 -->
+            <div class="data-row" v-if="editable">
+              <span class="data-label">备注内容</span>
+              <el-input v-model="form.historyRecord" placeholder="历史查验记录备注" size="small" style="width: 100%;" />
+            </div>
+            <div class="data-row" v-else>
+              <span class="data-label">备注内容</span>
+              <span class="data-value">{{ row.historyRecord || '-' }}</span>
+            </div>    
+
           </div>
 
         </div>
       </div>
 
-      <!-- 底部结论栏 -->
-      <div class="result-bar">
-        <div class="result-bar-main">
-          <!-- 查验结果：可编辑时显示下拉 -->
-          <template v-if="editable">
-            <el-select v-model="form.resultStatus" size="large" style="width: 120px;">
+      <!-- 底部结果与操作区（横向排列） -->
+      <div class="bottom-result-section" :class="{ 'is-success': (editable ? form.resultStatus : row.resultStatus) === 1, 'is-danger': (editable ? form.resultStatus : row.resultStatus) === 2 }">
+        <!-- 左侧：查验结果、不合格类型、复核结果 -->
+        <div class="result-group">
+          <!-- 查验结果 -->
+          <div class="result-item" v-if="editable">
+            <span class="result-label">查验结果</span>
+            <el-select v-model="form.resultStatus" size="small" style="width: 120px;">
               <el-option label="待查验" :value="0" />
               <el-option label="合格" :value="1" />
               <el-option label="不合格" :value="2" />
             </el-select>
-          </template>
-          <template v-else>
-            <el-tag :type="getResultTagType(row.resultStatus)" size="large" effect="dark" class="result-badge">
-              {{ row.resultStatusText || '-' }}
-            </el-tag>
-          </template>
-        </div>
-        <div class="result-bar-items">
-          <!-- 验货员：显示 inspector_phone，不可编辑 -->
-          <div class="result-item">
-            <span class="result-label">验货员</span>
-            <span class="result-value">{{ row.inspectorPhone || '-' }}</span>
-          </div>
-          <!-- 复核员：可编辑时显示下拉 -->
-          <div class="result-item" v-if="editable">
-            <span class="result-label">复核员</span>
-            <el-select v-model="form.reviewerPhone" placeholder="请选择核验员" clearable filterable size="small" style="width: 150px;" @change="handleReviewerChange">
-              <el-option
-                v-for="r in reviewers"
-                :key="r.phone"
-                :label="r.realName + ' ' + r.phone"
-                :value="r.phone"
-              />
-            </el-select>
           </div>
           <div class="result-item" v-else>
-            <span class="result-label">复核员</span>
-            <span class="result-value">{{ row.reviewerPhone || '-' }}</span>
+            <span class="result-label">查验结果</span>
+            <el-tag :type="getResultTagType(row.resultStatus)" size="small" effect="dark">
+              {{ row.resultStatusText || '-' }}
+            </el-tag>
           </div>
-          <!-- 班组：自动跟随复核员，不可编辑 -->
-          <div class="result-item">
-            <span class="result-label">班组</span>
-            <span class="result-value">{{ form.groupId || row.groupId || '-' }}</span>
-          </div>
-          <!-- 不合格类型：可编辑时显示下拉选择 -->
-          <div class="result-item" v-if="editable">
+
+          <!-- 不合格类型：仅在查验结果为不合格时显示 -->
+          <div class="result-item" v-if="editable && form.resultStatus === 2">
             <span class="result-label">不合格类型</span>
-            <el-select v-model="form.nopassType" placeholder="合格则不填" clearable size="small" style="width: 200px;">
+            <el-select v-model="form.nopassType" placeholder="请选择" clearable size="small" style="width: 160px;">
               <el-option
                 v-for="opt in nopassTypeOptions"
                 :key="opt.value"
@@ -424,10 +416,30 @@
               />
             </el-select>
           </div>
-          <div class="result-item" v-else-if="row.resultStatus === 2">
+          <div class="result-item" v-else-if="row.resultStatus === 2 && !editable">
             <span class="result-label">不合格类型</span>
             <span class="result-value danger">{{ row.nopassTypeText || row.nopassType || '-' }}</span>
           </div>
+
+          <!-- 复核结果 -->
+          <div class="result-item" v-if="editable">
+            <span class="result-label">复核结果</span>
+            <el-select v-model="form.manualReviewState" placeholder="请选择" size="small" style="width: 120px;">
+              <el-option label="未审核" :value="0" />
+              <el-option label="已审核" :value="1" />
+              <el-option label="审核未通过" :value="2" />
+            </el-select>
+          </div>
+          <div class="result-item" v-else>
+            <span class="result-label">复核结果</span>
+            <span class="result-value">{{ row.manualReviewText || '未审核' }}</span>
+          </div>
+        </div>
+
+        <!-- 右侧：操作按钮 -->
+        <div class="result-actions" v-if="editable">
+          <el-button size="small" @click="visible = false">取消</el-button>
+          <el-button type="primary" size="small" @click="handleSubmit" :loading="submitting">保存修改</el-button>
         </div>
       </div>
 
@@ -532,13 +544,37 @@
       </template>
     </el-dialog>
 
-    <!-- 底部按钮：编辑模式下显示保存按钮 -->
-    <template #footer v-if="editable">
-      <div class="dialog-footer">
-        <el-button @click="visible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit" :loading="submitting">保存修改</el-button>
+    <!-- 货车长宽高弹窗 -->
+    <el-dialog
+      v-model="vehicleSizeDialogVisible"
+      title="货车长宽高"
+      width="360px"
+      destroy-on-close
+      append-to-body
+    >
+      <div class="vehicle-size-dialog-content">
+        <div class="vehicle-size-input-group">
+          <div class="input-item">
+            <span class="input-label">长(m)</span>
+            <el-input-number v-model="vehicleSizeForm.length" :min="0" :max="30" :precision="2" placeholder="长度" style="width: 100%;" />
+          </div>
+          <div class="input-item">
+            <span class="input-label">宽(m)</span>
+            <el-input-number v-model="vehicleSizeForm.width" :min="0" :max="10" :precision="2" placeholder="宽度" style="width: 100%;" />
+          </div>
+          <div class="input-item">
+            <span class="input-label">高(m)</span>
+            <el-input-number v-model="vehicleSizeForm.height" :min="0" :max="15" :precision="2" placeholder="高度" style="width: 100%;" />
+          </div>
+        </div>
       </div>
-    </template>
+      <template #footer>
+        <div class="dialog-footer-inner">
+          <el-button @click="vehicleSizeDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="confirmVehicleSize">确定</el-button>
+        </div>
+      </template>
+    </el-dialog>
 
   </el-dialog>
 </template>
@@ -562,7 +598,7 @@
 
 import { computed, ref, reactive, watch, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Plus, Picture } from '@element-plus/icons-vue'
+import { Plus, Picture, Edit } from '@element-plus/icons-vue'
 import { getProductList, getNopassTypeOptions, updateInspection } from '@/api/vehicleInspection'
 import { getUserPhoneList } from '@/api/user'
 
@@ -655,9 +691,21 @@ const formatVehicleSize = (size) => {
   if (!size) return '-'
   const parts = size.split('|')
   if (parts.length === 3) {
-    return `长:${(parseFloat(parts[0]) / 1000).toFixed(2)}m × 宽:${(parseFloat(parts[1]) / 1000).toFixed(2)}m × 高:${(parseFloat(parts[2]) / 1000).toFixed(2)}m`
+    return `长${(parseFloat(parts[0]) / 1000).toFixed(2)}m|宽${(parseFloat(parts[1]) / 1000).toFixed(2)}m|高${(parseFloat(parts[2]) / 1000).toFixed(2)}m`
   }
   return size
+}
+
+/** 确认货车长宽高 */
+const confirmVehicleSize = () => {
+  if (vehicleSizeForm.length != null && vehicleSizeForm.width != null && vehicleSizeForm.height != null) {
+    // 将米转换为毫米存储
+    const length = Math.round(vehicleSizeForm.length * 1000)
+    const width = Math.round(vehicleSizeForm.width * 1000)
+    const height = Math.round(vehicleSizeForm.height * 1000)
+    form.vehicleSize = `${length}|${width}|${height}`
+  }
+  vehicleSizeDialogVisible.value = false
 }
 
 // ================================================================
@@ -680,6 +728,38 @@ const reviewers = ref([])
 
 /** 提交按钮 loading */
 const submitting = ref(false)
+
+/** 货车长宽高弹框数据 */
+const vehicleSizeForm = reactive({
+  length: null,
+  width: null,
+  height: null
+})
+
+/** 货车长宽高弹窗显示状态 */
+const vehicleSizeDialogVisible = ref(false)
+
+/** 显示用的长宽高字符串 */
+const displayVehicleSize = computed(() => {
+  return formatVehicleSize(form.vehicleSize)
+})
+
+/** 打开货车长宽高弹窗 */
+const openVehicleSizeDialog = () => {
+  if (form.vehicleSize) {
+    const parts = form.vehicleSize.split('|')
+    if (parts.length === 3) {
+      vehicleSizeForm.length = parseFloat(parts[0]) / 1000
+      vehicleSizeForm.width = parseFloat(parts[1]) / 1000
+      vehicleSizeForm.height = parseFloat(parts[2]) / 1000
+    }
+  } else {
+    vehicleSizeForm.length = null
+    vehicleSizeForm.width = null
+    vehicleSizeForm.height = null
+  }
+  vehicleSizeDialogVisible.value = true
+}
 
 /** 表单数据 */
 const form = reactive({
@@ -894,6 +974,19 @@ watch(() => props.row, (row) => {
     // 货物信息
     form.loadRate = typeof row.loadRate === 'string' ? (row.loadRate === '' ? null : Number(row.loadRate)) : row.loadRate
     form.vehicleSize = row.vehicleSize || ''
+    // 同步货车长宽高到弹框表单
+    if (row.vehicleSize) {
+      const parts = row.vehicleSize.split('|')
+      if (parts.length === 3) {
+        vehicleSizeForm.length = parseFloat(parts[0]) / 1000
+        vehicleSizeForm.width = parseFloat(parts[1]) / 1000
+        vehicleSizeForm.height = parseFloat(parts[2]) / 1000
+      }
+    } else {
+      vehicleSizeForm.length = null
+      vehicleSizeForm.width = null
+      vehicleSizeForm.height = null
+    }
     // 查验信息
     form.resultStatus = row.resultStatus
     form.nopassType = row.nopassType
@@ -931,6 +1024,16 @@ onMounted(() => {
 /* ========== 弹窗样式 ========== */
 .inspection-detail-dialog {
   max-height: 95vh;
+}
+.detail-title {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-size: 16px; /* 这里改大一点，比如 18px */
+  color: #121212;
+  font-weight: 600;
+  padding: 4px 8px;
+  z-index: 1;
 }
 
 /* ========== 区域通用样式 ========== */
@@ -1012,7 +1115,7 @@ onMounted(() => {
 }
 .evidence-grid-row-1 .evidence-item .evidence-img-box {
   width:100%;
-  height: 130px;
+  height: 160px;
 }
 
 .evidence-grid-row-2 .evidence-item .evidence-img-box {
@@ -1027,7 +1130,7 @@ onMounted(() => {
 
 .evidence-item .evidence-placeholder {
   width: 100%;
-  height: 60px;
+  height: 160px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1063,7 +1166,7 @@ onMounted(() => {
 
 /* 无图片时的占位图标 */
 .evidence-placeholder {
-  height: 80px;
+  height: 160px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1073,10 +1176,10 @@ onMounted(() => {
   width: 100%;
 }
 
-/* ========== 数据网格区域（4列） ========== */
+/* ========== 数据网格区域（3列） ========== */
 .data-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
 }
 
 /* 每列：右边框分隔，内容从上到下排列 */
@@ -1199,6 +1302,21 @@ onMounted(() => {
 
 .result-value.danger {
   color: #f56c6c;
+}
+
+/* ========== 底部结论栏（精简版） ========== */
+.result-bar-simple {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 20px;
+  background: linear-gradient(135deg, #f0f9eb 0%, #e1f3e1 100%);
+  border-top: 3px solid #67c23a;
+  margin-top: 8px;
+}
+
+.result-main {
+  text-align: center;
 }
 
 /* ========== 响应式：小屏适配 ========== */
@@ -1359,5 +1477,97 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+/* ========== 货车长宽高弹框样式 ========== */
+.vehicle-size-input {
+  cursor: pointer;
+}
+
+.vehicle-size-input:hover {
+  border-color: #409eff;
+}
+
+/* ========== 底部结果与操作区 ========== */
+.bottom-result-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #f0f9eb 0%, #e1f3e1 100%);
+  border-top: 3px solid #67c23a;
+  flex-wrap: wrap;
+  transition: all 0.3s ease;
+}
+
+.bottom-result-section.is-success {
+  background: linear-gradient(135deg, #f0f9eb 0%, #e1f3e1 100%);
+  border-top-color: #67c23a;
+}
+
+.bottom-result-section.is-danger {
+  background: linear-gradient(135deg, #fef0f0 0%, #fde2e2 100%);
+  border-top-color: #f56c6c;
+}
+
+.bottom-result-section .result-group {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.bottom-result-section .result-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.bottom-result-section .result-label {
+  font-size: 13px;
+  color: #606266;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.bottom-result-section .result-value {
+  font-size: 14px;
+  color: #303133;
+  font-weight: 600;
+}
+
+.bottom-result-section .result-value.danger {
+  color: #f56c6c;
+}
+
+.result-actions {
+  display: flex;
+  gap: 10px;
+  margin-left: 20px;
+}
+
+/* ========== 货车长宽高弹窗样式 ========== */
+.vehicle-size-dialog-content {
+  padding: 10px 0;
+}
+
+.vehicle-size-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.vehicle-size-input-group .input-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.vehicle-size-input-group .input-label {
+  width: 50px;
+  font-size: 14px;
+  color: #606266;
+  font-weight: 500;
 }
 </style>
