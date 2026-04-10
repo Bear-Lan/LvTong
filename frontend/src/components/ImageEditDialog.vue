@@ -356,9 +356,9 @@
           <div class="result-item">
             <span class="result-label">复核结果</span>
             <el-select v-model="manualReviewState" placeholder="请选择" size="small" style="width: 120px;">
-              <el-option label="未审核" :value="0" />
-              <el-option label="已审核" :value="1" />
-              <el-option label="审核未通过" :value="2" />
+              <el-option label="未审核" :value="1" />
+              <el-option label="已审核" :value="2" />
+              <el-option label="审核未通过" :value="3" />
             </el-select>
           </div>
         </div>
@@ -397,7 +397,7 @@ const visible = computed({
 const uploading = ref(false)
 
 // 复核结果
-const manualReviewState = ref(0)
+const manualReviewState = ref(1)
 
 // 排除的图片类型
 const excludedTypes = ref([])
@@ -423,7 +423,7 @@ const excludedCount = computed(() => {
 watch(() => props.row, () => {
   excludedTypes.value = []
   excludedGoods.value = []
-  manualReviewState.value = props.row.manualReviewState ?? 0
+  manualReviewState.value = props.row.manualReviewState ?? 1
 }, { immediate: true })
 
 // 格式化图片URL
@@ -482,7 +482,7 @@ const buildExcludeList = () => {
 // 确认上报
 const handleConfirm = async () => {
   // 复核结果为未审核或审核未通过时，不允许上报
-  if (manualReviewState.value !== 1) {
+  if (manualReviewState.value !== 2) {
     ElMessage.warning('请先修改复核结果为已审核后再上报')
     return
   }

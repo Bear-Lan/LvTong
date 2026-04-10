@@ -90,7 +90,7 @@
         <el-row :gutter="24">
 
           <!-- 时间范围 - 日期时间区间选择 -->
-          <el-col :span="12">
+          <el-col :span="9">
             <el-form-item label="查验时间范围">
               <el-date-picker
                 v-model="dateRange"
@@ -102,6 +102,22 @@
                 value-format="YYYY-MM-DD HH:mm:ss"
                 style="width: 100%;"
               />
+            </el-form-item>
+          </el-col>
+
+          <!-- 复核结果 - 下拉筛选 -->
+          <el-col :span="3">
+            <el-form-item label="复核结果">
+              <el-select
+                v-model="searchForm.manualReviewState"
+                placeholder="全部"
+                clearable
+                style="width: 100%;"
+              >
+                <el-option label="已审核" :value="2" />
+                <el-option label="未审核" :value="1" />
+                <el-option label="审核未通过" :value="3" />
+              </el-select>
             </el-form-item>
           </el-col>
 
@@ -246,6 +262,15 @@
           </template>
         </el-table-column>
 
+        <!-- 复核结果 -->
+        <el-table-column label="复核结果" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag v-if="row.manualReviewState === 2" type="success" size="small">已审核</el-tag>
+            <el-tag v-else-if="row.manualReviewState === 3" type="danger" size="small">审核未通过</el-tag>
+            <el-tag v-else type="info" size="small">未审核</el-tag>
+          </template>
+        </el-table-column>
+
         <!-- 上传状态 -->
         <el-table-column label="上传状态" width="100" align="center">
           <template #default="{ row }">
@@ -385,7 +410,8 @@ const searchForm = reactive({
   plateNumber: '',
   driverPhone: '',
   reviewerPhone: null,
-  resultStatus: null
+  resultStatus: null,
+  manualReviewState: null
 })
 
 /** 核验员下拉选项（所有用户电话） */
@@ -476,6 +502,8 @@ const loadData = async () => {
       params.startTime = dateRange.value[0]
       params.endTime   = dateRange.value[1]
     }
+    // 注意：manualReviewState 有值时要用 !== null 判断
+    if (searchForm.manualReviewState !== null) params.manualReviewState = searchForm.manualReviewState
 
     const res = await getInspectionList(params)
 
@@ -514,6 +542,7 @@ const handleReset = () => {
   searchForm.driverPhone    = ''
   searchForm.reviewerPhone  = null
   searchForm.resultStatus   = null
+  searchForm.manualReviewState = null
   initDateRange()
   pagination.page = 1
   loadData()

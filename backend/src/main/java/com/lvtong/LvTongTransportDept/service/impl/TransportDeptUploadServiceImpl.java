@@ -204,7 +204,7 @@ public class TransportDeptUploadServiceImpl implements TransportDeptUploadServic
                         .set(VehicleInspection::getToTransportdeptState, state)
                         .set(VehicleInspection::getToTransportdeptTime, java.time.LocalDateTime.now())
                         .set(VehicleInspection::getToTransportdeptComment, comment)
-                        .set(VehicleInspection::getManualReviewState, 1)
+                        .set(VehicleInspection::getManualReviewState, 2)
                         .eq(VehicleInspection::getId, id)
         );
     }
