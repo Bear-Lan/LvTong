@@ -303,10 +303,6 @@
               <span class="data-value plate">{{ row.plateNumber || '-' }}</span>
             </div>
             <div class="data-row">
-              <span class="data-label">挂车号码</span>
-              <span class="data-value">{{ row.plateNumberGc || '-' }}</span>
-            </div>
-            <div class="data-row">
               <span class="data-label">货车长宽高(m)</span>
               <span class="data-value mono">{{ formatVehicleSize(row.vehicleSize) }}</span>
             </div>
@@ -433,7 +429,7 @@ const formatVehicleSize = (size) => {
   if (!size) return '-'
   const parts = size.split('|')
   if (parts.length === 3) {
-    return `长:${(parseFloat(parts[0]) / 1000).toFixed(2)}m × 宽:${(parseFloat(parts[1]) / 1000).toFixed(2)}m × 高:${(parseFloat(parts[2]) / 1000).toFixed(2)}m`
+    return `长${(parseFloat(parts[0]) / 1000).toFixed(2)}m|宽${(parseFloat(parts[1]) / 1000).toFixed(2)}m|高${(parseFloat(parts[2]) / 1000).toFixed(2)}m`
   }
   return size
 }
