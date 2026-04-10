@@ -340,7 +340,7 @@
 
       <!-- 底部结果与操作区（横向排列） -->
       <div class="bottom-result-section" :class="{ 'is-success': row.resultStatus === 1, 'is-danger': row.resultStatus === 2 }">
-        <!-- 左侧：查验结果、不合格类型 -->
+        <!-- 左侧：查验结果、不合格类型、复核结果 -->
         <div class="result-group">
           <!-- 查验结果 -->
           <div class="result-item">
@@ -354,6 +354,12 @@
           <div class="result-item" v-if="row.resultStatus === 2">
             <span class="result-label">不合格类型</span>
             <span class="result-value danger">{{ row.nopassTypeText || row.nopassType || '-' }}</span>
+          </div>
+
+          <!-- 复核结果 -->
+          <div class="result-item">
+            <span class="result-label">复核结果</span>
+            <span class="result-value">{{ row.manualReviewText || '未审核' }}</span>
           </div>
         </div>
 
