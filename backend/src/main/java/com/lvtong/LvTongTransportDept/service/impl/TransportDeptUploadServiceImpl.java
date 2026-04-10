@@ -199,12 +199,14 @@ public class TransportDeptUploadServiceImpl implements TransportDeptUploadServic
     }
 
     private void updateUploadState(Integer id, int state, String comment) {
+        // 上报成功时设置复核结果为已审核(1)，失败时设置为审核未通过(2)
+        Integer manualReviewState = (state == 1) ? 1 : 2;
         mapper.update(null,
                 new LambdaUpdateWrapper<VehicleInspection>()
                         .set(VehicleInspection::getToTransportdeptState, state)
                         .set(VehicleInspection::getToTransportdeptTime, java.time.LocalDateTime.now())
                         .set(VehicleInspection::getToTransportdeptComment, comment)
-                        .set(VehicleInspection::getManualReviewState, 1)
+                        .set(VehicleInspection::getManualReviewState, manualReviewState)
                         .eq(VehicleInspection::getId, id)
         );
     }
