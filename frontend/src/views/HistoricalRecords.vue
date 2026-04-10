@@ -169,10 +169,11 @@
         class="data-table"
         :header-cell-style="{ background: '#f5f7fa', color: '#606266', fontWeight: '600', fontSize: '14px' }"
         @row-click="handleRowClick"
+        @row-dblclick="handleRowDblClick"
         :row-class-name="getRowClassName"
       >
         <!-- 车牌号码：显示车牌+颜色背景 -->
-        <el-table-column label="车牌号码" width="160" align="center">
+        <el-table-column label="车牌号码" width="110" align="center">
           <template #default="{ row }">
             <div class="plate-wrapper">
               <el-checkbox
@@ -196,14 +197,14 @@
         </el-table-column>
 
         <!-- 司机电话 -->
-        <el-table-column label="司机电话" width="130" align="center">
+        <el-table-column label="司机电话" width="95" align="center">
           <template #default="{ row }">
             <span class="mono-text">{{ row.driverPhone || '-' }}</span>
           </template>
         </el-table-column>
 
         <!-- 车辆类型：显示车种标签 -->
-        <el-table-column label="车辆类型" width="140" align="center">
+        <el-table-column label="车辆类型" width="85" align="center">
           <template #default="{ row }">
             <el-tag
               :type="getVehicleClassTagType(row.vehicleType)"
@@ -224,14 +225,14 @@
         </el-table-column>
 
         <!-- 货箱类型 -->
-        <el-table-column label="货箱类型" width="180" align="center">
+        <el-table-column label="货箱类型" width="140" align="center">
           <template #default="{ row }">
             <span class="container-type">{{ row.vehicleContainerTypeText || '-' }}</span>
           </template>
         </el-table-column>
 
         <!-- 满载率：颜色分级显示 -->
-        <el-table-column label="满载率" width="100" align="center">
+        <el-table-column label="满载率" width="70" align="center">
           <template #default="{ row }">
             <span :class="getLoadRateClass(row.loadRate)">
               {{ row.loadRate != null ? row.loadRate + '%' : '-' }}
@@ -240,21 +241,16 @@
         </el-table-column>
 
         <!-- 操作员 -->
-        <el-table-column label="操作员" width="100" align="center" show-overflow-tooltip>
+        <el-table-column label="操作员" width="90" align="center" show-overflow-tooltip>
           <template #default="{ row }">
             <span>{{ row.operatorName || '-' }}</span>
           </template>
         </el-table-column>
 
-        <!-- 查验时间 -->
-        <el-table-column label="查验时间" width="170" align="center">
-          <template #default="{ row }">
-            <span class="time-text">{{ row.inspectionTime || '-' }}</span>
-          </template>
-        </el-table-column>
+
 
         <!-- 查验结果：合格/不合格标签 -->
-        <el-table-column label="查验结果" width="100" align="center">
+        <el-table-column label="查验结果" width="90" align="center">
           <template #default="{ row }">
             <el-tag :type="getResultTagType(row.resultStatus)" size="small" effect="dark">
               {{ row.resultStatusText }}
@@ -263,7 +259,7 @@
         </el-table-column>
 
         <!-- 复核结果 -->
-        <el-table-column label="复核结果" width="100" align="center">
+        <el-table-column label="复核结果" width="85" align="center">
           <template #default="{ row }">
             <el-tag v-if="row.manualReviewState === 1" type="success" size="small">已审核</el-tag>
             <el-tag v-else-if="row.manualReviewState === 2" type="danger" size="small">审核未通过</el-tag>
@@ -272,7 +268,7 @@
         </el-table-column>
 
         <!-- 上传状态 -->
-        <el-table-column label="上传状态" width="100" align="center">
+        <el-table-column label="上传状态" width="85" align="center">
           <template #default="{ row }">
             <el-tag v-if="row.toTransportdeptState === 1" type="success" size="small">成功</el-tag>
             <el-tag v-else-if="row.toTransportdeptState === -1" type="danger" size="small">失败</el-tag>
@@ -280,20 +276,25 @@
             <span v-else>-</span>
           </template>
         </el-table-column>
-
-        <!-- 上传时间 -->
-        <el-table-column label="上传时间" width="170" align="center">
-          <template #default="{ row }">
-            <span class="time-text">{{ row.toTransportdeptTime || '-' }}</span>
-          </template>
-        </el-table-column>
-
         <!-- 上传备注 -->
-        <el-table-column label="上传备注" min-width="120" align="center" show-overflow-tooltip>
+        <el-table-column label="上传备注" min-width="86" align="center" show-overflow-tooltip>
           <template #default="{ row }">
             <span>{{ row.toTransportdeptComment || '-' }}</span>
           </template>
         </el-table-column>
+        <!-- 上传时间 -->
+        <el-table-column label="上传时间" width="130" align="center">
+          <template #default="{ row }">
+            <span class="time-text">{{ row.toTransportdeptTime || '-' }}</span>
+          </template>
+        </el-table-column>
+        <!-- 查验时间 -->
+        <el-table-column label="查验时间" width="130" align="center">
+          <template #default="{ row }">
+            <span class="time-text">{{ row.inspectionTime || '-' }}</span>
+          </template>
+        </el-table-column>
+
 
         <!-- 操作列：固定在右侧，查看/删除 -->
         <el-table-column label="操作" width="120" fixed="right" align="center">
@@ -629,6 +630,14 @@ const handleRowClick = (row) => {
 }
 
 /**
+ * handleRowDblClick：双击行显示详情
+ */
+const handleRowDblClick = (row) => {
+  currentRow.value = { ...row }
+  detailVisible.value = true
+}
+
+/**
  * handleCheckboxChange：勾选框状态变化时触发
  * @param {Object} row - 当前行数据
  * @param {Boolean} val - 勾选状态
@@ -814,14 +823,14 @@ onMounted(async () => {
 .data-table {
   border-radius: 6px;
   overflow: hidden;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 /* 行悬停效果 */
 .data-table :deep(.el-table__row) {
   cursor: pointer;
   transition: background 0.2s;
-  height: 52px;
+  height: 46px;
 }
 
 .data-table :deep(.el-table__row:hover) {
@@ -830,7 +839,7 @@ onMounted(async () => {
 
 /* 单元格内边距 */
 .data-table :deep(.el-table__cell) {
-  padding: 10px 0;
+  padding: 6px 0;
 }
 
 /* ========== 单元格内容样式 ========== */
@@ -848,7 +857,7 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  padding: 4px 8px;
+  padding: 2px 6px;
   border-radius: 6px;
   width: fit-content;
   margin: 0 auto;
@@ -869,7 +878,7 @@ onMounted(async () => {
   color: inherit;
   font-family: 'Consolas', 'Monaco', monospace;
   letter-spacing: 1px;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 /* 挂车号码 */
@@ -880,33 +889,33 @@ onMounted(async () => {
 }
 
 .plate-color-tag {
-  font-size: 11px;
-  padding: 0 3px;
-  height: 18px;
-  line-height: 16px;
+  font-size: 10px;
+  padding: 0 2px;
+  height: 16px;
+  line-height: 14px;
 }
 
 /* 车辆类型标签 */
 .vehicle-class-tag {
-  font-size: 12px;
+  font-size: 11px;
 }
 
 /* 货箱类型 */
 .container-type {
-  font-size: 12px;
+  font-size: 11px;
   color: #606266;
 }
 
 /* 等宽字体（电话号码） */
 .mono-text {
   font-family: 'Consolas', 'Monaco', monospace;
-  font-size: 12px;
+  font-size: 11px;
   color: #606266;
 }
 
 /* 时间文本 */
 .time-text {
-  font-size: 12px;
+  font-size: 11px;
   color: #909399;
 }
 
@@ -914,12 +923,13 @@ onMounted(async () => {
 .load-high {
   color: #67c23a;  /* 绿色：合格 */
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .load-mid {
   color: #e6a23c;  /* 橙色：需关注 */
   font-weight: 500;
+  font-size: 11px;
 }
 
 .load-low {
