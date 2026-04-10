@@ -271,10 +271,6 @@
               <span class="data-value">{{ row.vehicleContainerTypeText || '-' }}</span>
             </div>
             <div class="data-row">
-              <span class="data-label">满载率(%)</span>
-              <span class="data-value">{{ row.loadRate != null ? row.loadRate + '%' : '-' }}</span>
-            </div>
-            <div class="data-row">
               <span class="data-label">货物名称</span>
               <span class="data-value">{{ row.goodsTypeName || '-' }}</span>
             </div>
@@ -315,6 +311,10 @@
               <span class="data-value mono">{{ formatVehicleSize(row.vehicleSize) }}</span>
             </div>
             <div class="data-row">
+              <span class="data-label">满载率(%)</span>
+              <span class="data-value">{{ row.loadRate != null ? row.loadRate + '%' : '-' }}</span>
+            </div>
+            <div class="data-row">
               <span class="data-label">司机电话</span>
               <span class="data-value">{{ row.driverPhone || '-' }}</span>
             </div>
@@ -328,7 +328,7 @@
             </div>
             <div class="data-row">
               <span class="data-label">班组</span>
-              <span class="data-value">{{ row.groupId || '-' }}</span>
+              <span class="data-value">班组{{ row.groupId || '-' }}</span>
             </div>
             <div class="data-row">
               <span class="data-label">备注内容</span>
@@ -704,7 +704,7 @@ const handleConfirm = async () => {
 /* ========== 数据网格 ========== */
 .data-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
 }
 
 .data-col {
