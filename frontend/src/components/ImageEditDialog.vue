@@ -493,7 +493,7 @@ const handleConfirm = async () => {
 }
 .evidence-grid-row-1 .evidence-item .evidence-img-box {
   width: 100%;
-  height: 130px;
+  height: 160px;
 }
 .evidence-grid-row-1 .evidence-item .evidence-img {
   object-fit: fill;
@@ -552,8 +552,8 @@ const handleConfirm = async () => {
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   width: 100%;
-  max-height: 100px;
-  min-height: 100px;
+  max-height: 160px;
+  min-height: 160px;
 }
 
 /* 左侧50%容器：包含透视影像和车身照，2列等宽 */
@@ -576,7 +576,7 @@ const handleConfirm = async () => {
   flex: 1;
   width: 100%;
   gap: 4px;
-  max-height: 100px;
+  max-height: 160px;
   overflow: hidden;
 }
 
@@ -605,7 +605,7 @@ const handleConfirm = async () => {
 
 .evidence-item .evidence-img-box {
   width: 100%;
-  height: 100px;
+  height: 160px;
   position: relative;
 }
 
@@ -617,7 +617,7 @@ const handleConfirm = async () => {
 
 .evidence-item .evidence-placeholder {
   width: 100%;
-  height: 60px;
+  height: 160px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -691,18 +691,6 @@ const handleConfirm = async () => {
   position: relative;
   flex: 1;
   min-width: 0;
-}
-
-/* 无图片时的占位图标 */
-.evidence-placeholder {
-  height: 80px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f5f7fa;
-  color: #dcdfe6;
-  border-radius: 4px;
-  width: 100%;
 }
 
 /* ========== 数据网格 ========== */
