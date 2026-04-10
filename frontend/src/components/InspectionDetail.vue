@@ -228,7 +228,7 @@
             <!-- 货车类型：可编辑时显示下拉 -->
             <div class="data-row" v-if="editable">
               <span class="data-label">货车类型</span>
-              <el-select v-model="form.vehicleType" placeholder="请选择" clearable size="small" style="width: 100%;">
+              <el-select v-model="form.vehicleType" placeholder="请选择" clearable size="small" style="width: 85%;">
                 <el-option label="一型货车" value="11" />
                 <el-option label="二型货车" value="12" />
                 <el-option label="三型货车" value="13" />
@@ -244,7 +244,7 @@
             <!-- 货箱类型：可编辑时显示下拉 -->
             <div class="data-row" v-if="editable">
               <span class="data-label">货箱类型</span>
-              <el-select v-model="form.vehicleContainertype" placeholder="请选择" clearable size="small" style="width: 100%;">
+              <el-select v-model="form.vehicleContainertype" placeholder="请选择" clearable size="small" style="width: 85%;">
                 <el-option label="罐式货车" value="1" />
                 <el-option label="敞篷货车（平板式）" value="2.1" />
                 <el-option label="敞篷货车（栅栏式）" value="2.2" />
@@ -313,7 +313,7 @@
                 v-model="displayVehicleSize"
                 placeholder="点击输入"
                 size="small"
-                style="width: 100%;"
+                style="width: 77%;"
                 readonly
                 class="vehicle-size-input"
                 @click="openVehicleSizeDialog"
@@ -330,7 +330,7 @@
             <!-- 满载率：可编辑时显示输入框 -->
             <div class="data-row" v-if="editable">
               <span class="data-label">满载率(%)</span>
-              <el-input-number v-model="form.loadRate" :min="0" :max="100" :precision="2" size="small" style="width: 100%;" placeholder="0-100" />
+              <el-input-number v-model="form.loadRate" :min="0" :max="100" :precision="2" size="small" style="width: 84%;" placeholder="0-100" />
             </div>
             <div class="data-row" v-else>
               <span class="data-label">满载率(%)</span>
@@ -339,7 +339,7 @@
             <!-- 司机电话：可编辑时显示输入框 -->
             <div class="data-row" v-if="editable">
               <span class="data-label">司机电话</span>
-              <el-input v-model="form.driverPhone" placeholder="请输入手机号" size="small" style="width: 100%;" />
+              <el-input v-model="form.driverPhone" placeholder="请输入手机号" size="small" style="width: 85%;" />
             </div>
             <div class="data-row" v-else>
               <span class="data-label">司机电话</span>
@@ -352,7 +352,7 @@
             <!-- 复核员：可编辑时显示下拉 -->
             <div class="data-row" v-if="editable">
               <span class="data-label">复核员</span>
-              <el-select v-model="form.reviewerPhone" placeholder="请选择核验员" clearable filterable size="small" style="width: 100%;" @change="handleReviewerChange">
+              <el-select v-model="form.reviewerPhone" placeholder="请选择核验员" clearable filterable size="small" style="width: 85%;" @change="handleReviewerChange">
                 <el-option
                   v-for="r in reviewers"
                   :key="r.phone"
@@ -372,7 +372,7 @@
             <!-- 备注内容：可编辑时显示输入框 -->
             <div class="data-row" v-if="editable">
               <span class="data-label">备注内容</span>
-              <el-input v-model="form.historyRecord" placeholder="历史查验记录备注" size="small" style="width: 100%;" />
+              <el-input v-model="form.historyRecord" placeholder="历史查验记录备注" size="small" style="width: 85%;" />
             </div>
             <div class="data-row" v-else>
               <span class="data-label">备注内容</span>
@@ -556,15 +556,15 @@
         <div class="vehicle-size-input-group">
           <div class="input-item">
             <span class="input-label">长(m)</span>
-            <el-input-number v-model="vehicleSizeForm.length" :min="0" :max="30" :precision="2" placeholder="长度" style="width: 100%;" />
+            <el-input-number v-model="vehicleSizeForm.length" :min="0" :max="30" :precision="2" placeholder="长度" style="width: 85%;" />
           </div>
           <div class="input-item">
             <span class="input-label">宽(m)</span>
-            <el-input-number v-model="vehicleSizeForm.width" :min="0" :max="10" :precision="2" placeholder="宽度" style="width: 100%;" />
+            <el-input-number v-model="vehicleSizeForm.width" :min="0" :max="10" :precision="2" placeholder="宽度" style="width: 85%;" />
           </div>
           <div class="input-item">
             <span class="input-label">高(m)</span>
-            <el-input-number v-model="vehicleSizeForm.height" :min="0" :max="15" :precision="2" placeholder="高度" style="width: 100%;" />
+            <el-input-number v-model="vehicleSizeForm.height" :min="0" :max="15" :precision="2" placeholder="高度" style="width: 85%;" />
           </div>
         </div>
       </div>
@@ -1210,6 +1210,7 @@ onMounted(() => {
   text-align: right;
   word-break: break-all;
   margin-left: 8px;
+  flex: 1;
 }
 
 /* 单位后缀：更小的灰色字 */
