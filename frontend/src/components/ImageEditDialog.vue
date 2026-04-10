@@ -355,7 +355,11 @@
           <!-- 复核结果 -->
           <div class="result-item">
             <span class="result-label">复核结果</span>
-            <span class="result-value">{{ row.manualReviewText || '未审核' }}</span>
+            <el-select v-model="manualReviewState" placeholder="请选择" size="small" style="width: 120px;">
+              <el-option label="未审核" :value="0" />
+              <el-option label="已审核" :value="1" />
+              <el-option label="审核未通过" :value="2" />
+            </el-select>
           </div>
         </div>
 
@@ -392,6 +396,9 @@ const visible = computed({
 
 const uploading = ref(false)
 
+// 复核结果
+const manualReviewState = ref(0)
+
 // 排除的图片类型
 const excludedTypes = ref([])
 
@@ -416,6 +423,7 @@ const excludedCount = computed(() => {
 watch(() => props.row, () => {
   excludedTypes.value = []
   excludedGoods.value = []
+  manualReviewState.value = props.row.manualReviewState ?? 0
 }, { immediate: true })
 
 // 格式化图片URL
@@ -473,10 +481,15 @@ const buildExcludeList = () => {
 
 // 确认上报
 const handleConfirm = async () => {
+  // 复核结果为未审核或审核未通过时，不允许上报
+  if (manualReviewState.value !== 1) {
+    ElMessage.warning('请先修改复核结果为已审核后再上报')
+    return
+  }
   uploading.value = true
   try {
     const excludeList = buildExcludeList()
-    const res = await uploadSingleWithExclude(props.row.id, excludeList)
+    const res = await uploadSingleWithExclude(props.row.id, excludeList, manualReviewState.value)
 
     if (res.code === 200) {
       ElMessage.success('上报成功')
