@@ -489,7 +489,7 @@ const handleConfirm = async () => {
   uploading.value = true
   try {
     const excludeList = buildExcludeList()
-    const res = await uploadSingleWithExclude(props.row.id, excludeList, manualReviewState.value)
+    const res = await uploadSingleWithExclude(props.row.id, excludeList)
 
     if (res.code === 200) {
       ElMessage.success('上报成功')

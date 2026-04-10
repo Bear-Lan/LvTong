@@ -24,7 +24,7 @@ public class TransportDeptUploadController {
     @Autowired
     private final TransportDeptUploadService uploadService;
 
-    @Operation(summary = "上报单条查验记录（指定排除图片）", description = "上报时排除指定的图片")
+    @Operation(summary = "上报单条查验记录（指定排除图片）", description = "上报时排除指定的图片，上报成功后自动将复核结果更新为已审核")
     @PostMapping("/upload/{id}/exclude")
     public ApiResponse<Map<String, Object>> uploadSingleWithExclude(
             @Parameter(description = "查验记录 ID") @PathVariable Integer id,
