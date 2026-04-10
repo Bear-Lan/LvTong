@@ -42,7 +42,6 @@ src/
 │   ├── Register.vue                           # 注册页
 │   ├── Dashboard.vue                          # 首页概览（统计卡片+查验统计）
 │   ├── UserManagement.vue                     # 用户管理（含最后登录时间、排序）
-│   ├── UserGroup.vue                          # 用户组管理
 │   ├── HistoricalRecords.vue                  # 车辆查验记录（主页面）
 │   ├── InspectionDetail.vue                   # 查验详情弹窗
 │   ├── InspectionEdit.vue                     # 新增/编辑弹窗
@@ -60,7 +59,6 @@ src/
 | `/register` | Register.vue | 公开 | 注册页 |
 | `/dashboard` | Dashboard.vue | 需登录 | 首页统计看板 |
 | `/users` | UserManagement.vue | 需登录 | 用户管理 |
-| `/groups` | UserGroup.vue | 需登录 | 用户组管理 |
 | `/inspection` | HistoricalRecords.vue | 需登录 | 车辆查验记录 |
 
 **路由守卫逻辑：**

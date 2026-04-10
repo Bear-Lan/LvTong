@@ -223,7 +223,7 @@
     <el-dialog v-model="editDialogVisible" title="编辑用户" width="500px" destroy-on-close class="form-dialog">
       <el-form ref="editFormRef" :model="editForm" :rules="editFormRules" label-width="80px">
         <el-form-item label="用户名">
-          <el-input v-model="editForm.username" disabled />
+          <el-input v-model="editForm.username" />
         </el-form-item>
         <el-form-item label="真实姓名" prop="realName">
           <el-input v-model="editForm.realName" placeholder="请输入真实姓名" />
@@ -369,7 +369,6 @@ const addForm = ref({
 const editFormRules = {
   realName: [{ required: true, message: '请输入真实姓名', trigger: 'blur' }],
   email: [
-    { required: true, message: '请输入邮箱', trigger: 'blur' },
     { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
   ],
   phone: [
@@ -382,7 +381,6 @@ const profileFormRules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
   realName: [{ required: true, message: '请输入真实姓名', trigger: 'blur' }],
   email: [
-    { required: true, message: '请输入邮箱', trigger: 'blur' },
     { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
   ],
   phone: [
@@ -399,7 +397,6 @@ const addFormRules = {
   ],
   realName: [{ required: true, message: '请输入真实姓名', trigger: 'blur' }],
   email: [
-    { required: true, message: '请输入邮箱', trigger: 'blur' },
     { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
   ],
   phone: [
@@ -463,8 +460,14 @@ const fetchUsers = async () => {
 }
 
 const loadGroups = async () => {
-  // 班组表已删除，班组列表为空
-  groups.value = []
+  // 班组：未分组（空）、1-5班对应1-5
+  groups.value = [
+    { id: 1, name: '班组1' },
+    { id: 2, name: '班组2' },
+    { id: 3, name: '班组3' },
+    { id: 4, name: '班组4' },
+    { id: 5, name: '班组5' }
+  ]
 }
 
 const selectUser = (user) => {
