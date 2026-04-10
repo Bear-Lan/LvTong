@@ -755,6 +755,7 @@ const handleConfirm = async () => {
   text-align: right;
   word-break: break-all;
   margin-left: 8px;
+  flex: 1;
 }
 
 .data-value.primary {
