@@ -168,7 +168,10 @@
               <div
                 class="plate-cell"
                 :class="{ 'row-selected': selectedRadio === row.id }"
-                :style="{ background: getPlateColor(row.passcodeVehicleColorName) }"
+                :style="{
+                  background: getPlateColor(row.passcodeVehicleColorName).bg,
+                  color: getPlateColor(row.passcodeVehicleColorName).text
+                }"
               >
                 <span class="plate-num">{{ row.plateNumber }}</span>
               </div>
@@ -642,24 +645,24 @@ const getResultTagType = (status) => {
 }
 
 /**
- * getPlateColor：根据通行颜色返回车牌背景色
+ * getPlateColor：根据通行颜色返回车牌背景色和字体颜色
  * 0-蓝色，1-黄色，2-黑色，3-白色，4-渐变绿色，5-黄绿双拼色，
  * 6-蓝白渐变色，7-临时牌照（灰色），11-绿色，12-红色
  */
 const getPlateColor = (colorName) => {
   const colorMap = {
-    '0': '#1e56a8',   // 蓝色
-    '1': '#f5b829',   // 黄色
-    '2': '#303133',   // 黑色
-    '3': '#ffffff',   // 白色
-    '4': 'linear-gradient(135deg, #67c23a, #2d8a3e)',  // 渐变绿色
-    '5': 'linear-gradient(135deg, #f5b829, #67c23a)',   // 黄绿双拼色
-    '6': 'linear-gradient(135deg, #1e56a8, #ffffff)',  // 蓝白渐变色
-    '7': '#909399',   // 临时牌照灰色
-    '11': '#67c23a',  // 绿色
-    '12': '#e6a23c',  // 红色
+    '0': { bg: '#1e56a8', text: '#ffffff' },   // 蓝色 → 白字
+    '1': { bg: '#f5b829', text: '#000000' },   // 黄色 → 黑字
+    '2': { bg: '#303133', text: '#ffffff' },   // 黑色 → 白字
+    '3': { bg: '#f3f3f3', text: '#000000' },  // 白色 → 黑字
+    '4': { bg: 'linear-gradient(135deg, #67c23a, #2d8a3e)', text: '#ffffff' },  // 渐绿 → 白字
+    '5': { bg: 'linear-gradient(135deg, #f5b829, #67c23a)', text: '#000000' },   // 黄绿 → 黑字
+    '6': { bg: 'linear-gradient(135deg, #1e56a8, #ffffff)', text: '#000000' },  // 蓝白 → 黑字
+    '7': { bg: '#909399', text: '#000000' },  // 灰色 → 黑字
+    '11': { bg: '#67c23a', text: '#ffffff' }, // 绿色 → 白字
+    '12': { bg: '#e6a23c', text: '#000000' }, // 橙色 → 黑字
   }
-  return colorMap[colorName] || '#f5f7fa'
+  return colorMap[colorName] || { bg: '#f5f7fa', text: '#000000' }
 }
 
 /**
@@ -826,12 +829,6 @@ onMounted(async () => {
   margin-right: 0;
 }
 
-/* 选中行样式 - 黄色背景仅在车牌区域 */
-.plate-cell.row-selected {
-  background-color: #f5b829 !important;
-  outline: 2px solid #e6a23c;
-  outline-offset: -2px;
-}
 
 /* el-table 选中行高亮 */
 :deep(.selected-row td) {
@@ -840,7 +837,7 @@ onMounted(async () => {
 
 .plate-num {
   font-weight: 700;
-  color: #303133;
+  color: inherit;
   font-family: 'Consolas', 'Monaco', monospace;
   letter-spacing: 1px;
   font-size: 13px;
