@@ -84,6 +84,9 @@ public class VehicleInspectionController {
             @Parameter(description = "查验结果: 1=合格, 2=不合格")
             @RequestParam(required = false) Integer resultStatus,
 
+            @Parameter(description = "复核结果: 0=待审核, 1=已审核, 2=审核未通过")
+            @RequestParam(required = false) Integer manualReviewState,
+
             @Parameter(description = "页码（从1开始）")
             @RequestParam(defaultValue = "1") int page,
 
@@ -93,7 +96,7 @@ public class VehicleInspectionController {
         // 调用 Service 层执行多条件查询（MP 页码从 1 开始，无需减 1）
         IPage<VehicleInspection> result = inspectionService.searchWithConditions(
                 plateNumber, driverPhone, operatorName, reviewerPhone,
-                startTime, endTime, resultStatus,
+                startTime, endTime, resultStatus, manualReviewState,
                 page, pageSize);
 
         // 转换为前端所需格式（含转换后的文本字段）
