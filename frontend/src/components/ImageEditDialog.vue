@@ -243,8 +243,20 @@
               <span class="data-value">{{ row.passcodeFee || '-' }}</span>
             </div>
             <div class="data-row">
+              <span class="data-label">通行介质</span>
+              <span class="data-value">{{ row.passcodeMediaTypeText || '-' }}</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">通过省份个数</span>
+              <span class="data-value">{{ row.passcodeProvinceCount || '-' }}</span>
+            </div>
+            <div class="data-row">
               <span class="data-label">出口交易编号</span>
               <span class="data-value mono">{{ row.passcodeTransactionId || '-' }}</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">通行标识ID</span>
+              <span class="data-value mono">{{ row.passcodePassId || '-' }}</span>
             </div>
           </div>
 
@@ -274,37 +286,21 @@
               <span class="data-label">出口重量(KG)</span>
               <span class="data-value">{{ row.passcodeExWeight || '-' }}</span>
             </div>
-          </div>
-
-          <!-- 第三列：载重与费用信息 -->
-          <div class="data-col">
             <div class="data-row">
               <span class="data-label">应收金额(元)</span>
               <span class="data-value">{{ row.passcodePayFee || '-' }}</span>
             </div>
             <div class="data-row">
-              <span class="data-label">货车长宽高</span>
-              <span class="data-value mono">{{ formatVehicleSize(row.vehicleSize) }}</span>
+              <span class="data-label">交易支付方式</span>
+              <span class="data-value">{{ row.passcodeTransPayTypeText || '-' }}</span>
             </div>
             <div class="data-row">
-              <span class="data-label">通过省份个数</span>
-              <span class="data-value">{{ row.passcodeProvinceCount || '-' }}</span>
-            </div>
-            <div class="data-row">
-              <span class="data-label">司机电话</span>
-              <span class="data-value">{{ row.driverPhone || '-' }}</span>
-            </div>
-            <div class="data-row">
-              <span class="data-label">通行标识ID</span>
-              <span class="data-value mono">{{ row.passcodePassId || '-' }}</span>
-            </div>
-            <div class="data-row">
-              <span class="data-label">通行介质</span>
-              <span class="data-value">{{ row.passcodeMediaTypeText || '-' }}</span>
+              <span class="data-label">车辆状态标识</span>
+              <span class="data-value">{{ row.passcodeVehicleSignText || '-' }}</span>
             </div>
           </div>
 
-          <!-- 第四列：车牌与状态信息 -->
+          <!-- 第三列：车牌与查验信息 -->
           <div class="data-col">
             <div class="data-row">
               <span class="data-label">车牌号码</span>
@@ -315,16 +311,28 @@
               <span class="data-value">{{ row.plateNumberGc || '-' }}</span>
             </div>
             <div class="data-row">
-              <span class="data-label">交易支付方式</span>
-              <span class="data-value">{{ row.passcodeTransPayTypeText || '-' }}</span>
+              <span class="data-label">货车长宽高(m)</span>
+              <span class="data-value mono">{{ formatVehicleSize(row.vehicleSize) }}</span>
             </div>
             <div class="data-row">
-              <span class="data-label">车辆状态标识</span>
-              <span class="data-value">{{ row.passcodeVehicleSignText || '-' }}</span>
+              <span class="data-label">司机电话</span>
+              <span class="data-value">{{ row.driverPhone || '-' }}</span>
             </div>
             <div class="data-row">
-              <span class="data-label">查验依据</span>
-              <span class="data-value">{{ row.inspectionBasis || '-' }}</span>
+              <span class="data-label">验货员</span>
+              <span class="data-value">{{ row.inspectorPhone || '-' }}</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">复核员</span>
+              <span class="data-value">{{ row.reviewerPhone || '-' }}</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">班组</span>
+              <span class="data-value">{{ row.groupId || '-' }}</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">备注内容</span>
+              <span class="data-value">{{ row.historyRecord || '-' }}</span>
             </div>
           </div>
         </div>
