@@ -114,9 +114,9 @@
                 clearable
                 style="width: 100%;"
               >
-                <el-option label="已审核" :value="2" />
-                <el-option label="未审核" :value="1" />
-                <el-option label="审核未通过" :value="3" />
+                <el-option label="已审核" :value="1" />
+                <el-option label="未审核" :value="0" />
+                <el-option label="审核未通过" :value="2" />
               </el-select>
             </el-form-item>
           </el-col>
@@ -265,9 +265,9 @@
         <!-- 复核结果 -->
         <el-table-column label="复核结果" width="100" align="center">
           <template #default="{ row }">
-            <el-tag v-if="row.manualReviewState === 2" type="success" size="small">已审核</el-tag>
-            <el-tag v-else-if="row.manualReviewState === 3" type="danger" size="small">审核未通过</el-tag>
-            <el-tag v-else type="info" size="small">未审核</el-tag>
+            <el-tag v-if="row.manualReviewState === 1" type="success" size="small">已审核</el-tag>
+            <el-tag v-else-if="row.manualReviewState === 2" type="danger" size="small">审核未通过</el-tag>
+            <el-tag v-else type="info" size="small">待审核</el-tag>
           </template>
         </el-table-column>
 
