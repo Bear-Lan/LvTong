@@ -311,17 +311,29 @@ public class VehicleConstants {
     /**
      * 将车辆状态标识码转换为可读文本
      *
-     * @param sign 状态标识码（十六进制字符串，如 "0x02", "0x03", "0xFF"）
-     *             0x02=绿通车，0x03=收割机，0xFF=默认，其他=未知
+     * @param sign 状态标识码（十进制整数，如 2=绿通车, 3=收割机, 255=默认）
+     *             2=绿通车，3=收割机，255=默认，其他=未知
      * @return 中文状态名称，null/空时返回 "-"
      */
     public static String getVehicleSignText(String sign) {
         if (sign == null || sign.isEmpty()) return "-";
-        switch (sign.toUpperCase()) {
-            case "0X02": return "绿通车";
-            case "0X03": return "收割机";
-            case "0XFF": return "默认";
-            default:     return "未知";
+        try {
+            // 尝试将字符串转为十进制整数比较
+            int value = Integer.parseInt(sign);
+            switch (value) {
+                case 2: return "绿通车";
+                case 3: return "收割机";
+                case 255: return "默认";
+                default: return "未知";
+            }
+        } catch (NumberFormatException e) {
+            // 如果解析失败，尝试十六进制格式（兼容旧数据）
+            switch (sign.toUpperCase()) {
+                case "0X02": return "绿通车";
+                case "0X03": return "收割机";
+                case "0XFF": return "默认";
+                default: return "未知";
+            }
         }
     }
 
