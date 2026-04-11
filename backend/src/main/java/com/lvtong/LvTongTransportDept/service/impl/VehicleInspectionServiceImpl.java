@@ -171,6 +171,7 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
             LocalDateTime endTime,
             Integer resultStatus,
             Integer manualReviewState,
+            Integer toTransportdeptState,
             int page,
             int pageSize) {
 
@@ -200,6 +201,9 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
         }
         if (manualReviewState != null) {
             wrapper.eq(VehicleInspection::getManualReviewState, manualReviewState);
+        }
+        if (toTransportdeptState != null) {
+            wrapper.eq(VehicleInspection::getToTransportdeptState, toTransportdeptState);
         }
 
         wrapper.orderByDesc(VehicleInspection::getInspectionTime);

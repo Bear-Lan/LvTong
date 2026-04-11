@@ -31,6 +31,7 @@ public interface VehicleInspectionService {
             LocalDateTime endTime,
             Integer resultStatus,
             Integer manualReviewState,
+            Integer toTransportdeptState,
             int page,
             int pageSize);
 
