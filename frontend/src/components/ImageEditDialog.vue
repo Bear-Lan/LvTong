@@ -378,7 +378,7 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { WarningFilled, Picture, Close, Plus } from '@element-plus/icons-vue'
 import { uploadSingleWithExclude } from '@/api/transportDept'
 
@@ -498,9 +498,15 @@ const handleConfirm = async () => {
     } else {
       // 失败：不关闭弹窗，直接更新状态显示审核未通过，可重试
       manualReviewState.value = 2
-      ElMessage.error(res.message || '上报失败')
+      ElMessage.error({
+        message: res.msg || res.message || '上报失败',
+        duration: 8000,
+        showClose: true,
+        customClass: 'big-error'
+      })
     }
-  } catch {
+  } catch (err) {
+    console.error('上报异常:', err)
     ElMessage.error('上报失败，请重试')
   } finally {
     uploading.value = false
@@ -522,6 +528,13 @@ const handleConfirm = async () => {
 }
 .evidence-grid-row-1 .evidence-item .evidence-img {
   object-fit: fill;
+}
+</style>
+
+<style>
+.big-error {
+  min-width: 900px !important;
+  font-size: 50px !important;
 }
 </style>
 
