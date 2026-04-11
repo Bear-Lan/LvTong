@@ -81,15 +81,26 @@ public class TransportDeptUploadServiceImpl implements TransportDeptUploadServic
     // ================================================================
 
     private Map<String, Object> uploadOne(VehicleInspection record, List<String> excludePhotoTypes) {
+        List<String> errors = new ArrayList<>();
         try {
-            // 1. 转换 DTO（带排除图片类型）
-            TransportDeptCheckResultDto dto = converter.toDto(record, excludePhotoTypes);
+            // 1. 转换 DTO（带排除图片类型和错误收集）
+            TransportDeptCheckResultDto dto = converter.toDto(record, excludePhotoTypes, errors);
 
             // 2. 按样例方式发送（不用压缩）
             String response = doPost(dto);
 
             // 3. 解析响应并更新状态
-            return parseAndUpdate(record.getId(), response);
+            Map<String, Object> result = parseAndUpdate(record.getId(), response);
+
+            // 4. 如果有图片解析错误，添加到交通部返回消息后面，标题是 tips
+            if (!errors.isEmpty()) {
+                String errorMsg = String.join("; ", errors);
+                log.warn("图片解析存在错误: {}", errorMsg);
+                String originalMsg = (String) result.get("msg");
+                result.put("msg", originalMsg + " <br/>[tips] 部分图片因解析错误被舍弃: " + errorMsg);
+            }
+
+            return result;
 
         } catch (BusinessException e) {
             log.error("上报业务异常, id={}: {}", record.getId(), e.getMessage());
@@ -195,7 +206,11 @@ public class TransportDeptUploadServiceImpl implements TransportDeptUploadServic
             log.warn("响应无法解析为 JSON: {}", response);
         }
         updateUploadState(id, code == 200 ? 1 : -1, msg);
-        return Map.of("success", code == 200, "code", code, "msg", msg);
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", code == 200);
+        result.put("code", code);
+        result.put("msg", msg);
+        return result;
     }
 
     private void updateUploadState(Integer id, int state, String comment) {

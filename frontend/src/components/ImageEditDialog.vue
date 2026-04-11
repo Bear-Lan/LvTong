@@ -492,7 +492,10 @@ const handleConfirm = async () => {
     const res = await uploadSingleWithExclude(props.row.id, excludeList)
 
     if (res.code === 200) {
-      ElMessage.success('上报成功')
+      ElMessage.success({
+        message: res.data.msg || '上报成功',
+        dangerouslyUseHTMLString: true
+      })
       visible.value = false
       emit('success')
     } else {
@@ -502,6 +505,7 @@ const handleConfirm = async () => {
         message: res.msg || res.message || '上报失败',
         duration: 8000,
         showClose: true,
+        dangerouslyUseHTMLString: true,
         customClass: 'big-error'
       })
     }
