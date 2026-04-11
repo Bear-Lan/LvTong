@@ -147,6 +147,8 @@ public class VehicleInspectionController {
             Map<String, Object> item = new HashMap<>();
             item.put("productCode", p.getProductCode());
             item.put("varietyName", p.getVarietyName());
+            item.put("varietyNamePinyin", p.getVarietyNamePinyin());
+            item.put("aliasesPinyin", p.getAliasesPinyin());
             item.put("category", p.getCategory());
             item.put("productType", p.getProductType());
             item.put("aliases", p.getAliases());

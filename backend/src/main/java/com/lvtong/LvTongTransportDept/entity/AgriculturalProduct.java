@@ -32,6 +32,14 @@ public class AgriculturalProduct {
     @TableField("variety_name")
     private String varietyName;
 
+    /** 拼音首字母（如：DBC） */
+    @TableField("variety_name_pinyin")
+    private String varietyNamePinyin;
+
+    /** 别名拼音（JSON 数组，如：["bsc","cgc"]） */
+    @TableField("aliases_pinyin")
+    private String aliasesPinyin;
+
     /** 别名/俗称（JSON 数组，如：["菠菜","波斯菜"]） */
     @TableField("aliases")
     private String aliases;
@@ -52,6 +60,12 @@ public class AgriculturalProduct {
 
     public String getVarietyName() { return varietyName; }
     public void setVarietyName(String varietyName) { this.varietyName = varietyName; }
+
+    public String getVarietyNamePinyin() { return varietyNamePinyin; }
+    public void setVarietyNamePinyin(String varietyNamePinyin) { this.varietyNamePinyin = varietyNamePinyin; }
+
+    public String getAliasesPinyin() { return aliasesPinyin; }
+    public void setAliasesPinyin(String aliasesPinyin) { this.aliasesPinyin = aliasesPinyin; }
 
     public String getAliases() { return aliases; }
     public void setAliases(String aliases) { this.aliases = aliases; }

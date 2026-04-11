@@ -823,7 +823,22 @@ const displayedVarieties = computed(() => {
   }
   if (filterVarietyName.value.trim()) {
     const kw = filterVarietyName.value.trim().toLowerCase()
-    list = list.filter(v => v.varietyName.toLowerCase().includes(kw))
+    list = list.filter(v => {
+      // 品种名称模糊匹配
+      if (v.varietyName.toLowerCase().includes(kw)) return true
+      // 拼音首字母模糊匹配
+      if (v.varietyNamePinyin && v.varietyNamePinyin.toLowerCase().includes(kw)) return true
+      // 别名拼音模糊匹配
+      if (v.aliasesPinyin) {
+        try {
+          const aliasesPinyinArr = JSON.parse(v.aliasesPinyin)
+          if (Array.isArray(aliasesPinyinArr) && aliasesPinyinArr.some(a => a.toLowerCase().includes(kw))) {
+            return true
+          }
+        } catch {}
+      }
+      return false
+    })
   }
   return list
 })
