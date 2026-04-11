@@ -84,7 +84,7 @@ public class VehicleInspectionController {
             @Parameter(description = "查验结果: 1=合格, 2=不合格")
             @RequestParam(required = false) Integer resultStatus,
 
-            @Parameter(description = "复核结果: 0=待审核, 1=已审核, 2=审核未通过")
+            @Parameter(description = "复核结果: 0=待审核, 1=审核通过, 2=审核未通过")
             @RequestParam(required = false) Integer manualReviewState,
 
             @Parameter(description = "页码（从1开始）")

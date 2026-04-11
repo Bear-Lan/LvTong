@@ -98,7 +98,7 @@ public class VehicleConstants {
     public static String getManualReviewText(Integer state) {
         if (state == null) return "-";
         return switch (state) {
-            case 1 -> "已审核";
+            case 1 -> "审核通过";
             case 2 -> "审核未通过";
             default -> "未审核";
         };

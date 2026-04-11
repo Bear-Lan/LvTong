@@ -308,12 +308,12 @@
             </div>
             <!-- 货车长宽高：可编辑时显示弹窗输入 -->
             <div class="data-row" v-if="editable">
-              <span class="data-label">货车长宽高(m)</span>
+              <span class="data-label">长宽高</span>
               <el-input
                 v-model="displayVehicleSize"
                 placeholder="点击输入"
                 size="small"
-                style="width: 77%;"
+                style="width:85%;"
                 readonly
                 class="vehicle-size-input"
                 @click="openVehicleSizeDialog"
@@ -426,7 +426,7 @@
             <span class="result-label">复核结果</span>
             <el-select v-model="form.manualReviewState" placeholder="请选择" size="small" style="width: 120px;">
               <el-option label="未审核" :value="0" />
-              <el-option label="已审核" :value="1" />
+              <el-option label="审核通过" :value="1" />
               <el-option label="审核未通过" :value="2" />
             </el-select>
           </div>
@@ -438,8 +438,8 @@
 
         <!-- 右侧：操作按钮 -->
         <div class="result-actions" v-if="editable">
-          <el-button size="small" @click="visible = false">取消</el-button>
-          <el-button type="primary" size="small" @click="handleSubmit" :loading="submitting">保存修改</el-button>
+          <el-button  @click="visible = false">取消</el-button>
+          <el-button type="primary"  @click="handleSubmit" :loading="submitting">保存修改</el-button>
         </div>
       </div>
 
@@ -1029,7 +1029,7 @@ onMounted(() => {
   position: absolute;
   top: 0;
   left: 0;
-  font-size: 16px; /* 这里改大一点，比如 18px */
+  font-size: 18px; /* 这里改大一点，比如 18px */
   color: #121212;
   font-weight: 600;
   padding: 4px 8px;
@@ -1439,7 +1439,7 @@ onMounted(() => {
 }
 
 .bottom-result-section .result-label {
-  font-size: 13px;
+  font-size: 18px;
   color: #606266;
   font-weight: 600;
   white-space: nowrap;

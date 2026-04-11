@@ -357,7 +357,7 @@
             <span class="result-label">复核结果</span>
             <el-select v-model="manualReviewState" placeholder="请选择" size="small" style="width: 120px;">
               <el-option label="待审核" :value="0" />
-              <el-option label="已审核" :value="1" />
+              <el-option label="审核通过" :value="1" />
               <el-option label="审核未通过" :value="2" />
             </el-select>
           </div>
@@ -365,8 +365,8 @@
 
         <!-- 右侧：操作按钮 -->
         <div class="result-actions">
-          <el-button size="small" @click="visible = false">取消</el-button>
-          <el-button type="primary" size="small" @click="handleConfirm" :loading="uploading">
+          <el-button @click="visible = false">取消</el-button>
+          <el-button type="primary"  @click="handleConfirm" :loading="uploading">
             确认上报（已排除 {{ excludedCount }} 张图片）
           </el-button>
         </div>
@@ -483,7 +483,7 @@ const buildExcludeList = () => {
 const handleConfirm = async () => {
   // 复核结果为待审核或审核未通过时，不允许上报
   if (manualReviewState.value !== 1) {
-    ElMessage.warning('请先修改复核结果为已审核后再上报')
+    ElMessage.warning('请先修改复核结果为审核通过后再上报')
     return
   }
   uploading.value = true
@@ -875,7 +875,7 @@ const handleConfirm = async () => {
 }
 
 .bottom-result-section .result-label {
-  font-size: 13px;
+  font-size: 18px;
   color: #606266;
   font-weight: 600;
   white-space: nowrap;

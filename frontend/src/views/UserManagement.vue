@@ -119,7 +119,7 @@
             <el-button plain @click="confirmResetPassword" class="btn-ghost-primary">
               <el-icon><RefreshRight /></el-icon> 重置密码
             </el-button>
-            <el-button class="btn-ghost-danger" @click="confirmDelete">
+            <el-button class="btn-ghost-danger" @click="confirmDelete" :disabled="selectedUser.username === 'admin'">
               <el-icon><Delete /></el-icon> 删除用户
             </el-button>
           </template>

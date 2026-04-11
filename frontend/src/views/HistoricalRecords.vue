@@ -90,7 +90,7 @@
         <el-row :gutter="24">
 
           <!-- 时间范围 - 日期时间区间选择 -->
-          <el-col :span="9">
+          <el-col :span="12">
             <el-form-item label="查验时间范围">
               <el-date-picker
                 v-model="dateRange"
@@ -114,15 +114,31 @@
                 clearable
                 style="width: 100%;"
               >
-                <el-option label="已审核" :value="1" />
+                <el-option label="审核通过" :value="1" />
                 <el-option label="未审核" :value="0" />
                 <el-option label="审核未通过" :value="2" />
               </el-select>
             </el-form-item>
           </el-col>
 
+          <!-- 上传状态 - 下拉筛选 -->
+          <el-col :span="3">
+            <el-form-item label="上传状态">
+              <el-select
+                v-model="searchForm.toTransportdeptState"
+                placeholder="全部"
+                clearable
+                style="width: 100%;"
+              >
+                <el-option label="成功" :value="1" />
+                <el-option label="失败" :value="-1" />
+                <el-option label="未上传" :value="0" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+
           <!-- 查询/重置按钮组 -->
-          <el-col :span="12" class="btn-group-col">
+          <el-col :span="6" class="btn-group-col">
             <el-form-item label=" " class="btn-group-item">
               <div class="btn-group">
                 <el-button type="primary" @click="handleQuery" :loading="loading">
@@ -261,7 +277,7 @@
         <!-- 复核结果 -->
         <el-table-column label="复核结果" width="85" align="center">
           <template #default="{ row }">
-            <el-tag v-if="row.manualReviewState === 1" type="success" size="small">已审核</el-tag>
+            <el-tag v-if="row.manualReviewState === 1" type="success" size="small">审核通过</el-tag>
             <el-tag v-else-if="row.manualReviewState === 2" type="danger" size="small">审核未通过</el-tag>
             <el-tag v-else type="info" size="small">待审核</el-tag>
           </template>
@@ -412,7 +428,8 @@ const searchForm = reactive({
   driverPhone: '',
   reviewerPhone: null,
   resultStatus: null,
-  manualReviewState: null
+  manualReviewState: null,
+  toTransportdeptState: null
 })
 
 /** 核验员下拉选项（所有用户电话） */
@@ -505,6 +522,8 @@ const loadData = async () => {
     }
     // 注意：manualReviewState 有值时要用 !== null 判断
     if (searchForm.manualReviewState !== null) params.manualReviewState = searchForm.manualReviewState
+    // 注意：toTransportdeptState 有值时要用 !== null 判断
+    if (searchForm.toTransportdeptState !== null) params.toTransportdeptState = searchForm.toTransportdeptState
 
     const res = await getInspectionList(params)
 
@@ -544,6 +563,7 @@ const handleReset = () => {
   searchForm.reviewerPhone  = null
   searchForm.resultStatus   = null
   searchForm.manualReviewState = null
+  searchForm.toTransportdeptState = null
   initDateRange()
   pagination.page = 1
   loadData()
@@ -794,7 +814,7 @@ onMounted(async () => {
 
 .btn-group {
   display: flex;
-  gap: 10px;
+  gap: 3px;
 }
 
 /* ========== 列表卡片 ========== */
