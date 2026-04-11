@@ -26,9 +26,10 @@ request.interceptors.request.use(
 request.interceptors.response.use(
   (response) => {
     const res = response.data
+    // 不自动处理业务错误码，统一返回让业务代码自己判断
+    // 业务代码需要自行判断 res.code 是否为 200
     if (res.code && res.code !== 200) {
-      ElMessage.error(res.message || '请求失败')
-      return Promise.reject(new Error(res.message || '请求失败'))
+      console.warn(`业务错误 [code: ${res.code}]: ${res.message || '未知错误'}，请业务代码自行处理`)
     }
     return res
   },

@@ -480,7 +480,7 @@ const buildExcludeList = () => {
 }
 
 // 确认上报
-const handleConfirm = async () => {
+const handleConfirm = async () => {    
   // 复核结果为待审核或审核未通过时，不允许上报
   if (manualReviewState.value !== 1) {
     ElMessage.warning('请先修改复核结果为审核通过后再上报')
@@ -496,8 +496,9 @@ const handleConfirm = async () => {
       visible.value = false
       emit('success')
     } else {
+      // 失败：不关闭弹窗，直接更新状态显示审核未通过，可重试
+      manualReviewState.value = 2
       ElMessage.error(res.message || '上报失败')
-      emit('success')  // 上报失败也刷新页面，更新复核状态
     }
   } catch {
     ElMessage.error('上报失败，请重试')
