@@ -643,6 +643,12 @@ const handleConfirm = async () => {
 
 .evidence-item.excluded {
   opacity: 0.6;
+  filter: grayscale(100%) blur(1px);
+}
+
+.goods-img-wrapper.excluded {
+  opacity: 0.6;
+  filter: grayscale(100%) blur(1px);
 }
 
 .evidence-item .evidence-img-box {

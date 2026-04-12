@@ -585,6 +585,12 @@ const handleUpload = async () => {
     return
   }
 
+  // 检查是否已上传成功
+  if (selectedRow.toTransportdeptState === 1) {
+    ElMessage.warning('该记录已上传成功，不能重复上传')
+    return
+  }
+
   // 设置当前行数据，打开图片编辑弹窗
   currentRow.value = { ...selectedRow }
   imageEditVisible.value = true
