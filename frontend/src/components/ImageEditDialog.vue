@@ -1,3 +1,7 @@
+<!--
+  ImageEditDialog.vue - 上报前图片管理弹窗
+  功能：允许用户在上报交通部前排除不需要的图片，支持货物照根据张数自动调整布局
+-->
 <template>
   <el-dialog
     v-model="visible"
@@ -188,9 +192,14 @@
               </div>
             </div>
 
-            <!-- 右侧50%：货物照 -->
+            <!-- 右侧50%：货物照，根据张数使用网格或横向滚动 -->
             <div class="evidence-item evidence-col-right" :class="{ 'no-image': goodsImages.length === 0 }">
-              <div class="goods-img-container" v-if="goodsImages.length > 0">
+              <div
+                class="goods-img-container"
+                :class="{ 'scroll-mode': useScrollMode }"
+                v-if="goodsImages.length > 0"
+                :style="useScrollMode ? {} : { gridTemplateColumns: `repeat(${goodsPerRow}, ${goodsColWidth})` }"
+              >
                 <div
                   v-for="(img, idx) in goodsImages"
                   :key="idx"
@@ -414,6 +423,39 @@ const goodsImages = computed(() => {
     .filter(p => p && (p.startsWith('/') || /^[A-Za-z]:/.test(p)))
 })
 
+/**
+ * 根据货物图片数量计算每行显示的列数
+ * 1-4张: 每行显示全部(1-4列)
+ * 5张: 每行3列(3+2布局)
+ * 6张: 每行3列(3+3布局)
+ * 7张: 每行4列(4+3布局)
+ * 8张: 每行4列(4+4布局)
+ * 9张: 每行3列(3+3+3布局)
+ * 10张及以上: 保持一行横向滚动
+ */
+const goodsPerRow = computed(() => {
+  const count = goodsImages.value.length
+  if (count <= 4) return count
+  if (count === 5) return 3
+  if (count === 6) return 3
+  if (count === 7) return 4
+  if (count === 8) return 4
+  if (count === 9) return 3
+  return count  // 10张及以上保持一行横向滚动
+})
+
+/**
+ * 计算列宽：10张及以上使用最小宽度保证横向滚动，否则使用等宽
+ */
+const goodsColWidth = computed(() => {
+  return goodsImages.value.length >= 10 ? 'minmax(70px, 1fr)' : '1fr'
+})
+
+/**
+ * 判断是否使用横向滚动模式（10张及以上）
+ */
+const useScrollMode = computed(() => goodsImages.value.length >= 10)
+
 // 已排除的图片数量
 const excludedCount = computed(() => {
   return excludedTypes.value.length + excludedGoods.value.length
@@ -588,10 +630,10 @@ const handleConfirm = async () => {
   margin-bottom: 8px;
 }
 
-/* 第二行：左侧50%（透视+车身2列），右侧50%（货物照） */
+/* 第二行：左侧50%（透视+车身2列），右侧固定宽度50%（货物照） */
 .evidence-grid-row-2 {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 3fr 2fr;
   gap: 8px;
   width: 100%;
   max-height: 160px;
@@ -609,24 +651,36 @@ const handleConfirm = async () => {
 .evidence-col-right {
   display: flex;
   flex-direction: column;
+  min-height: 160px;
+  height: 160px;
+  min-width: 0;  /* 防止右侧内容挤压左侧空间 */
+  /* 10张及以上时横向滚动 */
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
-/* 货物照容器：水平平铺所有图片 */
+/* 货物照容器：默认flex横向滚动，网格模式时使用grid */
 .goods-img-container {
   display: flex;
-  flex-direction: row;
-  flex: 1;
+  gap: 8px;
   width: 100%;
-  gap: 4px;
-  max-height: 160px;
-  overflow: hidden;
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  align-items: center;
+}
+
+/* 网格模式（10张以下）：使用grid布局 */
+.goods-img-container:not(.scroll-mode) {
+  display: grid;
+  overflow-x: hidden;
+  align-items: start;
 }
 
 .goods-img-container .evidence-img {
-  flex: 1;
-  object-fit: cover;
   width: 100%;
   height: 100%;
+  object-fit: contain;
 }
 
 /* 照片卡片通用样式 */
@@ -737,8 +791,15 @@ const handleConfirm = async () => {
 /* 货物照单个图片包装器 */
 .goods-img-wrapper {
   position: relative;
-  flex: 1;
-  min-width: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+/* 滚动模式下使用固定宽度 */
+.goods-img-container.scroll-mode .goods-img-wrapper {
+  width: 120px;
+  flex-shrink: 0;
 }
 
 /* ========== 数据网格 ========== */
