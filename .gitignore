@@ -31,3 +31,9 @@ Thumbs.db
 # 其他
 # ============================
 deploy.zip
+
+# ============================
+# 3D大屏大文件（禁止提交）
+# ============================
+frontend/public/GreenChannel/allModel/
+frontend/src/assets/GreenChannel/moxing/

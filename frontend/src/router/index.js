@@ -12,6 +12,11 @@ const routes = [
     component: () => import('@/views/Login.vue')
   },
   {
+    path: '/greenchannel',
+    name: 'GreenChannel',
+    component: () => import('@/views/GreenChannel.vue')
+  },
+  {
     path: '/',
     component: () => import('@/layout/Layout.vue'),
     meta: { requiresAuth: true },

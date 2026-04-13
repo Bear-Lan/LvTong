@@ -65,5 +65,16 @@ public interface VehicleInspectionMapper extends BaseMapper<VehicleInspection> {
             "ORDER BY count DESC LIMIT 50" +
             "</script>")
     List<Map<String, Object>> selectGoodsTypeStats(@Param("startTime") LocalDateTime startTime,
-                                                     @Param("endTime") LocalDateTime endTime);
+                                                    @Param("endTime") LocalDateTime endTime);
+
+    /**
+     * 获取大屏统计数据
+     * @return 包含 今日通行车辆, 总绿通车辆, 总通行金额, 伪绿通车辆
+     */
+    @Select("SELECT " +
+            "(SELECT COUNT(*) FROM vehicle_inspections WHERE DATE(inspection_time) = CURDATE()) AS todayTotal, " +
+            "(SELECT COUNT(*) FROM vehicle_inspections) AS total, " +
+            "(SELECT COALESCE(SUM(passcode_fee), 0) FROM vehicle_inspections) AS totalPassAmount, " +
+            "(SELECT COUNT(*) FROM vehicle_inspections WHERE result_status = 2 AND nopass_type IN (21, 22, 23, 24)) AS fakeGreenCount")
+    Map<String, Object> selectDatascreenStats();
 }

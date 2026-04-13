@@ -27,6 +27,10 @@
           <el-icon><Van /></el-icon>
           <template #title>车辆查验</template>
         </el-menu-item>
+        <el-menu-item @click="openDatascreen">
+          <el-icon><Monitor /></el-icon>
+          <template #title>3D大屏</template>
+        </el-menu-item>
       </el-menu>
     </aside>
 
@@ -74,7 +78,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Fold, Expand, HomeFilled, User, SwitchButton, Van, Document, Grid } from '@element-plus/icons-vue'
+import { Fold, Expand, HomeFilled, User, SwitchButton, Van, Monitor } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
 
@@ -95,6 +99,11 @@ const handleCommand = (command) => {
     ElMessage.success('已退出登录')
     router.push('/login')
   }
+}
+
+// 新窗口打开3D大屏
+const openDatascreen = () => {
+  window.open('/greenchannel', '_blank')
 }
 </script>
 

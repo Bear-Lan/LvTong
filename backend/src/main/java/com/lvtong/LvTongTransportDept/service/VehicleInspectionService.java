@@ -52,4 +52,7 @@ public interface VehicleInspectionService {
 
     /** 获取最近查验记录 */
     List<VehicleInspection> getRecentRecords(int limit);
+
+    /** 获取大屏统计数据（今日通行、总绿通、总通行金额、伪绿通） */
+    Map<String, Object> getDatascreenStats();
 }

@@ -296,4 +296,10 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
         wrapper.orderByDesc(VehicleInspection::getInspectionTime);
         return mapper.selectPage(new Page<>(1, limit), wrapper).getRecords();
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, Object> getDatascreenStats() {
+        return mapper.selectDatascreenStats();
+    }
 }

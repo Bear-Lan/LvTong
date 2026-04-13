@@ -265,6 +265,26 @@ public class VehicleInspectionController {
         return ApiResponse.success(data);
     }
 
+    /**
+     * 获取大屏统计数据
+     *
+     * @return 关键指标数据（今日通行、总绿通、总通行金额、伪绿通）
+     */
+    @GetMapping("/datascreen")
+    @Operation(summary = "获取大屏关键指标", description = "返回大屏所需的今日通行车辆、总绿通车辆、总通行金额、伪绿通车辆")
+    public ApiResponse<Map<String, Object>> getDatascreenStats() {
+        Map<String, Object> stats = inspectionService.getDatascreenStats();
+
+        // 转换字段名以匹配前端
+        Map<String, Object> result = new HashMap<>();
+        result.put("tadaytotal", stats.get("todayTotal"));
+        result.put("total", stats.get("total"));
+        result.put("discount", stats.get("totalPassAmount"));  // 总通行金额
+        result.put("abnormal", stats.get("fakeGreenCount"));  // 伪绿通
+
+        return ApiResponse.success(result);
+    }
+
     // ================================================================
     // 【私有辅助方法】
     // ================================================================
