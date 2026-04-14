@@ -40,3 +40,12 @@ export function getCreditRanking() {
 export function getGoodsTypeCloud() {
     return request.get('/inspection/datascreen/goods-cloud')
 }
+
+/**
+ * 获取绿通检测记录详情
+ * @param {string} id - 记录ID
+ * @returns 绿通检测详情数据（照片、车辆信息、货物信息等）
+ */
+export function getPassRecordDetail(id: string) {
+    return request.get(`/inspection/datascreen/record/${id}`)
+}

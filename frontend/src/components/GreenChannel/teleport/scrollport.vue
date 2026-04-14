@@ -126,10 +126,6 @@
                     <div class="aaa"><label for="">出口交易编号</label> <input type="text" class="valueInput"
                             :value="rows.passcode_transaction_id" disabled>
                     </div>
-                    <!-- <div class="aaa"><label for="">通行标识ID</label> <input type="text" class="valueInput" value="" disabled>
-                    </div>
-                    <div class="aaa"><label for="">备注类容</label> <input type="text" class="valueInput" value="" disabled>
-                    </div> -->
                 </div>
                 <footer style="text-align: right;">
                     <el-button @click="globalstate.setScrollPortVisible(true)">取消</el-button>
