@@ -12,7 +12,7 @@
 
         <div class="main">
             <!-- 左列 -->
-            <div class="col" style="display: flex;flex-direction: column;">
+            <div class="col col-left">
                 <div class="panel lfirst" v-show="!loading" style="height: 240px;">
                     <h3>关键指标</h3>
                     <div class="kpi-grid">
@@ -22,23 +22,25 @@
                         <StatCard img="yichangcheliang" label="伪绿通车辆" :value="kpis.abnormal" />
                     </div>
                 </div>
-                <div class="rfirst" v-if="!loading" style="flex: 1;">
+                <div class="panel lsecond" v-if="!loading" style="flex: 1;">
                     <SkyChart title="北斗卫星"></SkyChart>
                 </div>
             </div>
-            <!-- 中列 -->
-            <div class="panel middleScroll" style="" v-if="!loading">
-                <LatestPassRecords :list="records" :speed="0.5" :itemHeight="40" />
+            <!-- 中间列 - 在下半部分 -->
+            <div class="col-middle">
+                <div class="panel middleScroll" v-if="!loading">
+                    <LatestPassRecords :list="records" :speed="0.5" :itemHeight="40" />
+                </div>
             </div>
             <!-- 右列 -->
-            <div class="col" style="display: flex;flex-direction: column;">
-                <div class="rfirst" v-if="!loading" style="flex: 1;">
+            <div class="col col-right">
+                <div class="panel rfirst" v-if="!loading" style="flex: 1;">
                     <ChinaAirline title="始发地" :data="airlineData" />
                 </div>
-                <div class="rsecond" v-if="!loading" style="flex: 1;">
+                <div class="panel rsecond" v-if="!loading" style="flex: 1;">
                     <RankList title="信用记录" :rows="genRanking" />
                 </div>
-                <div class="rthree" v-if="!loading" style="flex: 1;">
+                <div class="panel rthree" v-if="!loading" style="flex: 1;">
                     <Ciyun :data="goodsCount" title="货物类型" />
                 </div>
             </div>
@@ -55,7 +57,7 @@
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue'
-import { StatCard, SkyChart, RankList, ChinaAirline, Ciyun, LatestPassRecords } from '@/components/GreenChannel/index'
+import { StatCard, SkyChart, RankList, ChinaAirline, Ciyun, LatestPassRecords } from '@/components/GreenChannel'
 import { getKpiData, getPassRecords, getCreditRanking, getGoodsTypeCloud } from '@/api/datascreen'
 import * as THREE from "three";
 import { ThreeViewer } from "@/utils/GreenChannelTool";
@@ -253,12 +255,15 @@ onMounted(async () => {
     fetchGoodsTypeCloud()
 
     viewer = await new ThreeViewer(threeContainer!);
+    // 隐藏加载提示
+    //globalstate.setLoading(false);
+
+    // 启用 3D 模型加载
     await initModelsData()
     // showData()
     await addStaticModel()
     await addAllModels(modelsInfo);
     const guangyuanModel = models.find((m) => m.name === "guangyuan") as THREE.Group;
-    // guangyuanModel.visible = true;
 
     const truck4Model = models.find((m) => m.name === "truck4") as THREE.Group;
     setTimeout(() => {
@@ -269,7 +274,7 @@ onMounted(async () => {
 
 
 const addStaticModel = async () => {
-    await viewer.addAnimatedGLTFModel('/GreenChannel/allModel/changjing02.glb', { scale: 1, position: new THREE.Vector3(0, 0, 0), autoPlay: false }, (model, mixer, clips) => {
+    await viewer.addAnimatedGLTFModel('/GreenChannel/allModel/cj.glb', { scale: 1, position: new THREE.Vector3(0, 0, 0), autoPlay: false }, (model, mixer, clips) => {
         model.name = 'staticScene';
         model.traverse((child) => {
             if (child.name.includes('MERGED_挤压')) {  // 底部
@@ -316,9 +321,6 @@ const addStaticModel = async () => {
             }
 
             if (child instanceof THREE.Mesh) {
-                // if (child.name.includes('MERGED_Obj3d66_660556_2889_408_1_2')) { // 岛台颜色
-                //     changeColor(child, 0x87ceeb, 0.5)
-                //     console.log(child,'6666666666666666666');
 
                 // }
                 if (child.name.includes('MERGED_材质24')) { // 水码
@@ -363,7 +365,6 @@ function changeColor(material: { name: string | string[]; material: THREE.MeshSt
     const newMaterial = new THREE.MeshStandardMaterial({
         color,   // 绿色
         roughness: 0.3,
-        // metalness: 0.,
         transparent: true,
         opacity,
     });
@@ -497,7 +498,6 @@ const movetruck = (model: THREE.Group) => {
 // 模型加载完成后 加载数据
 const showData = () => {
     globalstate.setLoading(false);
-    // 数据已通过 fetchKpiData 从后端获取，此处不再设置模拟数据
 };
 
 onUnmounted(() => {
@@ -506,8 +506,6 @@ onUnmounted(() => {
         viewer.dispose()
     }
 })
-// const typeShare = ref(genTypeShare())
-// const ranking = ref(genRanking())
 
 const airlineData = ref([
     { name: '北京', count: 120 },
@@ -553,36 +551,7 @@ const records = ref<VehicleInspection[]>([]);
 </script>
 
 <style>
-:root {
-  --bg: #071626;
-  --panel: #bbf7d033;
-  --edge: transparent;
-  --text: #fff;
-  --accent: #3ba272;
-  --accent-2: #4e8df6;
-  --chart-text-color: #cfe;
-  --chart-value-color: #2ed573;
-  --chart-border-color: #0a1f36;
-  --chart-name-color: #fff;
-}
-
-* {
-  box-sizing: border-box
-}
-
-html, body {
-  height: 100%;
-  font-size: 62.5%;
-  width: 100%;
-}
-
-body {
-  margin: 0;
-  color: var(--text);
-  overflow: hidden;
-  font-family: monospace;
-  font-size: 1.6rem;
-}
+@import '@/components/GreenChannel/layout.css';
 
 .icon {
   width: 70%;
@@ -593,7 +562,7 @@ body {
   overflow: hidden;
 }
 
-/* HTML: <div class="loader"></div> */
+/* 加载动画 */
 .loader {
   width: fit-content;
   font-weight: bold;
@@ -616,278 +585,5 @@ body {
   to {
     background-size: 100% 3px
   }
-}
-
-#app {
-  background: linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)), url('@/assets/GreenChannel/png/model_bg.png') no-repeat;
-  background-size: 100% 100%;
-  padding: 12px;
-}
-
-.three-container {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 0;
-}
-
-/* 顶部标题栏 */
-.header-bar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 70px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 30px;
-  z-index: 10;
-  background: linear-gradient(180deg, rgba(7, 22, 38, 0.95) 0%, rgba(7, 22, 38, 0.7) 100%);
-  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
-}
-
-.header-title {
-  font-size: 32px;
-  font-weight: bold;
-  color: #fff;
-  text-shadow: 0 0 10px rgba(78, 141, 246, 0.8);
-  border-bottom: 5px double #113260;
-  padding-bottom: 0;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  color: #fff;
-  font-size: 16px;
-}
-
-.weather {
-  opacity: 0.9;
-}
-
-.time {
-  font-family: monospace;
-}
-
-.three-container canvas {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 1;
-}
-
-.main {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 0;
-  height: 100%;
-  padding-top: 70px;
-  box-sizing: border-box;
-  position: relative;
-}
-
-.col {
-  width: 44rem;
-  gap: 12px;
-  z-index: 2;
-  padding-bottom: 1rem;
-}
-
-.panel {
-  height: 100%;
-  background: #ffffff1A;
-  border: 1px solid var(--edge);
-  border-radius: 14px;
-  padding: 12px;
-  position: relative;
-  overflow: hidden;
-}
-
-.panel h3 {
-  margin: 0 0 10px 0;
-  font-size: 1.5rem;
-  opacity: .9;
-  color: #ffffff;
-}
-
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  height: 85%;
-}
-
-.kpi {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  justify-content: left;
-  padding: 10px;
-  border-radius: 12px;
-}
-
-.kpi-icon {
-  width: 3rem;
-  height: 3rem;
-  background: #166534;
-  border-radius: 50%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.kpi-content {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  justify-content: center;
-  padding-left: 8px;
-}
-
-.kpi-content .label {
-  opacity: .75;
-  font-size: 1.2rem
-}
-
-.kpi-content .val {
-  font-size: 2.4rem;
-  font-weight: 800;
-  text-shadow: 0 0 10px rgba(78, 141, 246, .5)
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 1.3rem;
-  height: 90%
-}
-
-.table th,
-.table td {
-  padding: 8px;
-  border-bottom: 1px dashed #2a4572;
-  text-align: center
-}
-
-.rank {
-  background: #143258;
-  border: 1px solid #2b4f86;
-  padding: 2px 8px;
-  border-radius: 8px
-}
-
-.chart {
-  width: 100%;
-  height: 100%
-}
-
-/* 针对4K屏幕的优化 */
-@media (min-width: 2560px) {
-  :root {
-    font-size: 87.5%;
-  }
-}
-</style>
-
-<style scoped>
-.lfirst {
-    /* 初始隐藏状态 */
-    opacity: 0;
-    transform: translateY(20px);
-    animation: slideInFromLeft 1.5s forwards 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-.lsecond {
-    opacity: 0;
-    transform: translateY(20px);
-    animation: slideInFromLeft 1.5s forwards 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-.lthree {
-    opacity: 0;
-    transform: translateY(20px);
-    animation: slideInFromLeft 1.5s forwards 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-@keyframes slideInFromLeft {
-    0% {
-        opacity: 0;
-        transform: translateX(-100px);
-    }
-
-    100% {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-
-.rfirst {
-    opacity: 0;
-    transform: translateY(20px);
-    animation: slideInFromRight 1.5s forwards 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-.rsecond {
-    opacity: 0;
-    transform: translateY(20px);
-    animation: slideInFromRight 1.5s forwards 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-.rthree {
-    opacity: 0;
-    transform: translateY(20px);
-    animation: slideInFromRight 1.5s forwards 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-@keyframes slideInFromRight {
-    0% {
-        opacity: 0;
-        transform: translateX(100px);
-    }
-
-    100% {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-
-.middleScroll {
-    width: calc(100% - 90rem);
-    height: 28.9rem;
-    position: absolute;
-    bottom: 12px;
-    left: 0;
-    right: 0;
-    margin: 0 auto;
-    z-index: 2;
-    opacity: 0;
-    transform: scaleX(0);
-    transform-origin: center;
-    animation: expandFromCenter 1.5s forwards 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-@keyframes expandFromCenter {
-    0% {
-        opacity: 0;
-        transform: scaleX(0);
-    }
-
-    50% {
-        opacity: 1;
-        transform: scaleX(1);
-    }
-
-    100% {
-        opacity: 1;
-        transform: scaleX(1);
-    }
 }
 </style>

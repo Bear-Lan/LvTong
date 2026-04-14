@@ -1,0 +1,349 @@
+/* ===== 大屏布局样式 ===== */
+
+/* ========================================
+   整体布局 - Grid 实现
+   ┌────────────────┬────────────────┬───────────┐
+   │                │                │           │
+   │     左列       │     中列       │    右列   │
+   │   高度100%    │  高度50%       │  高度100% │
+   │                │  (下半部分)    │           │
+   └────────────────┴────────────────┴───────────┘
+======================================== */
+
+/* CSS 变量 */
+:root {
+    --bg: #071626;
+    --panel: #bbf7d033;
+    --edge: transparent;
+    --text: #fff;
+    --accent: #3ba272;
+    --accent-2: #4e8df6;
+    --chart-text-color: #cfe;
+    --chart-value-color: #2ed573;
+    --chart-border-color: #0a1f36;
+    --chart-name-color: #fff;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    font-size: 62.5%;
+    width: 100%;
+    margin: 0;
+}
+
+body {
+    color: var(--text);
+    overflow: hidden;
+    font-family: monospace;
+    font-size: 1.6rem;
+}
+
+#app {
+    background: linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)), url('@/assets/GreenChannel/png/model_bg.png') no-repeat;
+    background-size: 100% 100%;
+    padding: 12px;
+    margin: 0;
+}
+
+/* 3D容器 */
+.three-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 0;
+    overflow: hidden;
+}
+
+.three-container canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+/* 顶部标题栏 */
+.header-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 70px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 30px;
+    z-index: 10;
+    background: linear-gradient(180deg, rgba(7, 22, 38, 0.95) 0%, rgba(7, 22, 38, 0.7) 100%);
+    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
+}
+
+.header-title {
+    font-size: 32px;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 0 0 10px rgba(78, 141, 246, 0.8);
+    border-bottom: 5px double #113260;
+    padding-bottom: 0;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    color: #fff;
+    font-size: 16px;
+}
+
+.weather {
+    opacity: 0.9;
+}
+
+.time {
+    font-family: monospace;
+}
+
+/* 主布局 */
+.main {
+    display: grid;
+    grid-template-columns: 3fr 5fr 3fr;
+    gap: 12px;
+    min-height: 0;
+    height: 100%;
+    padding: 70px 12px 12px 12px;
+    box-sizing: border-box;
+    position: relative;
+    z-index: 2;
+    pointer-events: none;  /* 让鼠标事件穿透到 3D 容器 */
+}
+
+/* 侧边列通用样式 */
+.col {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 2;
+    overflow: hidden;
+    height: 100%;
+    min-width: 0;
+    pointer-events: auto;
+}
+
+/* 左列 - 第一行第一列 */
+.col-left {
+    grid-row: 1;
+    grid-column: 1;
+}
+
+/* 右列 - 第一行第三列 */
+.col-right {
+    grid-row: 1;
+    grid-column: 3;
+}
+
+/* 中间列 - 第一行第二列，底部对齐，高度50% */
+.col-middle {
+    grid-row: 1;
+    grid-column: 2;
+    align-self: end;       /* 底部对齐 */
+    height: 50%; /* 高度是左右列的一半 */
+    display: flex;
+    justify-content: center;
+    min-width: 0;  /* 防止内容撑开列宽 */
+}
+
+/* 面板通用样式 */
+.panel {
+    height: 100%;
+    min-width: 0;  /* 防止内容撑开面板 */
+    background: #ffffff1A;
+    border: 1px solid var(--edge);
+    border-radius: 14px;
+    padding: 12px;
+    position: relative;
+    overflow: hidden;
+}
+
+.panel h3 {
+    margin: 0 0 10px 0;
+    font-size: 1.5rem;
+    opacity: .9;
+    color: #ffffff;
+}
+
+/* KPI卡片样式 */
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    height: 85%;
+}
+
+.kpi {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    justify-content: left;
+    padding: 10px;
+    border-radius: 12px;
+}
+
+.kpi-icon {
+    width: 3rem;
+    height: 3rem;
+    background: #166534;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.kpi-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    justify-content: center;
+    padding-left: 8px;
+}
+
+.kpi-content .label {
+    opacity: .75;
+    font-size: 1.2rem
+}
+
+.kpi-content .val {
+    font-size: 2.4rem;
+    font-weight: 800;
+    text-shadow: 0 0 10px rgba(78, 141, 246, .5)
+}
+
+/* 表格样式 */
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 1.3rem;
+    height: 90%
+}
+
+.table th,
+.table td {
+    padding: 8px;
+    border-bottom: 1px dashed #2a4572;
+    text-align: center
+}
+
+.rank {
+    background: #143258;
+    border: 1px solid #2b4f86;
+    padding: 2px 8px;
+    border-radius: 8px
+}
+
+/* 图表容器 */
+.chart {
+    width: 100%;
+    height: 100%
+}
+
+/* 中间滚动区域 - 下半部分 */
+.middleScroll {
+    width: 100%;
+    height: 100%;
+    z-index: 2;
+    opacity: 0;
+    animation: expandFromCenter 1.5s forwards 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+@keyframes expandFromCenter {
+    0% {
+        opacity: 0;
+        transform: scaleX(0);
+    }
+    50% {
+        opacity: 1;
+        transform: scaleX(1);
+    }
+    100% {
+        opacity: 1;
+        transform: scaleX(1);
+    }
+}
+
+/* 左列入场动画 */
+.lfirst {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: slideInFromLeft 1.5s forwards 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.lsecond {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: slideInFromLeft 1.5s forwards 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.lthree {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: slideInFromLeft 1.5s forwards 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+@keyframes slideInFromLeft {
+    0% {
+        opacity: 0;
+        transform: translateX(-100px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* 右列入场动画 */
+.rfirst {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: slideInFromRight 1.5s forwards 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.rsecond {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: slideInFromRight 1.5s forwards 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.rthree {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: slideInFromRight 1.5s forwards 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    overflow: visible;
+}
+
+.rthree .panel {
+    overflow: visible;
+}
+
+@keyframes slideInFromRight {
+    0% {
+        opacity: 0;
+        transform: translateX(100px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* 针对4K屏幕的优化 */
+@media (min-width: 2560px) {
+    :root {
+        font-size: 87.5%;
+    }
+}
