@@ -56,7 +56,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { StatCard, SkyChart, RankList, ChinaAirline, Ciyun, LatestPassRecords } from '@/components/GreenChannel/index'
-import request from '@/utils/request'
+import { getKpiData, getPassRecords, getCreditRanking, getGoodsTypeCloud } from '@/api/datascreen'
 import * as THREE from "three";
 import { ThreeViewer } from "@/utils/GreenChannelTool";
 
@@ -90,7 +90,7 @@ const currentWeather = ref('晴 25°C')
 const fetchKpiData = async () => {
     try {
         console.log('正在获取大屏数据...')
-        const res = await request.get('/inspection/datascreen')
+        const res = await getKpiData()
         console.log('大屏数据响应:', res)
         if (res.code === 200 && res.data) {
             // passcode_fee 单位为分，需要转换为元
@@ -111,7 +111,7 @@ const fetchKpiData = async () => {
 // 获取大屏最近通行记录
 const fetchRecords = async () => {
     try {
-        const res = await request.get('/inspection/datascreen/records')
+        const res = await getPassRecords()
         if (res.code === 200 && res.data) {
             records.value = res.data
             console.log('更新后的records:', records.value)
@@ -124,7 +124,7 @@ const fetchRecords = async () => {
 // 获取大屏信用记录排行
 const fetchCreditRanking = async () => {
     try {
-        const res = await request.get('/inspection/datascreen/credit')
+        const res = await getCreditRanking()
         if (res.code === 200 && res.data) {
             genRanking.value = res.data.map((item: any, index: number) => ({
                 rank: index + 1,
@@ -142,7 +142,7 @@ const fetchCreditRanking = async () => {
 // 获取大屏货物类型词云数据
 const fetchGoodsTypeCloud = async () => {
     try {
-        const res = await request.get('/inspection/datascreen/goods-cloud')
+        const res = await getGoodsTypeCloud()
         if (res.code === 200 && res.data) {
             goodsCount.value = res.data.map((item: any) => ({
                 name: item.name,
