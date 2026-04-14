@@ -57,7 +57,6 @@
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { StatCard, SkyChart, RankList, ChinaAirline, Ciyun, LatestPassRecords } from '@/components/GreenChannel/index'
 import request from '@/utils/request'
-
 import * as THREE from "three";
 import { ThreeViewer } from "@/utils/GreenChannelTool";
 
@@ -626,9 +625,12 @@ body {
 }
 
 .three-container {
-  position: relative;
-  width: 100%;
-  height: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
 }
 
 /* 顶部标题栏 */
@@ -686,8 +688,9 @@ body {
   justify-content: space-between;
   gap: 12px;
   min-height: 0;
-  height: calc(100% - 7.4rem);
-  margin-top: 7.4rem;
+  height: 100%;
+  padding-top: 70px;
+  box-sizing: border-box;
   position: relative;
 }
 
@@ -711,7 +714,8 @@ body {
 .panel h3 {
   margin: 0 0 10px 0;
   font-size: 1.5rem;
-  opacity: .9
+  opacity: .9;
+  color: #ffffff;
 }
 
 .kpi-grid {
