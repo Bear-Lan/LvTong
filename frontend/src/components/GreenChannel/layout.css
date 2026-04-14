@@ -152,11 +152,12 @@ body {
 .col-middle {
     grid-row: 1;
     grid-column: 2;
-    align-self: end;       /* 底部对齐 */
-    height: 50%; /* 高度是左右列的一半 */
+    align-self: end;
+    height: 50%;
     display: flex;
     justify-content: center;
-    min-width: 0;  /* 防止内容撑开列宽 */
+    min-width: 0;
+    pointer-events: auto;
 }
 
 /* 面板通用样式 */

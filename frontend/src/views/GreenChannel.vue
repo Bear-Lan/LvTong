@@ -256,13 +256,14 @@ onMounted(async () => {
 
     viewer = await new ThreeViewer(threeContainer!);
     // 隐藏加载提示
-    //globalstate.setLoading(false);
+    globalstate.setLoading(false);
 
-    // 启用 3D 模型加载
-    await initModelsData()
+    // ===== 暂时禁用 3D 模型加载，方便调试样式 =====
+    // await initModelsData()
     // showData()
-    await addStaticModel()
-    await addAllModels(modelsInfo);
+    // await addStaticModel()
+    // await addAllModels(modelsInfo);
+    // ===== 3D 模型加载已禁用 =====
     const guangyuanModel = models.find((m) => m.name === "guangyuan") as THREE.Group;
 
     const truck4Model = models.find((m) => m.name === "truck4") as THREE.Group;

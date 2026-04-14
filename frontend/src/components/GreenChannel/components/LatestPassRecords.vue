@@ -149,8 +149,8 @@ const isItemSelected = (item: VehicleInspection, index: number): boolean => {
   if (selectedData.value) {
     // 使用唯一标识符比较，这里使用车牌号+出站时间
     return (
-      item.plate_number === selectedData.value.plate_number &&
-      item.passcode_ex_time === selectedData.value.passcode_ex_time
+      item.plateNumber === selectedData.value.plateNumber &&
+      item.passcodeExTime === selectedData.value.passcodeExTime
     );
   }
 
@@ -246,8 +246,8 @@ const handleCilckItem = (data: VehicleInspection, index: number) => {
 
   // 如果点击的是同一项，取消选中
   if (selectedIndex.value === index && selectedData.value) {
-    const currentId = `${selectedData.value.plate_number}_${selectedData.value.passcode_ex_time}`;
-    const newId = `${data.plate_number}_${data.passcode_ex_time}`;
+    const currentId = `${selectedData.value.plateNumber}_${selectedData.value.passcodeExTime}`;
+    const newId = `${data.plateNumber}_${data.passcodeExTime}`;
 
     if (currentId === newId) {
       clearSelection();
@@ -263,6 +263,7 @@ const handleCilckItem = (data: VehicleInspection, index: number) => {
   rowData.value = { ...data };
 
   // 显示弹窗
+  isShow.value = true;
   globalstate.setScrollPortVisible(true);
   pauseAutoScroll()
 
@@ -313,6 +314,10 @@ const handleWheel = (event: WheelEvent) => {
 // 处理弹窗关闭事件
 const handleScrollportClose = () => {
   console.log('弹窗关闭，恢复自动滚动');
+
+  // 关闭弹窗
+  isShow.value = false;
+  globalstate.setScrollPortVisible(false);
 
   // 恢复自动滚动
   resumeAutoScroll();
