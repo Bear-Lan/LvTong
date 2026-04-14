@@ -50,9 +50,15 @@ public interface VehicleInspectionService {
     /** 获取货物类别统计（默认当日） */
     List<Map<String, Object>> getGoodsTypeStats(LocalDateTime startTime, LocalDateTime endTime);
 
+    /** 获取货物类型统计（用于词云图） */
+    List<Map<String, Object>> getGoodsTypeStatsForCloud();
+
     /** 获取最近查验记录 */
     List<VehicleInspection> getRecentRecords(int limit);
 
     /** 获取大屏统计数据（今日通行、总绿通、总通行金额、伪绿通） */
     Map<String, Object> getDatascreenStats();
+
+    /** 获取信用记录排行榜（合格次数最多的前3辆车） */
+    List<Map<String, Object>> getCreditRanking();
 }

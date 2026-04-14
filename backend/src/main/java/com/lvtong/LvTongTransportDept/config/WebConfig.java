@@ -30,10 +30,12 @@ public class WebConfig implements WebMvcConfigurer {
                         "/api/user/captcha",
                         "/api/images",
                         "/api/mobile/**",
+                        "/api/inspection/datascreen/**",
                         "/swagger-ui/**",
                         "/swagger-ui.html",
                         "/api-docs/**",
-                        "/v3/api-docs/**"
+                        "/v3/api-docs/**",
+                        "/greenchannel"
                 );
     }
 

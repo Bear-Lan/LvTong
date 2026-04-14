@@ -31,15 +31,14 @@
             hovered: hoverIndex === index && !isItemSelected(item, index)
           }" @mouseenter="hoverIndex = index" @mouseleave="hoverIndex = -1">
           <span class="scrollID">{{ index + 1 }}</span>
-          <span class="plate" :class="{ green: item.isGreen }">{{ item.plate_number }}</span>
-          <span class="goodsType">{{ item.ctypename }}</span>
-          <span class="goodsWeight">{{ item.passcode_ex_weight }}</span>
-          <span class="goodsWeight">{{ item.passcode_en_weight }}</span>
-          <!-- <span class="originAddress">{{ item.passcode_en_station_id }}</span> -->
-          <span class="amount">{{ item.passcode_fee }}</span>
-          <span class="loadRate">{{ item.load_rate }}%</span>
-          <span class="loadTime">{{ formatTime(item.passcode_ex_time) }}</span>
-          <span class="loadRate">{{ item.driver_phone }}</span>
+          <span class="plate" :class="{ green: item.isGreen }">{{ item.plateNumber || '-' }}</span>
+          <span class="goodsType">{{ item.goodsTypeName || '-' }}</span>
+          <span class="goodsWeight">{{ item.passcodeExWeight || '-' }}</span>
+          <span class="goodsWeight">{{ item.passcodeEnWeight || '-' }}</span>
+          <span class="amount">{{ item.passcodeFee || '-' }}</span>
+          <span class="loadRate">{{ item.loadRate || '-' }}</span>
+          <span class="loadTime">{{ formatTime(item.passcodeExTime) }}</span>
+          <span class="loadRate">{{ item.driverPhone || '-' }}</span>
           <!-- <span class="release" :class="item.release === '异常处理' ? 'yellowClass' : 'greenClass'">{{ item.release }}</span> -->
           <!-- <span class="release">{{ item.release }}</span>
           <span class="time">{{ item.time }}</span>
@@ -54,15 +53,14 @@
             hovered: hoverIndex === index && !isItemSelected(item, index)
           }" @mouseenter="hoverIndex = index" @mouseleave="hoverIndex = -1">
           <span class="scrollID">{{ index + 1 }}</span>
-          <span class="plate" :class="{ green: item.isGreen }">{{ item.plate_number }}</span>
-          <span class="goodsType">{{ item.ctypename }}</span>
-          <span class="goodsWeight">{{ item.passcode_ex_weight }}</span>
-          <span class="goodsWeight">{{ item.passcode_en_weight }}</span>
-          <!-- <span class="originAddress">{{ item.passcode_en_station_id }}</span> -->
-          <span class="amount">{{ item.passcode_fee }}</span>
-          <span class="loadRate">{{ item.load_rate }}%</span>
-          <span class="loadTime">{{ formatTime(item.passcode_ex_time) }}</span>
-          <span class="loadRate">{{ item.driver_phone }}</span>
+          <span class="plate" :class="{ green: item.isGreen }">{{ item.plateNumber || '-' }}</span>
+          <span class="goodsType">{{ item.goodsTypeName || '-' }}</span>
+          <span class="goodsWeight">{{ item.passcodeExWeight || '-' }}</span>
+          <span class="goodsWeight">{{ item.passcodeEnWeight || '-' }}</span>
+          <span class="amount">{{ item.passcodeFee || '-' }}</span>
+          <span class="loadRate">{{ item.loadRate || '-' }}</span>
+          <span class="loadTime">{{ formatTime(item.passcodeExTime) }}</span>
+          <span class="loadRate">{{ item.driverPhone || '-' }}</span>
           <!-- <span class="release" :class="item.release === '异常处理' ? 'yellowClass' : 'greenClass'">{{ item.release }}</span> -->
           <!-- <span class="release">{{ item.release }}</span>
           <span class="time">{{ item.time }}</span>
@@ -115,7 +113,7 @@ const scrollTop = ref(0);
 let timer: number;
 let listHeight = 0;
 const list = ref<HTMLElement>();
-const listData = ref<VehicleInspection[]>()
+const listData = ref<VehicleInspection[]>([])
 
 const isShow = ref(false)
 const dialogVisible = ref(false)
@@ -127,8 +125,12 @@ watch(dialogVisible, (newValue, oldValue) => {
 })
 watch(
   () => props.list,
-  () => listData.value = props.list,
-  { deep: true }
+  (newVal) => {
+    console.log('props.list变化:', newVal ? newVal.length : 0)
+    listData.value = newVal || []
+    console.log('listData更新后:', listData.value.length)
+  },
+  { deep: true, immediate: true }
 )
 
 // 选中状态相关

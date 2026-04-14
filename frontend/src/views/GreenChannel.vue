@@ -108,6 +108,54 @@ const fetchKpiData = async () => {
         console.error('获取大屏数据失败:', error)
     }
 }
+
+// 获取大屏最近通行记录
+const fetchRecords = async () => {
+    try {
+        const res = await request.get('/inspection/datascreen/records')
+        if (res.code === 200 && res.data) {
+            records.value = res.data
+            console.log('更新后的records:', records.value)
+        }
+    } catch (error) {
+        console.error('获取通行记录失败:', error)
+    }
+}
+
+// 获取大屏信用记录排行
+const fetchCreditRanking = async () => {
+    try {
+        const res = await request.get('/inspection/datascreen/credit')
+        if (res.code === 200 && res.data) {
+            genRanking.value = res.data.map((item: any, index: number) => ({
+                rank: index + 1,
+                plate: item.plateNumber,
+                count: item.passCount,
+                goodsWeight: item.creditScore
+            }))
+            console.log('更新后的genRanking:', genRanking.value)
+        }
+    } catch (error) {
+        console.error('获取信用排行失败:', error)
+    }
+}
+
+// 获取大屏货物类型词云数据
+const fetchGoodsTypeCloud = async () => {
+    try {
+        const res = await request.get('/inspection/datascreen/goods-cloud')
+        if (res.code === 200 && res.data) {
+            goodsCount.value = res.data.map((item: any) => ({
+                name: item.name,
+                count: item.count
+            }))
+            console.log('更新后的goodsCount:', goodsCount.value)
+        }
+    } catch (error) {
+        console.error('获取货物类型词云失败:', error)
+    }
+}
+
 // 更新时间
 const updateTime = () => {
     const now = new Date()
@@ -194,6 +242,16 @@ onMounted(async () => {
     // 获取大屏关键指标数据
     fetchKpiData()
     setInterval(fetchKpiData, 30000)  // 每30秒刷新一次
+
+    // 获取大屏最近通行记录
+    fetchRecords()
+    setInterval(fetchRecords, 30000)  // 每10秒刷新一次
+
+    // 获取大屏信用记录排行
+    fetchCreditRanking()
+
+    // 获取大屏货物类型词云数据
+    fetchGoodsTypeCloud()
 
     viewer = await new ThreeViewer(threeContainer!);
     await initModelsData()
@@ -490,15 +548,6 @@ const ciyunData = ref([
 ])
 
 const records = ref<VehicleInspection[]>([]);
-// 监听 lvtongDetection 的变化
-watch(lvtongDetection, (newVal, oldVal) => {
-    // 如果数据不为空，可以在这里处理数据
-    if (newVal && newVal.length > 0) {
-        // 这里可以更新你的 records 或其他需要的数据
-        // updateRecordsWithRealData(newVal)
-        records.value = newVal
-    }
-}, { deep: true, immediate: true })
 
 
 

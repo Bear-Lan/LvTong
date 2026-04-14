@@ -285,6 +285,43 @@ public class VehicleInspectionController {
         return ApiResponse.success(result);
     }
 
+    /**
+     * 获取大屏最近通行记录
+     *
+     * @return 最近50条查验记录
+     */
+    @GetMapping("/datascreen/records")
+    @Operation(summary = "获取大屏最近通行记录", description = "返回最近50条查验记录用于滚动显示")
+    public ApiResponse<List<Map<String, Object>>> getDatascreenRecords() {
+        List<Map<String, Object>> records = inspectionService.getRecentRecords(50)
+                .stream().map(this::convertToMap).toList();
+        return ApiResponse.success(records);
+    }
+
+    /**
+     * 获取大屏信用记录排行榜
+     *
+     * @return 合格次数最多的前3辆车（车牌号、合格次数、总次数、10分制信用评分）
+     */
+    @GetMapping("/datascreen/credit")
+    @Operation(summary = "获取大屏信用记录排行榜", description = "返回信用评分最高的前3辆车")
+    public ApiResponse<List<Map<String, Object>>> getCreditRanking() {
+        List<Map<String, Object>> ranking = inspectionService.getCreditRanking();
+        return ApiResponse.success(ranking);
+    }
+
+    /**
+     * 获取大屏货物类型词云数据
+     *
+     * @return 货物品种名称和出现次数（联表查询）
+     */
+    @GetMapping("/datascreen/goods-cloud")
+    @Operation(summary = "获取大屏货物类型词云", description = "返回货物品种出现次数用于词云图")
+    public ApiResponse<List<Map<String, Object>>> getGoodsTypeCloud() {
+        List<Map<String, Object>> goodsCloud = inspectionService.getGoodsTypeStatsForCloud();
+        return ApiResponse.success(goodsCloud);
+    }
+
     // ================================================================
     // 【私有辅助方法】
     // ================================================================

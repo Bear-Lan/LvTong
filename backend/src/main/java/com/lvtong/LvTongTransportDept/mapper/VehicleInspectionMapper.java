@@ -68,6 +68,21 @@ public interface VehicleInspectionMapper extends BaseMapper<VehicleInspection> {
                                                     @Param("endTime") LocalDateTime endTime);
 
     /**
+     * 获取货物类型统计（用于词云图，查询所有记录）
+     * @return 货物品种名称和出现次数
+     */
+    @Select("SELECT " +
+            "  COALESCE(ap.variety_name, vi.goods_type, '未填写') AS name, " +
+            "  COUNT(*) AS count " +
+            "FROM vehicle_inspections vi " +
+            "LEFT JOIN agricultural_products ap " +
+            "  ON ap.product_code = SUBSTRING_INDEX(vi.goods_type, '|', 1) " +
+            "GROUP BY ap.variety_name, vi.goods_type " +
+            "ORDER BY count DESC " +
+            "LIMIT 20")
+    List<Map<String, Object>> selectGoodsTypeStatsForCloud();
+
+    /**
      * 获取大屏统计数据
      * @return 包含 今日通行车辆, 总绿通车辆, 总通行金额, 伪绿通车辆
      */
@@ -77,4 +92,19 @@ public interface VehicleInspectionMapper extends BaseMapper<VehicleInspection> {
             "(SELECT COALESCE(SUM(passcode_fee), 0) FROM vehicle_inspections) AS totalPassAmount, " +
             "(SELECT COUNT(*) FROM vehicle_inspections WHERE result_status = 2 AND nopass_type IN (21, 22, 23, 24)) AS fakeGreenCount")
     Map<String, Object> selectDatascreenStats();
+
+    /**
+     * 获取信用记录排行榜（合格次数最多的前3辆车）
+     * @return 包含车牌号、合格次数、总次数、信用评分(10分制)
+     */
+    @Select("SELECT " +
+            "plate_number AS plateNumber, " +
+            "SUM(CASE WHEN result_status = 1 THEN 1 ELSE 0 END) AS passCount, " +
+            "COUNT(*) AS totalCount, " +
+            "ROUND(SUM(CASE WHEN result_status = 1 THEN 1 ELSE 0 END) * 10.0 / COUNT(*), 1) AS creditScore " +
+            "FROM vehicle_inspections " +
+            "GROUP BY plate_number " +
+            "ORDER BY passCount DESC " +
+            "LIMIT 3")
+    List<Map<String, Object>> selectCreditRanking();
 }

@@ -291,6 +291,12 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<Map<String, Object>> getGoodsTypeStatsForCloud() {
+        return mapper.selectGoodsTypeStatsForCloud();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<VehicleInspection> getRecentRecords(int limit) {
         LambdaQueryWrapper<VehicleInspection> wrapper = new LambdaQueryWrapper<>();
         wrapper.orderByDesc(VehicleInspection::getInspectionTime);
@@ -301,5 +307,11 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
     @Transactional(readOnly = true)
     public Map<String, Object> getDatascreenStats() {
         return mapper.selectDatascreenStats();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getCreditRanking() {
+        return mapper.selectCreditRanking();
     }
 }

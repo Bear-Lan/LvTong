@@ -169,6 +169,9 @@ class ThreeViewer {
     }
 
     private updateMovingModels(delta: number) {
+        // 过滤掉无效的 movingModel
+        this.movingModels = this.movingModels.filter(mm => mm && mm.object && mm.vector && mm.object.position)
+
         for (const mm of this.movingModels) {
             if (mm.isPaused) continue; // ← 关键，暂停就不动
             mm.object.position.addScaledVector(mm.vector, mm.speed * delta * mm.direction);
