@@ -111,16 +111,11 @@ const isShow = ref(false)
 const dialogVisible = ref(false)
 
 // ---- 监听数据变化 ----
-watch(dialogVisible, (newValue, oldValue) => {
-  console.log(newValue, oldValue);
 
-})
 watch(
   () => props.list,
   (newVal) => {
-    console.log('props.list变化:', newVal ? newVal.length : 0)
     listData.value = newVal || []
-    console.log('listData更新后:', listData.value.length)
   },
   { deep: true, immediate: true }
 )
@@ -189,24 +184,17 @@ const startAutoScroll = () => {
 
 // 初始化滚动
 const initAutoScroll = async () => {
-  await nextTick(); // 等待DOM更新
+  await nextTick();
 
   // 确保元素存在
   if (!list.value) {
-    console.warn('list元素未找到，重新尝试...');
-    // 重新尝试获取
     await new Promise(resolve => setTimeout(resolve, 100));
     await nextTick();
   }
 
   if (list.value) {
     listHeight = list.value.scrollHeight / 2;
-    console.log('listHeight:', listHeight, 'list内容高度:', list.value.scrollHeight);
-
-    // 开始滚动
     startAutoScroll();
-  } else {
-    console.error('无法找到list元素');
   }
 };
 
@@ -242,9 +230,7 @@ const resumeScroll = () => {
 
 // 点击处理函数
 const handleCilckItem = (data: VehicleInspection, index: number) => {
-  console.log('点击行数据:', data, '索引:', index);
-
-  // 如果点击的是同一项，取消选中
+  // 设置选中状态
   if (selectedIndex.value === index && selectedData.value) {
     const currentId = `${selectedData.value.plateNumber}_${selectedData.value.passcodeExTime}`;
     const newId = `${data.plateNumber}_${data.passcodeExTime}`;
@@ -313,8 +299,6 @@ const handleWheel = (event: WheelEvent) => {
 
 // 处理弹窗关闭事件
 const handleScrollportClose = () => {
-  console.log('弹窗关闭，恢复自动滚动');
-
   // 关闭弹窗
   isShow.value = false;
   globalstate.setScrollPortVisible(false);
@@ -336,25 +320,16 @@ const clearSelection = () => {
 
 
 onMounted(async () => {
-  console.log('组件挂载');
   isMounted.value = true;
-  // 初始化滚动
   await initAutoScroll();
 
-  // 添加调试信息
-  console.log('props.list长度:', props.list.length);
-  console.log('scrollTop初始值:', scrollTop.value);
-
-  // 如果初始化失败，延迟重试
   if (!timer) {
     setTimeout(() => {
-      console.log('延迟重试初始化滚动');
       initAutoScroll();
     }, 500);
   }
 });
 onBeforeUnmount(() => {
-  console.log('组件卸载');
   isMounted.value = false;
   pauseAutoScroll();
 

@@ -35,9 +35,6 @@
                   :initial-index="0"
                 />
               </div>
-              <div class="evidence-placeholder">
-                <el-icon><Picture /></el-icon>
-              </div>
               <div class="evidence-label">
                 <span class="type-tag">11</span>车头照
               </div>
@@ -54,10 +51,7 @@
                   :initial-index="1"
                 />
               </div>
-              <div class="evidence-placeholder">
-                <el-icon><Picture /></el-icon>
-              </div>
-              <div class="evidence-label">
+                            <div class="evidence-label">
                 <span class="type-tag">12</span>车尾照
               </div>
             </div>
@@ -73,10 +67,7 @@
                   :initial-index="2"
                 />
               </div>
-              <div class="evidence-placeholder">
-                <el-icon><Picture /></el-icon>
-              </div>
-              <div class="evidence-label">
+                            <div class="evidence-label">
                 <span class="type-tag">13</span>行驶证
               </div>
             </div>
@@ -92,10 +83,7 @@
                   :initial-index="3"
                 />
               </div>
-              <div class="evidence-placeholder">
-                <el-icon><Picture /></el-icon>
-              </div>
-              <div class="evidence-label">
+                            <div class="evidence-label">
                 <span class="type-tag">26</span>顶部照
               </div>
             </div>
@@ -111,10 +99,7 @@
                   :initial-index="4"
                 />
               </div>
-              <div class="evidence-placeholder">
-                <el-icon><Picture /></el-icon>
-              </div>
-              <div class="evidence-label">
+                            <div class="evidence-label">
                 <span class="type-tag">凭证</span>通行凭证
               </div>
             </div>
@@ -135,9 +120,6 @@
                     :initial-index="5"
                   />
                 </div>
-                <div class="evidence-placeholder">
-                  <el-icon><Picture /></el-icon>
-                </div>
                 <div class="evidence-label">
                   <span class="type-tag">X光</span>透视影像
                 </div>
@@ -153,9 +135,6 @@
                     class="evidence-img"
                     :initial-index="6"
                   />
-                </div>
-                <div class="evidence-placeholder">
-                  <el-icon><Picture /></el-icon>
                 </div>
                 <div class="evidence-label">
                   <span class="type-tag">25</span>车身照
@@ -185,10 +164,7 @@
                   />
                 </div>
               </div>
-              <div class="evidence-placeholder">
-                <el-icon><Picture /></el-icon>
-              </div>
-              <div class="evidence-label">
+                            <div class="evidence-label">
                 <span class="type-tag">货物</span>货物照
                 <span v-if="goodsImages.length > 0" class="goods-count">({{ goodsImages.length }}张)</span>
               </div>
@@ -281,17 +257,9 @@
               <span class="data-label">货车长宽高(m)</span>
               <span class="data-value mono">{{ formatVehicleSize(rows.vehicleSize) }}</span>
             </div>
-            <!-- 满载率：可编辑时显示输入框 -->
-            <div class="data-row">
-              <span class="data-label">满载率(%)</span>
-            </div>
             <div class="data-row">
               <span class="data-label">满载率(%)</span>
               <span class="data-value">{{ rows.loadRate != null ? rows.loadRate + '%' : '-' }}</span>
-            </div>
-            <!-- 司机电话：可编辑时显示输入框 -->
-            <div class="data-row">
-              <span class="data-label">司机电话</span>
             </div>
             <div class="data-row">
               <span class="data-label">司机电话</span>
@@ -308,14 +276,10 @@
             <div class="data-row">
               <span class="data-label">班组</span>
             </div>
-            <!-- 备注内容：可编辑时显示输入框 -->
-            <div class="data-row">
-              <span class="data-label">备注内容</span>
-            </div>
             <div class="data-row">
               <span class="data-label">备注内容</span>
               <span class="data-value">{{ rows.historyRecord || '-' }}</span>
-            </div>    
+            </div>
 
           </div>
 
@@ -371,7 +335,7 @@
  */
 
 import { computed, ref } from 'vue'
-import { Picture } from '@element-plus/icons-vue'
+import { } from 'vue'
 
 // ================================================================
 // Props & Emits
@@ -634,17 +598,6 @@ const formatVehicleSize = (size) => {
 .evidence-item .evidence-img {
   width: 100%;
   height: 100%;
-}
-
-.evidence-item .evidence-placeholder {
-  width: 100%;
-  height: 160px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f5f7fa;
-  color: #dcdfe6;
-  border-radius: 4px;
 }
 
 .evidence-item .evidence-label {

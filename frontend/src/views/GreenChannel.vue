@@ -91,9 +91,7 @@ const currentWeather = ref('晴 25°C')
 // 获取大屏关键指标数据
 const fetchKpiData = async () => {
     try {
-        console.log('正在获取大屏数据...')
         const res = await getKpiData()
-        console.log('大屏数据响应:', res)
         if (res.code === 200 && res.data) {
             // passcode_fee 单位为分，需要转换为元
             const totalAmount = parseFloat(res.data.discount) || 0
@@ -103,7 +101,6 @@ const fetchKpiData = async () => {
                 discount: Math.round(totalAmount / 100),  // 转换为元
                 abnormal: res.data.abnormal || 0
             }
-            console.log('更新后的kpis:', kpis.value)
         }
     } catch (error) {
         console.error('获取大屏数据失败:', error)
@@ -116,7 +113,6 @@ const fetchRecords = async () => {
         const res = await getPassRecords()
         if (res.code === 200 && res.data) {
             records.value = res.data
-            console.log('更新后的records:', records.value)
         }
     } catch (error) {
         console.error('获取通行记录失败:', error)
@@ -134,7 +130,6 @@ const fetchCreditRanking = async () => {
                 count: item.passCount,
                 goodsWeight: item.creditScore
             }))
-            console.log('更新后的genRanking:', genRanking.value)
         }
     } catch (error) {
         console.error('获取信用排行失败:', error)
@@ -150,7 +145,6 @@ const fetchGoodsTypeCloud = async () => {
                 name: item.name,
                 count: item.count
             }))
-            console.log('更新后的goodsCount:', goodsCount.value)
         }
     } catch (error) {
         console.error('获取货物类型词云失败:', error)
