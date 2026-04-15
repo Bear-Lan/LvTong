@@ -43,6 +43,16 @@ public interface VehicleInspectionMapper extends BaseMapper<VehicleInspection> {
                                                        @Param("endTime") LocalDateTime endTime);
 
     /**
+     * 按天统计查验数量（用于最近一周/一月）
+     */
+    @Select("SELECT DATE(inspection_time) AS date, COUNT(*) AS count " +
+            "FROM vehicle_inspections " +
+            "WHERE inspection_time >= #{startTime} AND inspection_time < #{endTime} " +
+            "GROUP BY DATE(inspection_time) ORDER BY date")
+    List<Map<String, Object>> selectDailyDistribution(@Param("startTime") LocalDateTime startTime,
+                                                      @Param("endTime") LocalDateTime endTime);
+
+    /**
      * 按货物类型统计记录数（代替 Java 分组）
      * 【JOIN 解析品种名】
      * goods_type 存储 product_code，可能包含多编码（如 "10601|10801"）。
@@ -66,6 +76,20 @@ public interface VehicleInspectionMapper extends BaseMapper<VehicleInspection> {
             "</script>")
     List<Map<String, Object>> selectGoodsTypeStats(@Param("startTime") LocalDateTime startTime,
                                                     @Param("endTime") LocalDateTime endTime);
+
+    /**
+     * 获取货物类别统计（查询所有数据，不限时间）
+     * @return 货物品种名称和出现次数
+     */
+    @Select("SELECT " +
+            "  COALESCE(ap.variety_name, vi.goods_type, '未填写') AS goodsTypeName, " +
+            "  COUNT(*) AS count " +
+            "FROM vehicle_inspections vi " +
+            "LEFT JOIN agricultural_products ap " +
+            "  ON ap.product_code = SUBSTRING_INDEX(vi.goods_type, '|', 1) " +
+            "GROUP BY ap.variety_name, vi.goods_type " +
+            "ORDER BY count DESC")
+    List<Map<String, Object>> selectGoodsTypeStatsAll();
 
     /**
      * 获取货物类型统计（用于词云图，查询所有记录）

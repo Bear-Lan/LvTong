@@ -47,8 +47,14 @@ public interface VehicleInspectionService {
     /** 获取 24 小时查验时段分布 */
     List<Map<String, Object>> getHourlyDistribution();
 
+    /** 获取查验时段分布（支持按日期范围） */
+    List<Map<String, Object>> getTimeDistribution(LocalDateTime startTime, LocalDateTime endTime);
+
     /** 获取货物类别统计（默认当日） */
     List<Map<String, Object>> getGoodsTypeStats(LocalDateTime startTime, LocalDateTime endTime);
+
+    /** 获取货物类别统计（所有数据） */
+    List<Map<String, Object>> getGoodsTypeStatsAll();
 
     /** 获取货物类型统计（用于词云图） */
     List<Map<String, Object>> getGoodsTypeStatsForCloud();

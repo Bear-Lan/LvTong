@@ -253,10 +253,14 @@ public class VehicleInspectionController {
         // 查验时段分布（24小时）
         data.put("hourlyDistribution", inspectionService.getHourlyDistribution());
 
-        // 货物类别占比（当日范围，避免全表扫描）
-        LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
-        LocalDateTime endOfDay = startOfDay.plusDays(1);
-        data.put("goodsTypeStats", inspectionService.getGoodsTypeStats(startOfDay, endOfDay));
+        // 查验时段分布（最近一周，按天查询）
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime start = now.minusDays(7).toLocalDate().atStartOfDay();
+        LocalDateTime end = now.toLocalDate().atStartOfDay().plusDays(1);
+        data.put("timeDistribution", inspectionService.getTimeDistribution(start, end));
+
+        // 货物类别占比（查询所有数据）
+        data.put("goodsTypeStats", inspectionService.getGoodsTypeStatsAll());
 
         // 最近查验记录（最近10条）
         data.put("recentRecords", inspectionService.getRecentRecords(10)

@@ -236,26 +236,30 @@
                 <el-icon color="#409eff"><DataLine /></el-icon>
                 查验时段分布
               </span>
-              <span class="panel-sub">24小时查验量走势</span>
+              <el-radio-group v-model="timeRange" size="small" @change="handleTimeRangeChange">
+                <el-radio-button value="1">最近一天</el-radio-button>
+                <el-radio-button value="7">最近一周</el-radio-button>
+                <el-radio-button value="30">最近一月</el-radio-button>
+              </el-radio-group>
             </div>
           </template>
           <div ref="lineChartRef" class="chart-container"></div>
         </el-card>
       </el-col>
 
-      <!-- 右：查验结果环形图（8宽） -->
+      <!-- 右：货物类别饼图（8宽） -->
       <el-col :span="8">
         <el-card class="chart-card" shadow="never">
           <template #header>
             <div class="panel-header">
               <span class="panel-title">
                 <el-icon color="#e6a23c"><DataAnalysis /></el-icon>
-                查验结果分布
+                货物类别分布
               </span>
-              <span class="panel-sub">合格 vs 不合格</span>
+              <span class="panel-sub">各类货物查验数量</span>
             </div>
           </template>
-          <div ref="ringChartRef" class="chart-container"></div>
+          <div ref="pieChartRef" class="chart-container"></div>
         </el-card>
       </el-col>
     </el-row>
@@ -329,7 +333,12 @@ const fakeGreenAlerts = ref([])
 const recentRecords = ref([])
 
 /** 图表数据 */
-const hourlyDistribution = ref([])  // 时段分布原始数据
+const hourlyDistribution = ref([])  // 时段分布原始数据（24小时）
+const timeDistribution = ref([])  // 时段分布（按日期范围）
+const goodsTypeStats = ref([])  // 货物类别统计数据
+
+/** 时间范围选择 */
+const timeRange = ref('1')  // 1=最近一天, 7=最近一周, 30=最近一月
 
 /** 设备在线状态（null=未知/检测中，true=在线，false=离线） */
 const deviceOnline = ref(null)
@@ -354,11 +363,11 @@ const showDetail = (item) => {
 // ================================================================
 
 const lineChartRef = ref(null)
-const ringChartRef = ref(null)
+const pieChartRef = ref(null)
 
 // ECharts 实例（避免重复创建）
 let lineChart = null
-let ringChart = null
+let pieChart = null
 
 // ================================================================
 // 数据加载
@@ -392,11 +401,19 @@ const loadData = async () => {
 
       // 图表原始数据
       hourlyDistribution.value = d.hourlyDistribution || []
+      timeDistribution.value = d.timeDistribution || []
+      goodsTypeStats.value = d.goodsTypeStats || []
+
+      console.log('API返回数据:', {
+        hourlyDistribution: d.hourlyDistribution,
+        timeDistribution: d.timeDistribution,
+        goodsTypeStats: d.goodsTypeStats
+      })
 
       // 渲染图表
       await nextTick()
       renderLineChart()
-      renderRingChart()
+      renderPieChart()
     } else {
       ElMessage.error(res.message || '加载统计数据失败')
     }
@@ -411,17 +428,37 @@ const loadData = async () => {
 
 /**
  * 渲染查验时段分布折线图
- * X轴：00:00 ~ 23:00
- * Y轴：查验数量
- * 当前小时之前的区域用渐变填充
+ * 根据时间范围选择：最近一天=按小时，其他=按天
  */
 const renderLineChart = () => {
   if (!lineChartRef.value) return
   if (!lineChart) lineChart = echarts.init(lineChartRef.value)
 
-  const data = hourlyDistribution.value
-  const hours = data.map(d => d.label)          // ["00:00", "01:00", ...]
-  const values = data.map(d => d.count || 0)    // [3, 0, 5, ...]
+  const range = timeRange.value
+  const data = range === '1' ? hourlyDistribution.value : timeDistribution.value
+
+  console.log('timeRange:', range, 'data:', data)  // 调试
+
+  // 按天和按小时的数据格式不同
+  let labels, values
+  if (range === '1') {
+    // 按小时
+    labels = data.map(d => d.label)  // ["00:00", "01:00", ...]
+    values = data.map(d => d.count || 0)
+  } else {
+    // 按天
+    labels = data.map(d => d.label)  // ["2026-04-08", ...]
+    values = data.map(d => d.count || 0)
+  }
+
+  // 确保有数据
+  if (labels.length === 0) {
+    labels = range === '1' ? Array.from({length: 24}, (_, i) => `${String(i).padStart(2, '0')}:00`) : ['暂无数据']
+    values = range === '1' ? Array(24).fill(0) : [0]
+  }
+
+  // 最近一天才显示渐变填充
+  const isToday = range === '1'
   const currentHour = new Date().getHours()
 
   lineChart.setOption({
@@ -432,21 +469,24 @@ const renderLineChart = () => {
     grid: { left: 50, right: 20, top: 20, bottom: 30 },
     xAxis: {
       type: 'category',
-      data: hours,
+      data: labels,
       axisLabel: {
-        interval: 2,
+        interval: range === '1' ? 2 : 'auto',
         fontSize: 10,
-        color: '#909399'
+        color: '#909399',
+        rotate: range !== '1' ? 30 : 0
       },
       axisLine: { lineStyle: { color: '#e4e7ed' } },
-      axisTick: { show: false }
+      axisTick: { show: true }
     },
     yAxis: {
       type: 'value',
+      name: '查验量',
+      nameTextStyle: { fontSize: 10, color: '#909399' },
       axisLabel: { fontSize: 10, color: '#909399' },
       splitLine: { lineStyle: { color: '#f0f0f0' } },
-      axisLine: { show: false },
-      axisTick: { show: false }
+      axisLine: { show: true, lineStyle: { color: '#e4e7ed' } },
+      axisTick: { show: true }
     },
     series: [{
       type: 'line',
@@ -456,57 +496,79 @@ const renderLineChart = () => {
       symbolSize: 6,
       lineStyle: { color: '#409eff', width: 2 },
       itemStyle: { color: '#409eff' },
-      areaStyle: {
+      areaStyle: isToday ? {
         // 渐变填充：当前小时之前蓝色，之后灰色
         color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
           { offset: 0, color: 'rgba(64,158,255,0.3)' },
           { offset: currentHour / 23, color: 'rgba(64,158,255,0.1)' },
           { offset: 1, color: 'rgba(200,200,200,0.05)' }
         ])
-      }
+      } : null
     }]
   })
 }
 
 /**
- * 渲染查验结果环形图（合格 vs 不合格）
+ * 时间范围切换处理
  */
-const renderRingChart = () => {
-  if (!ringChartRef.value) return
-  if (!ringChart) ringChart = echarts.init(ringChartRef.value)
+const handleTimeRangeChange = () => {
+  renderLineChart()
+}
 
-  const passCount = stats.passCount
-  const failCount = stats.failCount
-  const pendingCount = Math.max(0, stats.total - passCount - failCount)
+/**
+ * 渲染货物类别饼图
+ */
+const renderPieChart = () => {
+  if (!pieChartRef.value) return
+  if (!pieChart) pieChart = echarts.init(pieChartRef.value)
 
-  ringChart.setOption({
+  const data = goodsTypeStats.value
+  const pieData = data.map(item => ({
+    name: item.goodsTypeName || item.name || '未知',
+    value: item.count
+  }))
+
+  // 饼图颜色配置
+  const colors = [
+    '#409eff', '#67c23a', '#e6a23c', '#f56c6c', '#909399',
+    '#c71585', '#ff8c00', '#00ced1', '#9370db', '#20b2aa',
+    '#ff69b4', '#32cd32', '#daa520', '#4682b4', '#cd5c5c'
+  ]
+
+  pieChart.setOption({
     tooltip: {
       trigger: 'item',
       formatter: (p) => `${p.name}<br/>${p.value} 辆（${p.percent}%）`
     },
     legend: {
+      type: 'scroll',
       orient: 'vertical',
-      right: 10,
-      top: 'middle',
-      itemWidth: 10,
-      itemHeight: 10,
-      textStyle: { fontSize: 12, color: '#606266' }
+      right: 5,
+      top: 10,
+      bottom: 10,
+      itemWidth: 12,
+      itemHeight: 12,
+      itemGap: 6,
+      textStyle: { fontSize: 11, color: '#606266' },
+      pageIconSize: 12,
+      pageIconColor: '#909399',
+      pageIconInactiveColor: '#dcdfe6',
+      pageTextStyle: { fontSize: 10, color: '#909399' }
     },
     series: [{
       type: 'pie',
-      radius: ['45%', '70%'],
+      radius: ['35%', '60%'],
       center: ['35%', '50%'],
       avoidLabelOverlap: false,
       itemStyle: { borderRadius: 4, borderColor: '#fff', borderWidth: 2 },
       label: { show: false },
       emphasis: {
-        label: { show: true, fontSize: 14, fontWeight: 'bold' }
+        label: { show: true, fontSize: 13, fontWeight: 'bold' }
       },
-      data: [
-        { name: '合格', value: passCount, itemStyle: { color: '#52c41a' } },
-        { name: '不合格', value: failCount, itemStyle: { color: '#f5222d' } },
-        ...(pendingCount > 0 ? [{ name: '待查验', value: pendingCount, itemStyle: { color: '#dcdfe6' } }] : [])
-      ]
+      data: pieData.map((item, index) => ({
+        ...item,
+        itemStyle: { color: colors[index % colors.length] }
+      }))
     }]
   })
 }
@@ -532,13 +594,13 @@ onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
   // 销毁 ECharts 实例，释放内存
   lineChart?.dispose()
-  ringChart?.dispose()
+  pieChart?.dispose()
 })
 
 /** 窗口大小变化处理（供 onMounted / onUnmounted 注册/移除） */
 const handleResize = () => {
   lineChart?.resize()
-  ringChart?.resize()
+  pieChart?.resize()
 }
 </script>
 
@@ -672,6 +734,9 @@ const handleResize = () => {
 .panel-sub {
   font-size: 12px;
   color: #909399;
+}
+.panel-header :deep(.el-radio-group) {
+  margin-left: auto;
 }
 
 /* ========== 预警看板 ========== */
@@ -826,7 +891,7 @@ const handleResize = () => {
 
 /* ========== 图表区域 ========== */
 .chart-container {
-  height: 220px;
+  height: 240px;
   width: 100%;
 }
 </style>

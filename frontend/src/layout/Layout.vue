@@ -27,7 +27,7 @@
           <el-icon><Van /></el-icon>
           <template #title>车辆查验</template>
         </el-menu-item>
-        <el-menu-item @click="openDatascreen">
+        <el-menu-item index="/datascreen" @click="openDatascreen">
           <el-icon><Monitor /></el-icon>
           <template #title>3D大屏</template>
         </el-menu-item>

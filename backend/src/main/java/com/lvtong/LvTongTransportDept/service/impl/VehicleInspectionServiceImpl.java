@@ -225,8 +225,7 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
         LambdaQueryWrapper<VehicleInspection> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(VehicleInspection::getResultStatus, 2)
                 .and(w -> w.nested((n) -> n.eq(VehicleInspection::getManualReviewState, 0)
-                        .or().isNull(VehicleInspection::getManualReviewState)))
-                .ge(VehicleInspection::getInspectionTime, startOfDay);
+                        .or().isNull(VehicleInspection::getManualReviewState)));
         long pendingReviewCount = mapper.selectCount(wrapper);
 
         Map<String, Long> stats = new HashMap<>();
@@ -285,8 +284,40 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<Map<String, Object>> getTimeDistribution(LocalDateTime startTime, LocalDateTime endTime) {
+        // 计算时间范围跨度（天数）
+        long days = java.time.Duration.between(startTime, endTime).toDays();
+        System.out.println("getTimeDistribution: start=" + startTime + ", end=" + endTime + ", days=" + days);
+
+        if (days <= 1) {
+            // 一天内：按小时统计
+            return getHourlyDistribution();
+        } else {
+            // 多天：按天统计
+            List<Map<String, Object>> dbRows = mapper.selectDailyDistribution(startTime, endTime);
+            System.out.println("Daily distribution result count: " + dbRows.size());
+            List<Map<String, Object>> result = new ArrayList<>();
+            for (Map<String, Object> row : dbRows) {
+                Map<String, Object> item = new HashMap<>();
+                item.put("date", row.get("date"));
+                item.put("count", row.get("count"));
+                item.put("label", row.get("date").toString());
+                result.add(item);
+            }
+            return result;
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<Map<String, Object>> getGoodsTypeStats(LocalDateTime startTime, LocalDateTime endTime) {
         return mapper.selectGoodsTypeStats(startTime, endTime);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getGoodsTypeStatsAll() {
+        return mapper.selectGoodsTypeStatsAll();
     }
 
     @Override
