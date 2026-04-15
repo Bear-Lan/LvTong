@@ -26,10 +26,10 @@
       <!-- 原始列表 -->
       <ul class="scroll-list">
         <li v-for="(item, index) in listData" :key="'a' + index" class="scroll-item"
-          @click="handleCilckItem(item, index)" :class="{
+          @click="handleClickItem(item, index)" @dblclick="handleDbClickItem(item, index)" :class="{
             selected: isItemSelected(item, index),
-            hovered: hoverIndex === index && !isItemSelected(item, index)
-          }" @mouseenter="hoverIndex = index" @mouseleave="hoverIndex = -1">
+            hovered: hoverIndex === index
+          }" @mouseenter="handleMouseEnter(index)" @mouseleave="handleMouseLeave">
           <span class="scrollID">{{ index + 1 }}</span>
           <span class="plate" :class="{ green: item.isGreen }">{{ item.plateNumber || '-' }}</span>
           <span class="goodsType">{{ item.goodsTypeName || '-' }}</span>
@@ -44,10 +44,10 @@
       <!-- 复制一份列表用于无缝滚动 -->
       <ul class="scroll-list">
         <li v-for="(item, index) in listData" :key="'b' + index" class="scroll-item"
-          @click="handleCilckItem(item, index)" :class="{
+          @click="handleClickItem(item, index)" @dblclick="handleDbClickItem(item, index)" :class="{
             selected: isItemSelected(item, index),
-            hovered: hoverIndex === index && !isItemSelected(item, index)
-          }" @mouseenter="hoverIndex = index" @mouseleave="hoverIndex = -1">
+            hovered: hoverIndex === index
+          }" @mouseenter="handleMouseEnter(index)" @mouseleave="handleMouseLeave">
           <span class="scrollID">{{ index + 1 }}</span>
           <span class="plate" :class="{ green: item.isGreen }">{{ item.plateNumber || '-' }}</span>
           <span class="goodsType">{{ item.goodsTypeName || '-' }}</span>
@@ -228,9 +228,18 @@ const resumeScroll = () => {
 };
 
 
-// 点击处理函数
-const handleCilckItem = (data: VehicleInspection, index: number) => {
-  // 设置选中状态
+// 鼠标悬停处理
+const handleMouseEnter = (index: number) => {
+  hoverIndex.value = index
+}
+
+const handleMouseLeave = () => {
+  hoverIndex.value = -1
+}
+
+// 单击处理函数 - 选中行
+const handleClickItem = (data: VehicleInspection, index: number) => {
+  // 如果点击的是已经选中的项，取消选中
   if (selectedIndex.value === index && selectedData.value) {
     const currentId = `${selectedData.value.plateNumber}_${selectedData.value.passcodeExTime}`;
     const newId = `${data.plateNumber}_${data.passcodeExTime}`;
@@ -244,7 +253,10 @@ const handleCilckItem = (data: VehicleInspection, index: number) => {
   // 设置选中状态
   selectedIndex.value = index;
   selectedData.value = { ...data };
+}
 
+// 双击处理函数 - 打开弹窗
+const handleDbClickItem = (data: VehicleInspection, _index: number) => {
   // 更新弹窗数据
   rowData.value = { ...data };
 
@@ -252,9 +264,6 @@ const handleCilckItem = (data: VehicleInspection, index: number) => {
   isShow.value = true;
   globalstate.setScrollPortVisible(true);
   pauseAutoScroll()
-
-  // 可选：滚动到选中项的位置
-  // scrollToSelectedItem();
 };
 
 

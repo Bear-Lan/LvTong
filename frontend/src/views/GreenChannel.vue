@@ -230,6 +230,9 @@ const initModelsData = async () => {
 
 
 onMounted(async () => {
+    // 设置页面标题
+    document.title = '绿通智慧大屏'
+
     // 启动时间更新定时器
     updateTime()
     setInterval(updateTime, 1000)
@@ -250,14 +253,14 @@ onMounted(async () => {
 
     viewer = await new ThreeViewer(threeContainer!);
     // 隐藏加载提示
-    globalstate.setLoading(false);
+    //globalstate.setLoading(false);
 
-    // ===== 暂时禁用 3D 模型加载，方便调试样式 =====
-    // await initModelsData()
-    // showData()
-    // await addStaticModel()
-    // await addAllModels(modelsInfo);
-    // ===== 3D 模型加载已禁用 =====
+    // 启用 3D 模型加载
+    await initModelsData()
+    await addStaticModel()
+    await addAllModels(modelsInfo);
+    
+
     const guangyuanModel = models.find((m) => m.name === "guangyuan") as THREE.Group;
 
     const truck4Model = models.find((m) => m.name === "truck4") as THREE.Group;
