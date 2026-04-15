@@ -44,9 +44,9 @@ const getSolidColor = () => {
     return colors[Math.floor(Math.random() * colors.length)]
 }
 
-// 其他数据使用带透明度的颜色
+// 其他数据使用稍透明的颜色
 const getRandomColor = () => {
-    const colors = ['#5470c699', '#91cc7599', '#fac85899', '#ee666699', '#73c0de99', '#3ba27299', '#fc845299', '#9a60b499', '#ea7ccc99']
+    const colors = ['#5470c6aa', '#91cc75aa', '#fac858aa', '#ee6666aa', '#73c0deaa', '#3ba272aa', '#fc8452aa', '#9a60b4aa', '#ea7cccaa']
     return colors[Math.floor(Math.random() * colors.length)]
 }
 
