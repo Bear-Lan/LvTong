@@ -23,7 +23,7 @@ let chart: echarts.ECharts | null = null
 // ---- 处理词云数据 ----
 const wordCloudData = computed(() => {
     // 先按 count 排序取前五
-    const sortedData = [...props.data].sort((a, b) => b.count - a.count).slice(0, 5);
+    const sortedData = [...props.data].sort((a, b) => b.count - a.count).slice(0, 70);
     
     return props.data.map(item => {
         const isTop5 = sortedData.some(topItem => topItem.name === item.name);

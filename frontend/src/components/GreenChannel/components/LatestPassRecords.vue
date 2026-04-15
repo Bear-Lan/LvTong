@@ -26,7 +26,7 @@
       <!-- 原始列表 -->
       <ul class="scroll-list">
         <li v-for="(item, index) in listData" :key="'a' + index" class="scroll-item"
-          @click="handleClickItem(item, index)" @dblclick="handleDbClickItem(item, index)" :class="{
+          @click.stop.prevent="handleClickItem(item, index)" @dblclick.stop.prevent="handleDbClickItem(item, index)" :class="{
             selected: isItemSelected(item, index),
             hovered: hoverIndex === index
           }" @mouseenter="handleMouseEnter(index)" @mouseleave="handleMouseLeave">
@@ -44,7 +44,7 @@
       <!-- 复制一份列表用于无缝滚动 -->
       <ul class="scroll-list">
         <li v-for="(item, index) in listData" :key="'b' + index" class="scroll-item"
-          @click="handleClickItem(item, index)" @dblclick="handleDbClickItem(item, index)" :class="{
+          @click.stop.prevent="handleClickItem(item, index)" @dblclick.stop.prevent="handleDbClickItem(item, index)" :class="{
             selected: isItemSelected(item, index),
             hovered: hoverIndex === index
           }" @mouseenter="handleMouseEnter(index)" @mouseleave="handleMouseLeave">
@@ -102,7 +102,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 
 const scrollTop = ref(0);
-let timer: number;
+let timer: number | null = null;
 let listHeight = 0;
 const list = ref<HTMLElement>();
 const listData = ref<VehicleInspection[]>([])

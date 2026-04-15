@@ -79,7 +79,7 @@ public interface VehicleInspectionMapper extends BaseMapper<VehicleInspection> {
             "  ON ap.product_code = SUBSTRING_INDEX(vi.goods_type, '|', 1) " +
             "GROUP BY ap.variety_name, vi.goods_type " +
             "ORDER BY count DESC " +
-            "LIMIT 20")
+            "LIMIT 70")
     List<Map<String, Object>> selectGoodsTypeStatsForCloud();
 
     /**
