@@ -312,11 +312,11 @@
               <span class="data-value plate">{{ row.plateNumber || '-' }}</span>
             </div>
             <div class="data-row">
-              <span class="data-label">货车长宽高(m)</span>
+              <span class="data-label">长宽高</span>
               <span class="data-value mono">{{ formatVehicleSize(row.vehicleSize) }}</span>
             </div>
             <div class="data-row">
-              <span class="data-label">满载率(%)</span>
+              <span class="data-label">满载率</span>
               <span class="data-value">{{ row.loadRate != null ? row.loadRate + '%' : '-' }}</span>
             </div>
             <div class="data-row">

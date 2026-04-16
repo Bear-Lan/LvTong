@@ -338,11 +338,11 @@
             </div>
             <!-- 满载率：可编辑时显示输入框 -->
             <div class="data-row" v-if="editable">
-              <span class="data-label">满载率(%)</span>
+              <span class="data-label">满载率</span>
               <el-input-number v-model="form.loadRate" :min="0" :max="100" :precision="2" size="small" style="width: 84%;" placeholder="0-100" />
             </div>
             <div class="data-row" v-else>
-              <span class="data-label">满载率(%)</span>
+              <span class="data-label">满载率</span>
               <span class="data-value">{{ row.loadRate != null ? row.loadRate + '%' : '-' }}</span>
             </div>
             <!-- 司机电话：可编辑时显示输入框 -->

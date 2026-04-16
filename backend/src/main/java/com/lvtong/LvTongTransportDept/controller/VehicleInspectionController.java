@@ -8,6 +8,7 @@ import com.lvtong.LvTongTransportDept.entity.VehicleInspection;
 import com.lvtong.LvTongTransportDept.exception.BusinessException;
 import com.lvtong.LvTongTransportDept.mapper.AgriculturalProductMapper;
 import com.lvtong.LvTongTransportDept.service.VehicleInspectionService;
+import com.lvtong.LvTongTransportDept.utils.ImageWatermarkUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -221,8 +222,71 @@ public class VehicleInspectionController {
     public ApiResponse<Map<String, Object>> update(
             @PathVariable Integer id,
             @RequestBody VehicleInspection inspection) {
+
+        // 先获取更新前的数据
+        VehicleInspection oldData = inspectionService.getById(id);
+        if (oldData == null) {
+            return ApiResponse.error("记录不存在");
+        }
+
+        // 更新数据库
         VehicleInspection updated = inspectionService.update(id, inspection);
+
+        // 检查7个水印字段是否有变更
+        boolean watermarkChanged = checkWatermarkFieldsChanged(oldData, updated);
+
+        // 如果有变更且有透明图，重新绘制水印
+        if (watermarkChanged && updated.getTransparentImagePath() != null) {
+            String imagePath = updated.getTransparentImagePath();
+            // 获取文本值
+            String plateNumber = updated.getPlateNumber();
+            String plateColor = VehicleConstants.getVehicleColorText(updated.getPasscodeVehicleColorName());
+            String vehicleTypeText = VehicleConstants.getVehicleTypeText(updated.getVehicleType());
+            String containerTypeText = VehicleConstants.getContainerTypeText(updated.getVehicleContainertype());
+            String goodsTypeText = getGoodsTypeText(updated.getGoodsType());
+            String loadRate = updated.getLoadRate() != null ? updated.getLoadRate().toString() : null;
+            String detectDate = updated.getPasscodeExTime();
+
+            ImageWatermarkUtil.drawWatermarkAndOverwrite(
+                    imagePath, plateNumber, plateColor, vehicleTypeText,
+                    containerTypeText, goodsTypeText, loadRate, detectDate);
+        }
+
         return ApiResponse.success("更新成功", convertToMap(updated));
+    }
+
+    /**
+     * 检查7个水印字段是否变更
+     */
+    private boolean checkWatermarkFieldsChanged(VehicleInspection oldData, VehicleInspection newData) {
+        return !equalsOrBothNull(oldData.getPlateNumber(), newData.getPlateNumber())
+                || !equalsOrBothNull(oldData.getPlateNumberGc(), newData.getPlateNumberGc())
+                || !equalsOrBothNull(oldData.getVehicleType(), newData.getVehicleType())
+                || !equalsOrBothNull(oldData.getVehicleContainertype(), newData.getVehicleContainertype())
+                || !equalsOrBothNull(oldData.getGoodsType(), newData.getGoodsType())
+                || !equalsOrBothNull(oldData.getLoadRate(), newData.getLoadRate())
+                || !equalsOrBothNull(oldData.getPasscodeExTime(), newData.getPasscodeExTime());
+    }
+
+    /**
+     * null-safe 比较
+     */
+    private boolean equalsOrBothNull(Object a, Object b) {
+        if (a == null && b == null) return true;
+        if (a == null || b == null) return false;
+        return a.equals(b);
+    }
+
+    /**
+     * 获取货物类型文本
+     */
+    private String getGoodsTypeText(String goodsType) {
+        if (goodsType == null || goodsType.isBlank()) {
+            return null;
+        }
+        // goodsType 可能是 "01|02|03" 格式，这里简化处理：直接用原始值显示
+        // 如果需要转换为文本，需要从产品表查询
+        return goodsType.replace("|", "、");
     }
 
     // ================================================================

@@ -46,7 +46,6 @@ public class ImageController {
 
         File file;
         try {
-            // 标准化路径并解析真实路径（防止 ..\..\..\etc/passwd 穿越攻击）
             file = new File(path).getCanonicalFile();
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
@@ -75,6 +74,6 @@ public class ImageController {
         if (filename.endsWith(".gif")) return MediaType.IMAGE_GIF;
         if (filename.endsWith(".bmp")) return MediaType.parseMediaType("image/bmp");
         if (filename.endsWith(".webp")) return MediaType.parseMediaType("image/webp");
-        return MediaType.IMAGE_JPEG; // jpg/jpeg 默认
+        return MediaType.IMAGE_JPEG;
     }
 }

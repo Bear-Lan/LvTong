@@ -29,7 +29,7 @@ public class VehicleInspection {
     /** 车牌号码（必填） */
     private String plateNumber;
 
-    /** 车牌颜色 */
+    /** 挂车号码 */
     @TableField("plate_number_gc")
     private String plateNumberGc;
 
@@ -117,7 +117,7 @@ public class VehicleInspection {
 
     @TableField("passcode_vehicle_display_id")
     private String passcodeVehicleDisplayId;
-
+    //车辆颜色
     @TableField("passcode_vehicle_color_name")
     private String passcodeVehicleColorName;
 
