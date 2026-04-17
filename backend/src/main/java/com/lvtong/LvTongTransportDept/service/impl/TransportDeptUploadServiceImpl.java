@@ -104,12 +104,12 @@ public class TransportDeptUploadServiceImpl implements TransportDeptUploadServic
 
         } catch (BusinessException e) {
             log.error("上报业务异常, id={}: {}", record.getId(), e.getMessage());
-            updateUploadState(record.getId(), -1, e.getMessage());
-            return Map.of("success", false, "code", -1, "msg", e.getMessage());
+            updateUploadState(record.getId(), 2, e.getMessage());
+            return Map.of("success", false, "code", 2, "msg", e.getMessage());
         } catch (Exception e) {
             log.error("上报查验记录异常, id={}", record.getId(), e);
             updateUploadState(record.getId(), -1, e.getMessage());
-            return Map.of("success", false, "code", -1, "msg", e.getMessage());
+            return Map.of("success", false, "code", 2, "msg", e.getMessage());
         }
     }
 
@@ -205,7 +205,7 @@ public class TransportDeptUploadServiceImpl implements TransportDeptUploadServic
             msg = response;
             log.warn("响应无法解析为 JSON: {}", response);
         }
-        updateUploadState(id, code == 200 ? 1 : -1, msg);
+        updateUploadState(id, code == 200 ? 1 : 2, msg);
         Map<String, Object> result = new HashMap<>();
         result.put("success", code == 200);
         result.put("code", code);

@@ -17,7 +17,7 @@ import java.util.Map;
  * - RESULT_    ：查验结果状态（0=待查验, 1=合格, 2=不合格）
  * - STATUS_    ：状态标记（0=正常, -1=已删除，物理删除）
  * - REVIEW_    ：人工复核状态（0=未复核, 1=已复核）
- * - SUBMIT_    ：报送交通局状态（0=未提交, 1=已提交, -1=提交失败）
+ * - SUBMIT_    ：报送交通局状态（0=未提交, 1=已提交, 2=提交失败）
  *
  * 【线程安全】
  * 此类仅包含纯静态方法和常量，无状态，可并发访问，无需加锁。
@@ -113,19 +113,19 @@ public class VehicleConstants {
     /** 已提交 - 已成功提交至交通局平台 */
     public static final int SUBMIT_DONE    = 1;
     /** 提交失败 - 提交过程中发生错误，需重试 */
-    public static final int SUBMIT_FAIL    = -1;
+    public static final int SUBMIT_FAIL    = 2;
 
     /**
      * 将交通局报送状态码转换为可读文本
      *
-     * @param state 报送状态（0=未提交, 1=已提交, -1=提交失败）
+     * @param state 报送状态（0=未提交, 1=已提交, 2=提交失败）
      * @return 中文可读文本，null 时返回 "-"
      */
     public static String getTransportDeptStateText(Integer state) {
         if (state == null) return "-";
         switch (state) {
             case SUBMIT_DONE:    return "已提交";     // 1：成功
-            case SUBMIT_FAIL:    return "提交失败";    // -1：失败
+            case SUBMIT_FAIL:    return "提交失败";    // 2：失败
             default:             return "未提交";     // 0 和其他值均为"未提交"
         }
     }

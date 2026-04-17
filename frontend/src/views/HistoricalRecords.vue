@@ -131,7 +131,7 @@
                 style="width: 100%;"
               >
                 <el-option label="成功" :value="1" />
-                <el-option label="失败" :value="-1" />
+                <el-option label="失败" :value="2" />
                 <el-option label="未上传" :value="0" />
               </el-select>
             </el-form-item>
@@ -287,7 +287,7 @@
         <el-table-column label="上传状态" width="85" align="center">
           <template #default="{ row }">
             <el-tag v-if="row.toTransportdeptState === 1" type="success" size="small">成功</el-tag>
-            <el-tag v-else-if="row.toTransportdeptState === -1" type="danger" size="small">失败</el-tag>
+            <el-tag v-else-if="row.toTransportdeptState === 2" type="danger" size="small">失败</el-tag>
             <el-tag v-else-if="row.toTransportdeptState === 0" type="info" size="small">未上传</el-tag>
             <span v-else>-</span>
           </template>

@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 
 import java.util.stream.Collectors;
 
@@ -89,6 +90,17 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ApiResponse<String> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException e) {
         return ApiResponse.error("文件大小超出限制，请压缩后重试");
+    }
+
+    /**
+     * 处理缺少必需参数异常（如 POST /api/mobile/upload/image 没传 dirName）
+     */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ApiResponse<String> handleMissingParamException(MissingServletRequestParameterException e) {
+        String paramName = e.getParameterName();
+        String message = String.format("缺少必需参数【%s】", paramName);
+        log.warn("参数缺失: {}", paramName);
+        return ApiResponse.error(HttpStatus.BAD_REQUEST.value(), message);
     }
 
     // ================================================================
