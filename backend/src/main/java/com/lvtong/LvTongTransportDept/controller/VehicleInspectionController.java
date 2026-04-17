@@ -295,39 +295,57 @@ public class VehicleInspectionController {
     /**
      * 获取 Dashboard 统计数据
      *
+     * @param timeType 时间类型：day=今日, month=本月, year=本年
      * @return 统计数据集合
      */
     @GetMapping("/dashboard")
-    @Operation(summary = "获取首页统计数据", description = "返回今日统计、预警看板、最近记录等数据")
-    public ApiResponse<Map<String, Object>> getDashboardStats() {
+    @Operation(summary = "获取首页统计数据", description = "返回统计、预警看板、最近记录等数据，支持日/月/年切换")
+    public ApiResponse<Map<String, Object>> getDashboardStats(
+            @Parameter(description = "时间类型：day=今日, month=本月, year=本年")
+            @RequestParam(defaultValue = "day") String timeType) {
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime startTime;
+        LocalDateTime endTime = now.plusDays(1); // 默认查询到明天
+
+        switch (timeType) {
+            case "month":
+                startTime = now.toLocalDate().withDayOfMonth(1).atStartOfDay();
+                endTime = now.toLocalDate().plusMonths(1).withDayOfMonth(1).atStartOfDay();
+                break;
+            case "year":
+                startTime = now.toLocalDate().withDayOfYear(1).atStartOfDay();
+                endTime = now.toLocalDate().plusYears(1).withDayOfYear(1).atStartOfDay();
+                break;
+            case "day":
+            default:
+                startTime = now.toLocalDate().atStartOfDay();
+                endTime = startTime.plusDays(1);
+                break;
+        }
+
         Map<String, Object> data = new HashMap<>();
 
-        // 今日统计
-        data.put("todayStats", inspectionService.getTodayStats());
+        // 信息总览（按时间范围统计）
+        data.put("infoOverview", inspectionService.getInfoOverview(startTime, endTime));
 
-        // 待复核清单（最多10条）
-        data.put("pendingReviews", inspectionService.getPendingReviewList(10)
-                .stream().map(this::convertToMap).toList());
+        // 查验时段分布（24小时，按指定时间范围）
+        data.put("hourlyDistribution", inspectionService.getHourlyDistributionByRange(startTime, endTime));
 
-        // 假冒绿通预警（最多5条）
-        data.put("fakeGreenAlerts", inspectionService.getFakeGreenList(5)
-                .stream().map(this::convertToMap).toList());
+        // 车型分布（横向条形图）
+        data.put("vehicleTypeStats", inspectionService.getVehicleTypeStats(startTime, endTime));
 
-        // 查验时段分布（24小时）
-        data.put("hourlyDistribution", inspectionService.getHourlyDistribution());
+        // 货物类别占比
+        data.put("goodsTypeStats", inspectionService.getGoodsTypeStats(startTime, endTime));
 
-        // 查验时段分布（最近一周，按天查询）
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime start = now.minusDays(7).toLocalDate().atStartOfDay();
-        LocalDateTime end = now.toLocalDate().atStartOfDay().plusDays(1);
-        data.put("timeDistribution", inspectionService.getTimeDistribution(start, end));
+        // 待办事项
+        data.put("todoItems", inspectionService.getTodoItems());
 
-        // 货物类别占比（查询所有数据）
-        data.put("goodsTypeStats", inspectionService.getGoodsTypeStatsAll());
+        // 文件通知（模拟数据）
+        data.put("notices", inspectionService.getNotices());
 
-        // 最近查验记录（最近10条）
-        data.put("recentRecords", inspectionService.getRecentRecords(10)
-                .stream().map(this::convertToMap).toList());
+        // 免检比例
+        data.put("exemptRate", inspectionService.getExemptRate(startTime, endTime));
 
         return ApiResponse.success(data);
     }

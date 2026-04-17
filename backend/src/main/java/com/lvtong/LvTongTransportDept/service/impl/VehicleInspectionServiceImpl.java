@@ -345,4 +345,146 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
     public List<Map<String, Object>> getCreditRanking() {
         return mapper.selectCreditRanking();
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, Object> getInfoOverview(LocalDateTime startTime, LocalDateTime endTime) {
+        Map<String, Object> result = mapper.selectInfoOverview(startTime, endTime);
+
+        // 处理可能为 null 的值，设置默认值
+        long greenVehicleCount = result.get("greenVehicleCount") != null ? ((Number) result.get("greenVehicleCount")).longValue() : 0L;
+        long harvesterCount = result.get("harvesterCount") != null ? ((Number) result.get("harvesterCount")).longValue() : 0L;
+        long inspectionCount = result.get("inspectionCount") != null ? ((Number) result.get("inspectionCount")).longValue() : 0L;
+        double passFee = result.get("passFee") != null ? ((Number) result.get("passFee")).doubleValue() : 0.0;
+        long passCount = result.get("passCount") != null ? ((Number) result.get("passCount")).longValue() : 0L;
+        long failCount = result.get("failCount") != null ? ((Number) result.get("failCount")).longValue() : 0L;
+        long uploadCount = result.get("uploadCount") != null ? ((Number) result.get("uploadCount")).longValue() : 0L;
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("greenVehicleCount", greenVehicleCount);
+        data.put("harvesterCount", harvesterCount);
+        data.put("inspectionCount", inspectionCount);
+        data.put("passFee", passFee);
+        data.put("passCount", passCount);
+        data.put("failCount", failCount);
+        data.put("uploadCount", uploadCount);
+        return data;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getHourlyDistributionByRange(LocalDateTime startTime, LocalDateTime endTime) {
+        // 判断时间范围是否超过24小时
+        long hours = java.time.Duration.between(startTime, endTime).toHours();
+        if (hours <= 24) {
+            // 按小时统计
+            return mapper.selectHourlyDistribution(startTime, endTime);
+        } else {
+            // 按天统计
+            return mapper.selectTimeDistribution(startTime, endTime);
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getVehicleTypeStats(LocalDateTime startTime, LocalDateTime endTime) {
+        return mapper.selectVehicleTypeStats(startTime, endTime);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getTodoItems() {
+        List<Map<String, Object>> todos = new ArrayList<>();
+
+        // 待复核数量
+        LambdaQueryWrapper<VehicleInspection> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(VehicleInspection::getResultStatus, 2)
+                .and(w -> w.nested((n) -> n.eq(VehicleInspection::getManualReviewState, 0)
+                        .or().isNull(VehicleInspection::getManualReviewState)));
+        long pendingReviewCount = mapper.selectCount(wrapper);
+        if (pendingReviewCount > 0) {
+            Map<String, Object> todo = new HashMap<>();
+            todo.put("id", 1);
+            todo.put("title", "待复核车辆");
+            todo.put("count", pendingReviewCount);
+            todo.put("type", "pending_review");
+            todos.add(todo);
+        }
+
+        // 假冒绿通预警
+        LambdaQueryWrapper<VehicleInspection> fakeWrapper = new LambdaQueryWrapper<>();
+        fakeWrapper.eq(VehicleInspection::getResultStatus, 2)
+                .eq(VehicleInspection::getNopassType, 21);
+        long fakeGreenCount = mapper.selectCount(fakeWrapper);
+        if (fakeGreenCount > 0) {
+            Map<String, Object> todo = new HashMap<>();
+            todo.put("id", 2);
+            todo.put("title", "假冒绿通预警");
+            todo.put("count", fakeGreenCount);
+            todo.put("type", "fake_green");
+            todos.add(todo);
+        }
+
+        // 上传失败记录
+        LambdaQueryWrapper<VehicleInspection> uploadWrapper = new LambdaQueryWrapper<>();
+        uploadWrapper.eq(VehicleInspection::getToTransportdeptState, -1);
+        long uploadFailedCount = mapper.selectCount(uploadWrapper);
+        if (uploadFailedCount > 0) {
+            Map<String, Object> todo = new HashMap<>();
+            todo.put("id", 3);
+            todo.put("title", "上传失败记录");
+            todo.put("count", uploadFailedCount);
+            todo.put("type", "upload_failed");
+            todos.add(todo);
+        }
+
+        return todos;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getNotices() {
+        // 模拟文件通知数据
+        List<Map<String, Object>> notices = new ArrayList<>();
+
+        Map<String, Object> notice1 = new HashMap<>();
+        notice1.put("id", 1);
+        notice1.put("title", "关于加强绿通车辆查验的通知");
+        notice1.put("date", LocalDateTime.now().minusDays(2).toLocalDate().toString());
+        notice1.put("type", "important");
+        notices.add(notice1);
+
+        Map<String, Object> notice2 = new HashMap<>();
+        notice2.put("id", 2);
+        notice2.put("title", "收割机免费通行政策解读");
+        notice2.put("date", LocalDateTime.now().minusDays(5).toLocalDate().toString());
+        notice2.put("type", "policy");
+        notices.add(notice2);
+
+        Map<String, Object> notice3 = new HashMap<>();
+        notice3.put("id", 3);
+        notice3.put("title", "月度查验数据统计分析报告");
+        notice3.put("date", LocalDateTime.now().minusDays(10).toLocalDate().toString());
+        notice3.put("type", "report");
+        notices.add(notice3);
+
+        return notices;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, Object> getExemptRate(LocalDateTime startTime, LocalDateTime endTime) {
+        Map<String, Object> result = mapper.selectExemptRate(startTime, endTime);
+
+        long total = result.get("total") != null ? ((Number) result.get("total")).longValue() : 0L;
+        long exempt = result.get("exempt") != null ? ((Number) result.get("exempt")).longValue() : 0L;
+
+        double rate = total > 0 ? (double) exempt / total * 100 : 0.0;
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("total", total);
+        data.put("exempt", exempt);
+        data.put("rate", Math.round(rate * 10) / 10.0); // 保留一位小数
+        return data;
+    }
 }

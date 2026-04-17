@@ -131,4 +131,54 @@ public interface VehicleInspectionMapper extends BaseMapper<VehicleInspection> {
             "ORDER BY passCount DESC " +
             "LIMIT 3")
     List<Map<String, Object>> selectCreditRanking();
+
+    /**
+     * 获取信息总览（绿通车/收割机数量、查验车次、通行费用、合格/不合格数、上传记录数）
+     */
+    @Select("SELECT " +
+            "SUM(CASE WHEN passcode_vehicle_sign = 2 THEN 1 ELSE 0 END) AS greenVehicleCount, " +
+            "SUM(CASE WHEN passcode_vehicle_sign = 3 THEN 1 ELSE 0 END) AS harvesterCount, " +
+            "COUNT(*) AS inspectionCount, " +
+            "COALESCE(SUM(passcode_fee), 0) AS passFee, " +
+            "SUM(CASE WHEN result_status = 1 THEN 1 ELSE 0 END) AS passCount, " +
+            "SUM(CASE WHEN result_status = 2 THEN 1 ELSE 0 END) AS failCount, " +
+            "SUM(CASE WHEN to_transportdept_state = 1 THEN 1 ELSE 0 END) AS uploadCount " +
+            "FROM vehicle_inspections " +
+            "WHERE inspection_time >= #{startTime} AND inspection_time < #{endTime}")
+    Map<String, Object> selectInfoOverview(@Param("startTime") LocalDateTime startTime,
+                                           @Param("endTime") LocalDateTime endTime);
+
+    /**
+     * 按天统计查验数量（用于 Dashboard 时段分析）
+     */
+    @Select("SELECT DATE(inspection_time) AS label, COUNT(*) AS count " +
+            "FROM vehicle_inspections " +
+            "WHERE inspection_time >= #{startTime} AND inspection_time < #{endTime} " +
+            "GROUP BY DATE(inspection_time) ORDER BY label")
+    List<Map<String, Object>> selectTimeDistribution(@Param("startTime") LocalDateTime startTime,
+                                                      @Param("endTime") LocalDateTime endTime);
+
+    /**
+     * 获取车型分布统计（横向条形图数据）
+     */
+    @Select("SELECT " +
+            "vehicle_type AS type, " +
+            "COUNT(*) AS count " +
+            "FROM vehicle_inspections " +
+            "WHERE inspection_time >= #{startTime} AND inspection_time < #{endTime} " +
+            "GROUP BY vehicle_type ORDER BY count DESC")
+    List<Map<String, Object>> selectVehicleTypeStats(@Param("startTime") LocalDateTime startTime,
+                                                      @Param("endTime") LocalDateTime endTime);
+
+    /**
+     * 获取免检比例统计
+     * 免检定义：result_status = 1 (合格) 且 to_transportdept_state = 1 (上传成功)
+     */
+    @Select("SELECT " +
+            "COUNT(*) AS total, " +
+            "SUM(CASE WHEN result_status = 1 AND to_transportdept_state = 1 THEN 1 ELSE 0 END) AS exempt " +
+            "FROM vehicle_inspections " +
+            "WHERE inspection_time >= #{startTime} AND inspection_time < #{endTime}")
+    Map<String, Object> selectExemptRate(@Param("startTime") LocalDateTime startTime,
+                                          @Param("endTime") LocalDateTime endTime);
 }

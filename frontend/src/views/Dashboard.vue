@@ -1,272 +1,260 @@
 <template>
   <!--
-    首页概览 Dashboard
+    Dashboard 首页概览（新版布局）
     布局结构：
-      第一行（四列）：核心指标卡片
-      第二行（三栏）：预警看板 + 实时流水
-      第三行（三栏）：时段分布折线图 + 货物类别饼图 + 查验结果环形图
+      左侧（16栏）：信息总览卡片 + 时段分析图表 + 车型/货物类型图表
+      右侧（8栏）：待办事项 + 文件通知 + 免检比例
   -->
   <div class="dashboard">
-
-    <!-- ================================================================
-         第一行：核心指标卡片（顶部实时状态）
-         4列等宽，el-col:span=6
-    ================================================================ -->
-    <el-row :gutter="20" class="stat-row">
-
-      <!-- 今日查验总数 -->
-      <el-col :span="6">
-        <el-card class="stat-card pass-card" shadow="hover">
-          <div class="stat-inner">
-            <div class="stat-icon-wrap blue">
-              <el-icon size="28"><Van /></el-icon>
-            </div>
-            <div class="stat-body">
-              <div class="stat-value">{{ stats.total }}</div>
-              <div class="stat-label">今日查验总数</div>
-              <div class="stat-sub">累计快检设备通过车辆</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-
-      <!-- 合格数 | 不合格数（对比展示） -->
-      <el-col :span="6">
-        <el-card class="stat-card" shadow="hover">
-          <div class="stat-inner">
-            <div class="stat-icon-wrap green">
-              <el-icon size="28"><CircleCheck /></el-icon>
-            </div>
-            <div class="stat-body">
-              <div class="stat-value contrast-row">
-                <span class="pass-num">{{ stats.passCount }}</span>
-                <span class="separator">|</span>
-                <span class="fail-num">{{ stats.failCount }}</span>
-              </div>
-              <div class="stat-label">合格 | 不合格</div>
-              <div class="stat-sub">今日查验结果对比</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-
-      <!-- 待复核数（需人工确认） -->
-      <el-col :span="6">
-        <el-card class="stat-card" shadow="hover">
-          <div class="stat-inner">
-            <div class="stat-icon-wrap amber">
-              <el-icon size="28"><Bell /></el-icon>
-            </div>
-            <div class="stat-body">
-              <div class="stat-value" :class="{ 'text-amber': stats.pendingReviewCount > 0 }">
-                {{ stats.pendingReviewCount }}
-              </div>
-              <div class="stat-label">待复核数</div>
-              <div class="stat-sub">需人工确认的非规则数据</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-
-      <!-- 实时在线设备（模拟状态） -->
-      <el-col :span="6">
-        <el-card class="stat-card" shadow="hover">
-          <div class="stat-inner">
-            <div class="stat-icon-wrap" :class="deviceOnline === true ? 'green' : deviceOnline === false ? 'red' : 'gray'">
-              <el-icon size="28"><Monitor /></el-icon>
-            </div>
-            <div class="stat-body">
-              <div class="stat-value device-status">
-                <span v-if="deviceOnline !== null" class="status-dot" :class="deviceOnline ? 'online' : 'offline'"></span>
-                {{ deviceOnline === null ? '检测中' : deviceOnline ? '在线' : '离线' }}
-              </div>
-              <div class="stat-label">快检设备状态</div>
-              <div class="stat-sub">
-                <template v-if="deviceOnline === null">正在检测设备状态...</template>
-                <template v-else-if="deviceOnline === true">设备运行正常</template>
-                <template v-else>设备连接异常，请检查</template>
-              </div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <!-- ================================================================
-         第二行：预警看板（左）+ 实时动态流水（右），等高布局
-    ================================================================ -->
-    <el-row :gutter="20" class="content-row">
-
-      <!-- 左：预警看板（16宽） -->
+    <el-row :gutter="20">
+      <!-- 左侧区域（16栏） -->
       <el-col :span="16">
-        <el-card class="panel-card equal-height" shadow="never">
-          <template #header>
-            <div class="panel-header">
-              <span class="panel-title">
-                <el-icon color="#f56c6c"><WarningFilled /></el-icon>
-                预警看板
-              </span>
-            </div>
-          </template>
-
-          <!-- 待复核清单 -->
-          <div class="alert-section">
-            <div class="alert-section-title">
-              <el-icon color="#faad14"><Bell /></el-icon>
-              待复核清单
-              <el-tag size="small" type="warning" style="margin-left:8px">
-                {{ pendingReviews.length }} 条
-              </el-tag>
-            </div>
-            <div v-if="pendingReviews.length === 0" class="empty-state">
-              <el-icon size="40" color="#dcdfe6"><SuccessFilled /></el-icon>
-              <span>当前暂无待复核车辆</span>
-            </div>
-            <div v-else class="alert-list">
-              <div
-                v-for="item in pendingReviews"
-                :key="item.id"
-                class="alert-item"
-                @click="showDetail(item)"
-              >
-                <div class="alert-left">
-                  <el-tag size="small" type="warning" effect="dark">待复核</el-tag>
-                  <span class="alert-plate">{{ item.plateNumber }}</span>
-                  <el-tag v-if="item.plateNumberGc" size="small">{{ item.plateNumberGc }}</el-tag>
-                </div>
-                <div class="alert-right">
-                  <span class="alert-time">{{ item.inspectionTime || '-' }}</span>
-                  <span class="alert-arrow">›</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 假冒绿通黑名单预警 -->
-          <div class="alert-section" style="margin-top:16px">
-            <div class="alert-section-title">
-              <el-icon color="#f56c6c"><WarningFilled /></el-icon>
-              假冒绿通预警
-              <el-tag size="small" type="danger" effect="dark" style="margin-left:8px">
-                {{ fakeGreenAlerts.length }} 条
-              </el-tag>
-            </div>
-            <div v-if="fakeGreenAlerts.length === 0" class="empty-state">
-              <el-icon size="40" color="#dcdfe6"><CircleCheck /></el-icon>
-              <span>当前暂无假冒绿通预警</span>
-            </div>
-            <div v-else class="alert-list">
-              <div
-                v-for="item in fakeGreenAlerts"
-                :key="item.id"
-                class="alert-item danger"
-                @click="showDetail(item)"
-              >
-                <div class="alert-left">
-                  <el-tag size="small" type="danger" effect="dark">假冒绿通</el-tag>
-                  <span class="alert-plate danger">{{ item.plateNumber }}</span>
-                  <el-tag v-if="item.plateNumberGc" size="small">{{ item.plateNumberGc }}</el-tag>
-                </div>
-                <div class="alert-right">
-                  <span class="alert-reason">{{ item.nopassTypeText }}</span>
-                  <span class="alert-arrow">›</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-
-      <!-- 右：实时动态流水（8宽） -->
-      <el-col :span="8">
-        <el-card class="panel-card equal-height" shadow="never">
-          <template #header>
-            <div class="panel-header">
-              <span class="panel-title">
-                <el-icon color="#409eff"><Timer /></el-icon>
-                实时动态
-              </span>
-              <span class="panel-sub">最近查验记录</span>
-            </div>
-          </template>
-
-          <div v-if="recentRecords.length === 0" class="empty-state" style="padding:40px 0">
-            <el-icon size="40" color="#dcdfe6"><Document /></el-icon>
-            <span>暂无查验记录</span>
-          </div>
-          <div v-else class="stream-list">
-            <div
-              v-for="item in recentRecords"
-              :key="item.id"
-              class="stream-item"
-              @click="showDetail(item)"
-            >
-              <div class="stream-top">
-                <span class="stream-plate">{{ item.plateNumber }}</span>
-                <el-tag
-                  size="small"
-                  :type="item.resultStatus === 1 ? 'success' : item.resultStatus === 2 ? 'danger' : 'info'"
-                  effect="dark"
-                >
-                  {{ item.resultStatusText }}
-                </el-tag>
-              </div>
-              <div class="stream-bottom">
-                <span class="stream-goods">{{ item.goodsTypeName || item.goodsType || '-' }}</span>
-                <span class="stream-time">{{ item.inspectionTime ? item.inspectionTime.slice(11, 16) : '-' }}</span>
-              </div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <!-- ================================================================
-         第三行：查验时段分布折线图 + 查验结果环形图
-         折线图16宽放左侧，环形图8宽放右侧
-    ================================================================ -->
-    <el-row :gutter="20" class="content-row">
-
-      <!-- 左：查验时段分布折线图（16宽） -->
-      <el-col :span="16">
-        <el-card class="chart-card" shadow="never">
-          <template #header>
-            <div class="panel-header">
-              <span class="panel-title">
-                <el-icon color="#409eff"><DataLine /></el-icon>
-                查验时段分布
-              </span>
-              <el-radio-group v-model="timeRange" size="small" @change="handleTimeRangeChange">
-                <el-radio-button value="1">最近一天</el-radio-button>
-                <el-radio-button value="7">最近一周</el-radio-button>
-                <el-radio-button value="30">最近一月</el-radio-button>
+        <div class="left-section">
+          <!-- 第一行：信息总览卡片 -->
+          <div class="section-block">
+            <div class="section-header">
+              <span class="section-title">信息总览</span>
+              <el-radio-group v-model="timeType" size="small" @change="handleTimeTypeChange">
+                <el-radio-button value="day">日</el-radio-button>
+                <el-radio-button value="month">月</el-radio-button>
+                <el-radio-button value="year">年</el-radio-button>
               </el-radio-group>
             </div>
-          </template>
-          <div ref="lineChartRef" class="chart-container"></div>
-        </el-card>
+            <el-row :gutter="16">
+              <!-- 卡片1：绿通车/收割机数量 + 查验车次 -->
+              <el-col :span="8">
+                <el-card class="stat-card" shadow="hover">
+                  <div class="stat-inner">
+                    <div class="stat-icon-wrap blue">
+                      <el-icon size="28"><Van /></el-icon>
+                    </div>
+                    <div class="stat-body">
+                      <div class="stat-value-row">
+                        <span class="stat-value-item">
+                          <span class="value">{{ infoOverview.greenVehicleCount }}</span>
+                          <span class="label">绿通车</span>
+                        </span>
+                        <span class="stat-divider">|</span>
+                        <span class="stat-value-item">
+                          <span class="value">{{ infoOverview.harvesterCount }}</span>
+                          <span class="label">收割机</span>
+                        </span>
+                      </div>
+                      <div class="stat-sub">
+                        查验车次：{{ infoOverview.inspectionCount }}
+                      </div>
+                    </div>
+                  </div>
+                </el-card>
+              </el-col>
+
+              <!-- 卡片2：通行费用 -->
+              <el-col :span="8">
+                <el-card class="stat-card" shadow="hover">
+                  <div class="stat-inner">
+                    <div class="stat-icon-wrap green">
+                      <el-icon size="28"><Money /></el-icon>
+                    </div>
+                    <div class="stat-body">
+                      <div class="stat-value large">
+                        {{ formatMoney(infoOverview.passFee) }}
+                      </div>
+                      <div class="stat-label">通行费用（元）</div>
+                    </div>
+                  </div>
+                </el-card>
+              </el-col>
+
+              <!-- 卡片3：合格/不合格数量 + 上传记录数 -->
+              <el-col :span="8">
+                <el-card class="stat-card" shadow="hover">
+                  <div class="stat-inner">
+                    <div class="stat-icon-wrap amber">
+                      <el-icon size="28"><CircleCheck /></el-icon>
+                    </div>
+                    <div class="stat-body">
+                      <div class="stat-value-row">
+                        <span class="stat-value-item success">
+                          <span class="value">{{ infoOverview.passCount }}</span>
+                          <span class="label">合格</span>
+                        </span>
+                        <span class="stat-divider">|</span>
+                        <span class="stat-value-item danger">
+                          <span class="value">{{ infoOverview.failCount }}</span>
+                          <span class="label">不合格</span>
+                        </span>
+                      </div>
+                      <div class="stat-sub">
+                        上传记录：{{ infoOverview.uploadCount }}
+                      </div>
+                    </div>
+                  </div>
+                </el-card>
+              </el-col>
+            </el-row>
+          </div>
+
+          <!-- 第二行：时段分析（24小时折线图） -->
+          <div class="section-block">
+            <el-card class="chart-card" shadow="never">
+              <template #header>
+                <div class="panel-header">
+                  <span class="panel-title">
+                    <el-icon color="#409eff"><DataLine /></el-icon>
+                    时段分析
+                  </span>
+                  <span class="panel-sub">查验量趋势</span>
+                </div>
+              </template>
+              <div ref="lineChartRef" class="chart-container-line"></div>
+            </el-card>
+          </div>
+
+          <!-- 第三行：车型分布 + 货物类别 -->
+          <div class="section-block">
+            <el-row :gutter="16">
+              <!-- 车型分布（横向条形图） -->
+              <el-col :span="12">
+                <el-card class="chart-card" shadow="never">
+                  <template #header>
+                    <div class="panel-header">
+                      <span class="panel-title">
+                        <el-icon color="#67c23a"><Histogram /></el-icon>
+                        车型分布
+                      </span>
+                    </div>
+                  </template>
+                  <div ref="barChartRef" class="chart-container-bar"></div>
+                </el-card>
+              </el-col>
+
+              <!-- 货物类别（饼状图） -->
+              <el-col :span="12">
+                <el-card class="chart-card" shadow="never">
+                  <template #header>
+                    <div class="panel-header">
+                      <span class="panel-title">
+                        <el-icon color="#e6a23c"><PieChart /></el-icon>
+                        货物类别
+                      </span>
+                    </div>
+                  </template>
+                  <div ref="pieChartRef" class="chart-container-pie"></div>
+                </el-card>
+              </el-col>
+            </el-row>
+          </div>
+        </div>
       </el-col>
 
-      <!-- 右：货物类别饼图（8宽） -->
+      <!-- 右侧区域（8栏） -->
       <el-col :span="8">
-        <el-card class="chart-card" shadow="never">
-          <template #header>
-            <div class="panel-header">
-              <span class="panel-title">
-                <el-icon color="#e6a23c"><DataAnalysis /></el-icon>
-                货物类别分布
-              </span>
-              <span class="panel-sub">各类货物查验数量</span>
+        <div class="right-section">
+          <!-- 第一部分：待办事项 -->
+          <el-card class="panel-card" shadow="never">
+            <template #header>
+              <div class="panel-header">
+                <span class="panel-title">
+                  <el-icon color="#f56c6c"><List /></el-icon>
+                  待办事项
+                </span>
+              </div>
+            </template>
+            <div v-if="todoItems.length === 0" class="empty-state">
+              <el-icon size="32" color="#dcdfe6"><SuccessFilled /></el-icon>
+              <span>暂无待办事项</span>
             </div>
-          </template>
-          <div ref="pieChartRef" class="chart-container"></div>
-        </el-card>
+            <div v-else class="todo-list">
+              <div
+                v-for="item in todoItems"
+                :key="item.id"
+                class="todo-item"
+                :class="item.type"
+              >
+                <div class="todo-left">
+                  <el-icon v-if="item.type === 'pending_review'" color="#faad14"><Clock /></el-icon>
+                  <el-icon v-else-if="item.type === 'fake_green'" color="#f56c6c"><Warning /></el-icon>
+                  <el-icon v-else color="#f56c6c"><WarningFilled /></el-icon>
+                  <span class="todo-title">{{ item.title }}</span>
+                </div>
+                <el-tag size="small" :type="getTagType(item.type)">
+                  {{ item.count }} 条
+                </el-tag>
+              </div>
+            </div>
+          </el-card>
+
+          <!-- 第二部分：文件通知 -->
+          <el-card class="panel-card" shadow="never">
+            <template #header>
+              <div class="panel-header">
+                <span class="panel-title">
+                  <el-icon color="#409eff"><Document /></el-icon>
+                  文件通知
+                </span>
+              </div>
+            </template>
+            <div v-if="notices.length === 0" class="empty-state">
+              <span>暂无通知</span>
+            </div>
+            <div v-else class="notice-list">
+              <div
+                v-for="item in notices"
+                :key="item.id"
+                class="notice-item"
+              >
+                <el-tag size="small" :type="getNoticeTagType(item.type)" effect="plain">
+                  {{ getNoticeTypeText(item.type) }}
+                </el-tag>
+                <div class="notice-content">
+                  <span class="notice-title">{{ item.title }}</span>
+                  <span class="notice-date">{{ item.date }}</span>
+                </div>
+              </div>
+            </div>
+          </el-card>
+
+          <!-- 第三部分：免检比例 -->
+          <el-card class="panel-card" shadow="never">
+            <template #header>
+              <div class="panel-header">
+                <span class="panel-title">
+                  <el-icon color="#67c23a"><PieChart /></el-icon>
+                  免检比例
+                </span>
+              </div>
+            </template>
+            <div class="exempt-container">
+              <div class="exempt-circle">
+                <el-progress
+                  type="circle"
+                  :percentage="exemptRate.rate"
+                  :width="100"
+                  :stroke-width="8"
+                  :color="getExemptColor(exemptRate.rate)"
+                >
+                  <template #default>
+                    <span class="exempt-value">{{ exemptRate.rate }}%</span>
+                  </template>
+                </el-progress>
+              </div>
+              <div class="exempt-stats">
+                <div class="exempt-stat">
+                  <span class="stat-num">{{ exemptRate.total }}</span>
+                  <span class="stat-label">总查验数</span>
+                </div>
+                <div class="exempt-stat">
+                  <span class="stat-num success">{{ exemptRate.exempt }}</span>
+                  <span class="stat-label">免检数</span>
+                </div>
+              </div>
+            </div>
+          </el-card>
+        </div>
       </el-col>
     </el-row>
 
-    <!-- ================================================================
-         详情弹窗
-    ================================================================ -->
+    <!-- 详情弹窗 -->
     <InspectionDetail
       v-model="detailVisible"
       :row="currentRow"
@@ -277,34 +265,26 @@
 
 <script setup>
 /**
- * Dashboard 首页概览
+ * Dashboard 首页概览（新版布局）
  *
  * 【布局结构】
- *   第一行（4列）：核心指标卡片
- *   第二行（16+8）：预警看板 + 实时动态流水
- *   第三行（16+8）：时段分布折线图 + 货物类别饼图
- *   第四行（8）  ：查验结果环形图
- *
- * 【色彩语义化规范】
- *   合格/正常：#52c41a（绿色）
- *   待办/预警：#faad14（琥珀色）
- *   不合格/离线：#f5222d（红色）
- *   信息/蓝    ：#409eff（蓝色）
+ *   左侧（16栏）：
+ *     - 第一行：信息总览（3个卡片）+ 时间切换器
+ *     - 第二行：时段分析（24小时折线图）
+ *     - 第三行：车型分布（横向条形图）+ 货物类别（饼图）
+ *   右侧（8栏）：
+ *     - 待办事项
+ *     - 文件通知
+ *     - 免检比例
  *
  * 【数据来源】
- *   通过 /api/inspection/dashboard 一次性加载全部统计数据，
- *   减少请求次数，提升页面加载速度。
- *
- * 【图表库】
- *   使用 ECharts（echarts npm 包），通过 ref 获取 DOM 实例，
- *   在 onMounted 后初始化图表，数据更新时调用 setOption() 刷新。
+ *   通过 /api/inspection/dashboard?timeType=day|month|year 加载统计数据
  */
 
 import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
 import {
-  Van, CircleCheck, Bell, Monitor, WarningFilled,
-  SuccessFilled, Timer, Document, DataLine,
-  DataAnalysis
+  Van, Money, CircleCheck, DataLine, Histogram, PieChart,
+  List, Document, Clock, Warning, WarningFilled, SuccessFilled
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
@@ -315,33 +295,41 @@ import InspectionDetail from '@/components/InspectionDetail.vue'
 // 状态定义
 // ================================================================
 
-/** 今日统计数据 */
-const stats = reactive({
-  total: 0,
+/** 时间类型：day=日, month=月, year=年 */
+const timeType = ref('day')
+
+/** 信息总览数据 */
+const infoOverview = reactive({
+  greenVehicleCount: 0,
+  harvesterCount: 0,
+  inspectionCount: 0,
+  passFee: 0,
   passCount: 0,
   failCount: 0,
-  pendingReviewCount: 0
+  uploadCount: 0
 })
 
-/** 待复核清单 */
-const pendingReviews = ref([])
+/** 时段分布数据 */
+const hourlyDistribution = ref([])
 
-/** 假冒绿通预警列表 */
-const fakeGreenAlerts = ref([])
+/** 车型分布数据 */
+const vehicleTypeStats = ref([])
 
-/** 最近查验记录（实时流水） */
-const recentRecords = ref([])
+/** 货物类别数据 */
+const goodsTypeStats = ref([])
 
-/** 图表数据 */
-const hourlyDistribution = ref([])  // 时段分布原始数据（24小时）
-const timeDistribution = ref([])  // 时段分布（按日期范围）
-const goodsTypeStats = ref([])  // 货物类别统计数据
+/** 待办事项 */
+const todoItems = ref([])
 
-/** 时间范围选择 */
-const timeRange = ref('1')  // 1=最近一天, 7=最近一周, 30=最近一月
+/** 文件通知 */
+const notices = ref([])
 
-/** 设备在线状态（null=未知/检测中，true=在线，false=离线） */
-const deviceOnline = ref(null)
+/** 免检比例 */
+const exemptRate = reactive({
+  total: 0,
+  exempt: 0,
+  rate: 0
+})
 
 // ================================================================
 // 详情弹窗
@@ -350,9 +338,6 @@ const deviceOnline = ref(null)
 const detailVisible = ref(false)
 const currentRow = ref({})
 
-/**
- * 点击预警项或流水项，显示详情弹窗
- */
 const showDetail = (item) => {
   currentRow.value = { ...item }
   detailVisible.value = true
@@ -363,56 +348,59 @@ const showDetail = (item) => {
 // ================================================================
 
 const lineChartRef = ref(null)
+const barChartRef = ref(null)
 const pieChartRef = ref(null)
 
-// ECharts 实例（避免重复创建）
+// ECharts 实例
 let lineChart = null
+let barChart = null
 let pieChart = null
 
 // ================================================================
 // 数据加载
 // ================================================================
 
-/**
- * loadData：加载 Dashboard 全部统计数据
- *
- * 后端 /api/inspection/dashboard 一次性返回所有数据，
- * 避免前端多次请求。
- */
 const loadData = async () => {
   try {
-    const res = await getDashboardStats()
+    const res = await getDashboardStats(timeType.value)
     if (res.code === 200) {
       const d = res.data
 
-      // 今日统计
-      const t = d.todayStats || {}
-      stats.total            = t.total            || 0
-      stats.passCount         = t.passCount         || 0
-      stats.failCount         = t.failCount         || 0
-      stats.pendingReviewCount = t.pendingReviewCount || 0
+      // 信息总览
+      const overview = d.infoOverview || {}
+      infoOverview.greenVehicleCount = overview.greenVehicleCount || 0
+      infoOverview.harvesterCount = overview.harvesterCount || 0
+      infoOverview.inspectionCount = overview.inspectionCount || 0
+      infoOverview.passFee = overview.passFee || 0
+      infoOverview.passCount = overview.passCount || 0
+      infoOverview.failCount = overview.failCount || 0
+      infoOverview.uploadCount = overview.uploadCount || 0
 
-      // 预警数据
-      pendingReviews.value  = d.pendingReviews  || []
-      fakeGreenAlerts.value = d.fakeGreenAlerts || []
-
-      // 实时流水
-      recentRecords.value = d.recentRecords || []
-
-      // 图表原始数据
+      // 时段分布
       hourlyDistribution.value = d.hourlyDistribution || []
-      timeDistribution.value = d.timeDistribution || []
+
+      // 车型分布
+      vehicleTypeStats.value = d.vehicleTypeStats || []
+
+      // 货物类别
       goodsTypeStats.value = d.goodsTypeStats || []
 
-      console.log('API返回数据:', {
-        hourlyDistribution: d.hourlyDistribution,
-        timeDistribution: d.timeDistribution,
-        goodsTypeStats: d.goodsTypeStats
-      })
+      // 待办事项
+      todoItems.value = d.todoItems || []
+
+      // 文件通知
+      notices.value = d.notices || []
+
+      // 免检比例
+      const exempt = d.exemptRate || {}
+      exemptRate.total = exempt.total || 0
+      exemptRate.exempt = exempt.exempt || 0
+      exemptRate.rate = exempt.rate || 0
 
       // 渲染图表
       await nextTick()
       renderLineChart()
+      renderBarChart()
       renderPieChart()
     } else {
       ElMessage.error(res.message || '加载统计数据失败')
@@ -423,43 +411,96 @@ const loadData = async () => {
 }
 
 // ================================================================
+// 时间切换处理
+// ================================================================
+
+const handleTimeTypeChange = () => {
+  loadData()
+}
+
+// ================================================================
+// 工具函数
+// ================================================================
+
+/** 格式化金额 */
+const formatMoney = (value) => {
+  if (!value) return '0.00'
+  return value.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+/** 获取待办事项标签类型 */
+const getTagType = (type) => {
+  switch (type) {
+    case 'pending_review': return 'warning'
+    case 'fake_green': return 'danger'
+    case 'upload_failed': return 'danger'
+    default: return 'info'
+  }
+}
+
+/** 获取通知标签类型 */
+const getNoticeTagType = (type) => {
+  switch (type) {
+    case 'important': return 'danger'
+    case 'policy': return 'primary'
+    case 'report': return 'success'
+    default: return 'info'
+  }
+}
+
+/** 获取通知类型文本 */
+const getNoticeTypeText = (type) => {
+  switch (type) {
+    case 'important': return '重要'
+    case 'policy': return '政策'
+    case 'report': return '报告'
+    default: return '通知'
+  }
+}
+
+/** 获取免检比例颜色 */
+const getExemptColor = (rate) => {
+  if (rate >= 80) return '#67c23a'
+  if (rate >= 60) return '#e6a23c'
+  return '#f56c6c'
+}
+
+// ================================================================
 // 图表渲染
 // ================================================================
 
 /**
- * 渲染查验时段分布折线图
- * 根据时间范围选择：最近一天=按小时，其他=按天
+ * 渲染时段分析折线图
  */
 const renderLineChart = () => {
   if (!lineChartRef.value) return
   if (!lineChart) lineChart = echarts.init(lineChartRef.value)
 
-  const range = timeRange.value
-  const data = range === '1' ? hourlyDistribution.value : timeDistribution.value
+  const data = hourlyDistribution.value
 
-  console.log('timeRange:', range, 'data:', data)  // 调试
+  // 判断是按小时还是按天显示
+  const isHourly = data.length > 0 && data[0].hour !== undefined
 
-  // 按天和按小时的数据格式不同
   let labels, values
-  if (range === '1') {
-    // 按小时
-    labels = data.map(d => d.label)  // ["00:00", "01:00", ...]
-    values = data.map(d => d.count || 0)
+  if (isHourly) {
+    // 按小时：生成 0-23 小时标签
+    const hourMap = {}
+    data.forEach(d => {
+      hourMap[d.hour] = d.count || 0
+    })
+    labels = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`)
+    values = labels.map((_, i) => hourMap[i] || 0)
   } else {
     // 按天
-    labels = data.map(d => d.label)  // ["2026-04-08", ...]
+    labels = data.map(d => d.label || d.date)
     values = data.map(d => d.count || 0)
   }
 
   // 确保有数据
   if (labels.length === 0) {
-    labels = range === '1' ? Array.from({length: 24}, (_, i) => `${String(i).padStart(2, '0')}:00`) : ['暂无数据']
-    values = range === '1' ? Array(24).fill(0) : [0]
+    labels = isHourly ? Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`) : ['暂无数据']
+    values = isHourly ? Array(24).fill(0) : [0]
   }
-
-  // 最近一天才显示渐变填充
-  const isToday = range === '1'
-  const currentHour = new Date().getHours()
 
   lineChart.setOption({
     tooltip: {
@@ -471,13 +512,12 @@ const renderLineChart = () => {
       type: 'category',
       data: labels,
       axisLabel: {
-        interval: range === '1' ? 2 : 'auto',
+        interval: isHourly ? 2 : 'auto',
         fontSize: 10,
         color: '#909399',
-        rotate: range !== '1' ? 30 : 0
+        rotate: !isHourly ? 30 : 0
       },
-      axisLine: { lineStyle: { color: '#e4e7ed' } },
-      axisTick: { show: true }
+      axisLine: { lineStyle: { color: '#e4e7ed' } }
     },
     yAxis: {
       type: 'value',
@@ -485,8 +525,7 @@ const renderLineChart = () => {
       nameTextStyle: { fontSize: 10, color: '#909399' },
       axisLabel: { fontSize: 10, color: '#909399' },
       splitLine: { lineStyle: { color: '#f0f0f0' } },
-      axisLine: { show: true, lineStyle: { color: '#e4e7ed' } },
-      axisTick: { show: true }
+      axisLine: { show: true, lineStyle: { color: '#e4e7ed' } }
     },
     series: [{
       type: 'line',
@@ -496,23 +535,80 @@ const renderLineChart = () => {
       symbolSize: 6,
       lineStyle: { color: '#409eff', width: 2 },
       itemStyle: { color: '#409eff' },
-      areaStyle: isToday ? {
-        // 渐变填充：当前小时之前蓝色，之后灰色
-        color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+      areaStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
           { offset: 0, color: 'rgba(64,158,255,0.3)' },
-          { offset: currentHour / 23, color: 'rgba(64,158,255,0.1)' },
-          { offset: 1, color: 'rgba(200,200,200,0.05)' }
+          { offset: 1, color: 'rgba(64,158,255,0.05)' }
         ])
-      } : null
+      }
     }]
   })
 }
 
 /**
- * 时间范围切换处理
+ * 渲染车型分布横向条形图
  */
-const handleTimeRangeChange = () => {
-  renderLineChart()
+const renderBarChart = () => {
+  if (!barChartRef.value) return
+  if (!barChart) barChart = echarts.init(barChartRef.value)
+
+  const data = vehicleTypeStats.value
+  const barData = data.map(item => ({
+    name: item.type || '未知',
+    value: item.count || 0
+  }))
+
+  // 车型名称映射
+  const typeMap = {
+    '11': '一型货车',
+    '12': '二型货车',
+    '13': '三型货车',
+    '14': '四型货车',
+    '15': '五型货车',
+    '16': '六型货车'
+  }
+  barData.forEach(item => {
+    if (typeMap[item.name]) {
+      item.name = typeMap[item.name]
+    }
+  })
+
+  // 确保有数据
+  if (barData.length === 0) {
+    barData.push({ name: '暂无数据', value: 0 })
+  }
+
+  barChart.setOption({
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      formatter: '{b}: {c} 辆'
+    },
+    grid: { left: 80, right: 20, top: 10, bottom: 10 },
+    xAxis: {
+      type: 'value',
+      axisLabel: { fontSize: 10, color: '#909399' },
+      splitLine: { lineStyle: { color: '#f0f0f0' } }
+    },
+    yAxis: {
+      type: 'category',
+      data: barData.map(d => d.name).reverse(),
+      axisLabel: { fontSize: 11, color: '#606266' },
+      axisLine: { lineStyle: { color: '#e4e7ed' } }
+    },
+    series: [{
+      type: 'bar',
+      data: barData.map(d => d.value).reverse(),
+      barWidth: 16,
+      itemStyle: {
+        borderRadius: [0, 4, 4, 0],
+        color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+          { offset: 0, color: '#67c23a' },
+          { offset: 1, color: '#85ce61' }
+        ])
+      }
+    }]
+  })
 }
 
 /**
@@ -525,7 +621,7 @@ const renderPieChart = () => {
   const data = goodsTypeStats.value
   const pieData = data.map(item => ({
     name: item.goodsTypeName || item.name || '未知',
-    value: item.count
+    value: item.count || 0
   }))
 
   // 饼图颜色配置
@@ -534,6 +630,11 @@ const renderPieChart = () => {
     '#c71585', '#ff8c00', '#00ced1', '#9370db', '#20b2aa',
     '#ff69b4', '#32cd32', '#daa520', '#4682b4', '#cd5c5c'
   ]
+
+  // 确保有数据
+  if (pieData.length === 0) {
+    pieData.push({ name: '暂无数据', value: 0 })
+  }
 
   pieChart.setOption({
     tooltip: {
@@ -557,13 +658,13 @@ const renderPieChart = () => {
     },
     series: [{
       type: 'pie',
-      radius: ['35%', '60%'],
+      radius: ['30%', '65%'],
       center: ['35%', '50%'],
       avoidLabelOverlap: false,
       itemStyle: { borderRadius: 4, borderColor: '#fff', borderWidth: 2 },
       label: { show: false },
       emphasis: {
-        label: { show: true, fontSize: 13, fontWeight: 'bold' }
+        label: { show: true, fontSize: 12, fontWeight: 'bold' }
       },
       data: pieData.map((item, index) => ({
         ...item,
@@ -577,29 +678,21 @@ const renderPieChart = () => {
 // 生命周期
 // ================================================================
 
-/**
- * onMounted：组件挂载后初始化
- * - 加载统计数据
- * - 初始化 ECharts 实例
- */
 onMounted(() => {
   loadData()
-
-  // 监听窗口大小变化，图表自适应
   window.addEventListener('resize', handleResize)
 })
 
 onUnmounted(() => {
-  // 清理事件监听，防止内存泄漏
   window.removeEventListener('resize', handleResize)
-  // 销毁 ECharts 实例，释放内存
   lineChart?.dispose()
+  barChart?.dispose()
   pieChart?.dispose()
 })
 
-/** 窗口大小变化处理（供 onMounted / onUnmounted 注册/移除） */
 const handleResize = () => {
   lineChart?.resize()
+  barChart?.resize()
   pieChart?.resize()
 }
 </script>
@@ -612,6 +705,39 @@ const handleResize = () => {
   min-height: calc(100vh - 60px);
 }
 
+/* ========== 左侧区域 ========== */
+.left-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ========== 右侧区域 ========== */
+.right-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ========== 区块 ========== */
+.section-block {
+  margin-bottom: 0;
+}
+
+/* ========== 区块标题 ========== */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+}
+
 /* ========== 通用卡片 ========== */
 .stat-card, .panel-card, .chart-card {
   border-radius: 10px;
@@ -622,16 +748,23 @@ const handleResize = () => {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08) !important;
 }
 
-/* 等高布局：两列卡片内容区最大高度一致，超出滚动 */
-.panel-card.equal-height :deep(.el-card__body) {
+/* 信息总览卡片固定高度，保证三卡片一致 */
+.stat-card :deep(.el-card__body) {
+  min-height: 120px;
   display: flex;
-  flex-direction: column;
-  max-height: 420px;
-  overflow-y: auto;
+  align-items: center;
+  overflow: visible;
+}
+
+/* 通行费用金额，预留13位数空间 */
+.stat-card .stat-value.large {
+  font-size: 24px;
+  word-break: break-all;
+  word-wrap: break-word;
 }
 
 /* ========== 核心指标行 ========== */
-.stat-row { margin-bottom: 16px; }
+.stat-row { margin-bottom: 0; }
 
 .stat-inner {
   display: flex;
@@ -651,29 +784,53 @@ const handleResize = () => {
   flex-shrink: 0;
 }
 .stat-icon-wrap.blue  { background: linear-gradient(135deg, #409eff, #66b1ff); }
-.stat-icon-wrap.green { background: linear-gradient(135deg, #52c41a, #73d13d); }
-.stat-icon-wrap.amber { background: linear-gradient(135deg, #faad14, #ffc53d); }
-.stat-icon-wrap.red   { background: linear-gradient(135deg, #f5222d, #ff4d4f); }
-.stat-icon-wrap.gray  { background: linear-gradient(135deg, #909399, #a6a9ad); }
+.stat-icon-wrap.green { background: linear-gradient(135deg, #67c23a, #85ce61); }
+.stat-icon-wrap.amber { background: linear-gradient(135deg, #e6a23c, #f0c78a); }
 
 .stat-body { flex: 1; min-width: 0; }
 
-.stat-value {
-  font-size: 30px;
+/* 多值展示行 */
+.stat-value-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.stat-value-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.stat-value-item .value {
+  font-size: 26px;
   font-weight: 800;
   color: #303133;
   line-height: 1.2;
 }
-
-/* 合格/不合格对比展示 */
-.contrast-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.stat-value-item .label {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 2px;
 }
-.pass-num { color: #52c41a; font-size: 28px; }
-.separator { color: #dcdfe6; font-size: 20px; }
-.fail-num { color: #f5222d; font-size: 28px; }
+.stat-value-item.success .value { color: #67c23a; }
+.stat-value-item.danger .value { color: #f56c6c; }
+
+.stat-divider {
+  color: #dcdfe6;
+  font-size: 20px;
+}
+
+/* 单值展示 */
+.stat-value {
+  font-size: 28px;
+  font-weight: 800;
+  color: #303133;
+  line-height: 1.2;
+}
+.stat-value.large {
+  font-size: 32px;
+}
 
 .stat-label {
   font-size: 14px;
@@ -681,41 +838,13 @@ const handleResize = () => {
   font-weight: 600;
   margin-top: 4px;
 }
+
 .stat-sub {
-  font-size: 11px;
+  font-size: 12px;
   color: #909399;
-  margin-top: 2px;
+  margin-top: 4px;
+  text-align: center;
 }
-
-/* 设备状态 */
-.device-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.status-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-}
-.status-dot.online {
-  background: #52c41a;
-  box-shadow: 0 0 6px #52c41a;
-  animation: pulse 2s infinite;
-}
-.status-dot.offline {
-  background: #f5222d;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-.text-amber { color: #faad14 !important; }
-
-/* ========== 内容行 ========== */
-.content-row { margin-bottom: 16px; }
 
 /* ========== 面板标题 ========== */
 .panel-header {
@@ -727,7 +856,7 @@ const handleResize = () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: #303133;
 }
@@ -735,24 +864,133 @@ const handleResize = () => {
   font-size: 12px;
   color: #909399;
 }
-.panel-header :deep(.el-radio-group) {
-  margin-left: auto;
+
+/* ========== 图表容器 ========== */
+.chart-container-line {
+  height: 240px;
+  width: 100%;
 }
 
-/* ========== 预警看板 ========== */
+.chart-container-bar {
+  height: 220px;
+  width: 100%;
+}
 
-/* 分区标题 */
-.alert-section-title {
+.chart-container-pie {
+  height: 220px;
+  width: 100%;
+}
+
+/* ========== 待办事项 ========== */
+.todo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.todo-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #303133;
-  margin-bottom: 10px;
+  justify-content: space-between;
+  padding: 12px;
+  border-radius: 8px;
+  background: #f5f7fa;
+}
+.todo-item.pending_review { background: #fdf6ec; border: 1px solid #faecd8; }
+.todo-item.fake_green { background: #fef0f0; border: 1px solid #fde2e2; }
+
+.todo-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-/* 空状态 */
+.todo-title {
+  font-size: 13px;
+  color: #303133;
+}
+
+/* ========== 文件通知 ========== */
+.notice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.notice-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid #ebeef5;
+}
+.notice-item:last-child { border-bottom: none; }
+
+.notice-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.notice-title {
+  font-size: 13px;
+  color: #303133;
+  line-height: 1.4;
+}
+
+.notice-date {
+  font-size: 11px;
+  color: #909399;
+}
+
+/* ========== 免检比例 ========== */
+.exempt-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 0;
+}
+
+.exempt-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.exempt-value {
+  font-size: 24px;
+  font-weight: 800;
+  color: #303133;
+}
+
+.exempt-stats {
+  display: flex;
+  gap: 24px;
+}
+
+.exempt-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.exempt-stat .stat-num {
+  font-size: 20px;
+  font-weight: 700;
+  color: #303133;
+}
+.exempt-stat .stat-num.success {
+  color: #67c23a;
+}
+
+.exempt-stat .stat-label {
+  font-size: 12px;
+  color: #909399;
+}
+
+/* ========== 空状态 ========== */
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -762,136 +1000,5 @@ const handleResize = () => {
   padding: 24px 0;
   color: #909399;
   font-size: 13px;
-}
-
-/* 预警列表 */
-.alert-list { display: flex; flex-direction: column; gap: 6px; }
-
-.alert-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  background: #fff7e6;
-  border: 1px solid #ffd591;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.2s, transform 0.15s;
-}
-.alert-item:hover { background: #ffe7ba; transform: translateX(2px); }
-.alert-item.danger {
-  background: #fff1f0;
-  border-color: #ffa39e;
-}
-.alert-item.danger:hover { background: #ffcdc7; }
-
-.alert-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  min-width: 0;
-}
-.alert-plate {
-  font-weight: 700;
-  font-family: 'Consolas', monospace;
-  font-size: 13px;
-  color: #303133;
-}
-.alert-plate.danger { color: #f5222d; }
-
-.alert-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-.alert-time {
-  font-size: 11px;
-  color: #909399;
-  font-family: 'Consolas', monospace;
-}
-.alert-reason {
-  font-size: 11px;
-  color: #f5222d;
-  max-width: 100px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.alert-arrow {
-  font-size: 16px;
-  color: #dcdfe6;
-  font-weight: bold;
-}
-
-/* ========== 实时动态流水 ========== */
-.stream-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  /* 固定高度，超出滚动 */
-  max-height: 400px;
-  overflow-y: auto;
-  /* 美化滚动条 */
-  scrollbar-width: thin;
-  overflow-x: hidden;  /* ← 新增：隐藏水平溢出 */
-  scrollbar-color: #c0c4cc transparent;
-}
-.stream-list::-webkit-scrollbar { width: 4px; }
-.stream-list::-webkit-scrollbar-track { background: transparent; }
-.stream-list::-webkit-scrollbar-thumb { background: #c0c4cc; border-radius: 2px; }
-.stream-list::-webkit-scrollbar-thumb:hover { background: #a8abb2; }
-
-.stream-item {
-  padding: 10px 12px;
-  background: #f5f7fa;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.2s, transform 0.15s;
-  /* 防止被压缩 */
-  flex-shrink: 0;
-}
-.stream-item:hover {
-  background: #ecf5ff;
-  transform: translateX(2px);
-}
-
-.stream-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 4px;
-}
-.stream-plate {
-  font-weight: 700;
-  font-family: 'Consolas', monospace;
-  font-size: 13px;
-  color: #303133;
-}
-.stream-bottom {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.stream-goods {
-  font-size: 11px;
-  color: #909399;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 140px;
-}
-.stream-time {
-  font-size: 11px;
-  color: #c0c4cc;
-  font-family: 'Consolas', monospace;
-  flex-shrink: 0;
-}
-
-/* ========== 图表区域 ========== */
-.chart-container {
-  height: 240px;
-  width: 100%;
 }
 </style>

@@ -187,21 +187,13 @@ export function getNopassTypeOptions() {
 /**
  * 获取首页 Dashboard 统计数据
  *
- * 【返回数据】
- * {
- *   todayStats: { total, passCount, failCount, pendingReviewCount },
- *   pendingReviews: [...],    // 待复核记录（最多10条）
- *   fakeGreenAlerts: [...],   // 假冒绿通预警（最多5条）
- *   hourlyDistribution: [...], // 24小时查验量分布
- *   goodsTypeStats: [...],    // 货物类别统计
- *   recentRecords: [...]      // 最近查验记录（最近10条）
- * }
- *
+ * @param {string} timeType 时间类型：day=今日, month=本月, year=本年
  * @returns {Promise} Dashboard 统计数据
  */
-export function getDashboardStats() {
+export function getDashboardStats(timeType = 'day') {
   return request({
     url: '/inspection/dashboard',
-    method: 'get'
+    method: 'get',
+    params: { timeType }
   })
 }

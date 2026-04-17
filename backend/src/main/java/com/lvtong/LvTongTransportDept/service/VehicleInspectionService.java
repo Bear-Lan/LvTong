@@ -67,4 +67,22 @@ public interface VehicleInspectionService {
 
     /** 获取信用记录排行榜（合格次数最多的前3辆车） */
     List<Map<String, Object>> getCreditRanking();
+
+    /** 获取信息总览（按时间范围统计绿通车/收割机数量、查验车次、通行费用、合格/不合格数、上传记录数） */
+    Map<String, Object> getInfoOverview(LocalDateTime startTime, LocalDateTime endTime);
+
+    /** 获取查验时段分布（按指定时间范围，支持24小时分布或按天分布） */
+    List<Map<String, Object>> getHourlyDistributionByRange(LocalDateTime startTime, LocalDateTime endTime);
+
+    /** 获取车型分布统计（横向条形图数据） */
+    List<Map<String, Object>> getVehicleTypeStats(LocalDateTime startTime, LocalDateTime endTime);
+
+    /** 获取待办事项列表 */
+    List<Map<String, Object>> getTodoItems();
+
+    /** 获取文件通知列表 */
+    List<Map<String, Object>> getNotices();
+
+    /** 获取免检比例 */
+    Map<String, Object> getExemptRate(LocalDateTime startTime, LocalDateTime endTime);
 }
