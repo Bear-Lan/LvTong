@@ -387,7 +387,7 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { WarningFilled, Picture, Close, Plus } from '@element-plus/icons-vue'
 import { uploadSingleWithExclude } from '@/api/transportDept'
 
@@ -522,7 +522,7 @@ const buildExcludeList = () => {
 }
 
 // 确认上报
-const handleConfirm = async () => {    
+const handleConfirm = async () => {
   // 复核结果为待审核或审核未通过时，不允许上报
   if (manualReviewState.value !== 1) {
     ElMessage.warning('请先修改复核结果为审核通过后再上报')

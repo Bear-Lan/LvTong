@@ -244,12 +244,11 @@ public class VehicleInspectionController {
             String vehicleTypeText = VehicleConstants.getVehicleTypeText(updated.getVehicleType());
             String containerTypeText = VehicleConstants.getContainerTypeText(updated.getVehicleContainertype());
             String goodsTypeText = getGoodsTypeText(updated.getGoodsType());
-            String loadRate = updated.getLoadRate() != null ? updated.getLoadRate().toString() : null;
             String detectDate = updated.getPasscodeExTime();
 
             ImageWatermarkUtil.drawWatermarkAndOverwrite(
                     imagePath, plateNumber, plateColor, vehicleTypeText,
-                    containerTypeText, goodsTypeText, loadRate, detectDate);
+                    containerTypeText, goodsTypeText, detectDate);
         }
 
         return ApiResponse.success("更新成功", convertToMap(updated));

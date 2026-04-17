@@ -381,7 +381,7 @@
 
 import { ref, reactive, computed, onMounted } from 'vue'
 import {Search, RefreshLeft, Van, View, Edit, Upload} from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { getInspectionList } from '@/api/vehicleInspection'
 import { getUserPhoneList } from '@/api/user'
 import InspectionDetail from '@/components/InspectionDetail.vue'
@@ -588,6 +588,15 @@ const handleUpload = async () => {
   // 检查是否已上传成功
   if (selectedRow.toTransportdeptState === 1) {
     ElMessage.warning('该记录已上传成功，不能重复上传')
+    return
+  }
+
+  // 不合格记录禁止上传
+  if (selectedRow.resultStatus === 2) {
+    ElMessageBox.alert('不合格记录禁止上传，请仔细复核', '警告', {
+      confirmButtonText: '确定',
+      type: 'warning'
+    })
     return
   }
 

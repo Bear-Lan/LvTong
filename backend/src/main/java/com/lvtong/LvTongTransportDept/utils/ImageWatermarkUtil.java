@@ -42,7 +42,6 @@ public class ImageWatermarkUtil {
      * @param vehicleType 车辆类型
      * @param vehicleContainerType 车厢类型
      * @param goodsType 货物类型
-     * @param loadRate 装载率
      * @param detectDate 检测日期
      * @return 是否成功
      */
@@ -53,7 +52,6 @@ public class ImageWatermarkUtil {
             String vehicleType,
             String vehicleContainerType,
             String goodsType,
-            String loadRate,
             String detectDate) {
 
         if (imagePath == null || imagePath.isBlank()) {
@@ -79,7 +77,7 @@ public class ImageWatermarkUtil {
         try {
             // 从原始图片读取并绘制水印，输出到数据库存放的图片路径
             drawWatermark(originalFile, plateNumber, plateColorName, vehicleType, vehicleContainerType,
-                    goodsType, loadRate, detectDate, outputFile.getName(), outputFile);
+                    goodsType, detectDate, outputFile.getName(), outputFile);
             return true;
         } catch (Exception e) {
             e.printStackTrace();
@@ -97,7 +95,6 @@ public class ImageWatermarkUtil {
             String vehicleType,
             String vehicleContainerType,
             String goodsType,
-            String loadRate,
             String detectDate,
             String filename,
             File outputFile) throws IOException {
@@ -127,7 +124,7 @@ public class ImageWatermarkUtil {
         lines[1] = "车辆类型:" + (vehicleType != null ? vehicleType : "-");
         lines[2] = "车厢类型:" + (vehicleContainerType != null ? vehicleContainerType : "-");
         lines[3] = "货物类型:" + (goodsType != null ? goodsType : "-");
-        lines[4] = "装载率:" + (loadRate != null ? loadRate : "-");
+        lines[4] = "检测地点:毛陈收费站";
         lines[5] = "检测日期:" + (detectDate != null ? detectDate : "-");
 
         // 测量最长的一行文字宽度，确保水印在右下角
