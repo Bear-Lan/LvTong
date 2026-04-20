@@ -3,7 +3,7 @@
     Dashboard 首页概览（新版布局）
     布局结构：
       左侧（16栏）：信息总览卡片 + 时段分析图表 + 车型/货物类型图表
-      右侧（8栏）：待办事项 + 文件通知 + 免检比例
+      右侧（8栏）：待办事项 + 文件通知 + 数据同步
   -->
   <div class="dashboard">
     <el-row :gutter="20">
@@ -214,13 +214,13 @@
             </div>
           </el-card>
 
-          <!-- 第三部分：免检比例 -->
+          <!-- 第三部分：数据同步 -->
           <el-card class="panel-card" shadow="never">
             <template #header>
               <div class="panel-header">
                 <span class="panel-title">
                   <el-icon color="#67c23a"><PieChart /></el-icon>
-                  免检比例
+                  数据同步
                 </span>
               </div>
             </template>
@@ -275,7 +275,7 @@
  *   右侧（8栏）：
  *     - 待办事项
  *     - 文件通知
- *     - 免检比例
+ *     - 数据同步
  *
  * 【数据来源】
  *   通过 /api/inspection/dashboard?timeType=day|month|year 加载统计数据
@@ -324,7 +324,7 @@ const todoItems = ref([])
 /** 文件通知 */
 const notices = ref([])
 
-/** 免检比例 */
+/** 数据同步 */
 const exemptRate = reactive({
   total: 0,
   exempt: 0,
@@ -391,7 +391,7 @@ const loadData = async () => {
       // 文件通知
       notices.value = d.notices || []
 
-      // 免检比例
+      // 数据同步
       const exempt = d.exemptRate || {}
       exemptRate.total = exempt.total || 0
       exemptRate.exempt = exempt.exempt || 0
@@ -458,7 +458,7 @@ const getNoticeTypeText = (type) => {
   }
 }
 
-/** 获取免检比例颜色 */
+/** 获取数据同步颜色 */
 const getExemptColor = (rate) => {
   if (rate >= 80) return '#67c23a'
   if (rate >= 60) return '#e6a23c'
@@ -944,7 +944,7 @@ const handleResize = () => {
   color: #909399;
 }
 
-/* ========== 免检比例 ========== */
+/* ========== 数据同步 ========== */
 .exempt-container {
   display: flex;
   flex-direction: column;

@@ -89,19 +89,28 @@
 
         <el-row :gutter="24">
 
-          <!-- 时间范围 - 日期时间区间选择 -->
+          <!-- 时间范围 - 分开的日期选择 -->
           <el-col :span="12">
             <el-form-item label="查验时间范围">
-              <el-date-picker
-                v-model="dateRange"
-                type="datetimerange"
-                range-separator="至"
-                start-placeholder="开始时间"
-                end-placeholder="结束时间"
-                format="YYYY-MM-DD HH:mm:ss"
-                value-format="YYYY-MM-DD HH:mm:ss"
-                style="width: 100%;"
-              />
+              <div class="date-range-split">
+                <el-date-picker
+                  v-model="dateRangeStart"
+                  type="date"
+                  placeholder="开始日期"
+                  format="YYYY-MM-DD"
+                  value-format="YYYY-MM-DD"
+                  style="width: 48%;"
+                />
+                <span class="date-separator">至</span>
+                <el-date-picker
+                  v-model="dateRangeEnd"
+                  type="date"
+                  placeholder="结束日期"
+                  format="YYYY-MM-DD"
+                  value-format="YYYY-MM-DD"
+                  style="width: 48%;"
+                />
+              </div>
             </el-form-item>
           </el-col>
 
@@ -379,7 +388,7 @@
  * 5. 弹窗提交成功 → emit('refresh') → loadData() 刷新列表
  */
 
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import {Search, RefreshLeft, Van, View, Edit, Upload} from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getInspectionList } from '@/api/vehicleInspection'
@@ -412,8 +421,23 @@ const detailVisible = ref(false)
 /** 图片编辑弹窗显示状态 */
 const imageEditVisible = ref(false)
 
-/** 日期范围选择器绑定的值，格式：[开始时间, 结束时间] */
+/** 开始日期 */
+const dateRangeStart = ref('')
+
+/** 结束日期 */
+const dateRangeEnd = ref('')
+
+/** 日期范围选择器绑定的值，格式：[开始日期, 结束日期] */
 const dateRange = ref([])
+
+// 监听两个独立日期的变化，同步更新 dateRange
+watch([dateRangeStart, dateRangeEnd], ([start, end]) => {
+  if (start && end) {
+    dateRange.value = [start, end]
+  } else {
+    dateRange.value = []
+  }
+})
 
 // ================================================================
 // 搜索表单
@@ -457,13 +481,13 @@ const initDateRange = () => {
   const now = new Date()
   const oneMonthAgo = new Date()
   oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1)
-  // 格式化为 yyyy-MM-dd HH:mm:ss
+  // 格式化为 yyyy-MM-dd
   const fmt = (d) => {
     const pad = (n) => String(n).padStart(2, '0')
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ` +
-           `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
   }
-  dateRange.value = [fmt(oneMonthAgo), fmt(now)]
+  dateRangeStart.value = fmt(oneMonthAgo)
+  dateRangeEnd.value = fmt(now)
 }
 
 /** 加载核验员下拉选项（所有用户电话） */
@@ -517,8 +541,8 @@ const loadData = async () => {
     if (searchForm.resultStatus !== null) params.resultStatus = searchForm.resultStatus
     // 时间范围：有值且长度为2时才加入
     if (dateRange.value && dateRange.value.length === 2) {
-      params.startTime = dateRange.value[0]
-      params.endTime   = dateRange.value[1]
+      params.startTime = dateRange.value[0] + ' 00:00:00'
+      params.endTime   = dateRange.value[1] + ' 23:59:59'
     }
     // 注意：manualReviewState 有值时要用 !== null 判断
     if (searchForm.manualReviewState !== null) params.manualReviewState = searchForm.manualReviewState
@@ -951,6 +975,18 @@ onMounted(async () => {
 /* 时间文本 */
 .time-text {
   font-size: 11px;
+  color: #909399;
+}
+
+/* 分开的日期选择器布局 */
+.date-range-split {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.date-separator {
+  margin: 0 8px;
   color: #909399;
 }
 

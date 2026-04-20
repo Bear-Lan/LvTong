@@ -11,9 +11,9 @@
         :default-active="activeMenu"
         :collapse="isCollapsed"
         router
-        background-color="#1A3D38"
-        text-color="#a0b0a8"
-        active-text-color="#22c55e"
+        background-color="#03D5CD"
+        text-color="#e0f7f6"
+        active-text-color="#ffffff"
       >
         <el-menu-item index="/dashboard">
           <el-icon><HomeFilled /></el-icon>
@@ -27,11 +27,26 @@
           <el-icon><Van /></el-icon>
           <template #title>车辆查验</template>
         </el-menu-item>
-        <el-menu-item index="/datascreen" @click="openDatascreen">
+        <el-menu-item index="#" @click="openDatascreen">
           <el-icon><Monitor /></el-icon>
           <template #title>3D大屏</template>
         </el-menu-item>
       </el-menu>
+
+      <div class="sidebar-waves">
+        <svg class="wave wave1" viewBox="0 0 220 65" preserveAspectRatio="none">
+          <path d="M0,30 C35,4 75,56 110,30 C145,4 185,56 220,30 L220,65 L0,65 Z" />
+        </svg>
+        <svg class="wave wave2" viewBox="0 0 220 65" preserveAspectRatio="none">
+          <path d="M0,36 C45,10 85,62 110,36 C135,10 175,62 220,36 L220,65 L0,65 Z" />
+        </svg>
+        <svg class="wave wave3" viewBox="0 0 220 65" preserveAspectRatio="none">
+          <path d="M0,42 C40,16 80,64 110,42 C140,16 180,64 220,42 L220,65 L0,65 Z" />
+        </svg>
+        <svg class="wave wave4" viewBox="0 0 220 65" preserveAspectRatio="none">
+          <path d="M0,50 C35,24 75,66 110,50 C145,24 185,66 220,50 L220,65 L0,65 Z" />
+        </svg>
+      </div>
     </aside>
 
     <!-- 主体区域 -->
@@ -116,11 +131,12 @@ const openDatascreen = () => {
 /* 侧边栏 */
 .sidebar {
   width: 220px;
-  background: #1A3D38;
+  background: #03D5CD;
   transition: width 0.3s;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
 }
 
 .sidebar.collapsed {
@@ -162,11 +178,86 @@ const openDatascreen = () => {
 }
 
 :deep(.el-menu-item:hover) {
-  background-color: rgba(34, 197, 94, 0.1) !important;
+  background-color: rgba(255, 255, 255, 0.15) !important;
 }
 
 :deep(.el-menu-item.is-active) {
-  background-color: rgba(34, 197, 94, 0.15) !important;
+  background-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+.sidebar-waves {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 180px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.wave {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 200%;
+  height: 65px;
+}
+
+.wave path {
+  width: 100%;
+  height: 100%;
+}
+
+.wave1 {
+  bottom: 50px;
+  animation: waveMove1 6s ease-in-out infinite;
+}
+.wave1 path {
+  fill: rgba(30, 120, 220, 0.35);
+}
+
+.wave2 {
+  bottom: 33px;
+  animation: waveMove2 5s ease-in-out infinite;
+}
+.wave2 path {
+  fill: rgba(40, 140, 240, 0.4);
+}
+
+.wave3 {
+  bottom: 16px;
+  animation: waveMove3 4.5s ease-in-out infinite;
+}
+.wave3 path {
+  fill: rgba(50, 160, 255, 0.45);
+}
+
+.wave4 {
+  bottom: 0;
+  animation: waveMove4 4s ease-in-out infinite;
+}
+.wave4 path {
+  fill: rgba(60, 180, 255, 0.5);
+}
+
+@keyframes waveMove1 {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-25%); }
+}
+
+@keyframes waveMove2 {
+  0%, 100% { transform: translateX(-10%); }
+  50% { transform: translateX(-35%); }
+}
+
+@keyframes waveMove3 {
+  0%, 100% { transform: translateX(-5%); }
+  50% { transform: translateX(-20%); }
+}
+
+@keyframes waveMove4 {
+  0%, 100% { transform: translateX(-15%); }
+  50% { transform: translateX(-30%); }
 }
 
 /* 主体区域 */
