@@ -29,7 +29,7 @@
           <el-icon><Van /></el-icon>
           <template #title>车辆查验</template>
         </el-menu-item>
-        <el-menu-item index="#" @click="openDatascreen">
+        <el-menu-item index="#" @click="openDatascreen" v-if="userStore.userInfo.role === 0">
           <el-icon><Monitor /></el-icon>
           <template #title>3D大屏</template>
         </el-menu-item>
@@ -120,7 +120,7 @@ const handleCommand = (command) => {
 
 // 新窗口打开3D大屏
 const openDatascreen = () => {
-  window.open('/#/greenchannel/', '_blank')
+  window.open('/#/greenchannel', '_blank')
 }
 </script>
 
