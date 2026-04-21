@@ -28,10 +28,10 @@
 
           <!-- 车牌号 - 支持模糊搜索 -->
           <el-col :span="6">
-            <el-form-item label="车牌号码">
+            <el-form-item>
               <el-input
                 v-model="searchForm.plateNumber"
-                placeholder="支持模糊搜索"
+                placeholder="请输入车牌号码"
                 clearable
                 prefix-icon="Search"
               />
@@ -40,10 +40,10 @@
 
           <!-- 司机电话 - 精确查询 -->
           <el-col :span="6">
-            <el-form-item label="司机电话">
+            <el-form-item>
               <el-input
                 v-model="searchForm.driverPhone"
-                placeholder="精确查询"
+                placeholder="请输入司机电话"
                 clearable
                 prefix-icon="Phone"
               />
@@ -52,10 +52,10 @@
 
           <!-- 核验员 - 下拉选择 -->
           <el-col :span="6">
-            <el-form-item label="核验员">
+            <el-form-item>
               <el-select
                 v-model="searchForm.reviewerPhone"
-                placeholder="全部"
+                placeholder="请选择核验员"
                 clearable
                 filterable
                 style="width: 100%;"
@@ -72,10 +72,10 @@
 
           <!-- 查验结果 - 下拉筛选 -->
           <el-col :span="6">
-            <el-form-item label="查验结果">
+            <el-form-item>
               <el-select
                 v-model="searchForm.resultStatus"
-                placeholder="全部"
+                placeholder="请选择查验结果"
                 clearable
                 style="width: 100%;"
               >
@@ -91,12 +91,12 @@
 
           <!-- 时间范围 - 分开的日期选择 -->
           <el-col :span="12">
-            <el-form-item label="查验时间范围">
+            <el-form-item>
               <div class="date-range-split">
                 <el-date-picker
                   v-model="dateRangeStart"
                   type="date"
-                  placeholder="开始日期"
+                  placeholder="开始时间"
                   format="YYYY-MM-DD"
                   value-format="YYYY-MM-DD"
                   style="width: 48%;"
@@ -105,7 +105,7 @@
                 <el-date-picker
                   v-model="dateRangeEnd"
                   type="date"
-                  placeholder="结束日期"
+                  placeholder="结束时间"
                   format="YYYY-MM-DD"
                   value-format="YYYY-MM-DD"
                   style="width: 48%;"
@@ -116,10 +116,10 @@
 
           <!-- 复核结果 - 下拉筛选 -->
           <el-col :span="3">
-            <el-form-item label="复核结果">
+            <el-form-item>
               <el-select
                 v-model="searchForm.manualReviewState"
-                placeholder="全部"
+                placeholder="请选择复核结果"
                 clearable
                 style="width: 100%;"
               >
@@ -132,10 +132,10 @@
 
           <!-- 上传状态 - 下拉筛选 -->
           <el-col :span="3">
-            <el-form-item label="上传状态">
+            <el-form-item>
               <el-select
                 v-model="searchForm.toTransportdeptState"
-                placeholder="全部"
+                placeholder="请选择上传状态"
                 clearable
                 style="width: 100%;"
               >
@@ -389,6 +389,7 @@
  */
 
 import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import {Search, RefreshLeft, Van, View, Edit, Upload} from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getInspectionList } from '@/api/vehicleInspection'
@@ -402,6 +403,9 @@ import ImageEditDialog from '@/components/ImageEditDialog.vue'
 
 /** 表格数据加载状态（控制 loading 遮罩） */
 const loading = ref(false)
+
+/** 路由对象，用于接收跳转参数 */
+const route = useRoute()
 
 /** 表格数据列表 */
 const tableData = ref([])
@@ -788,6 +792,27 @@ const getLoadRateClass = (loadRate) => {
 onMounted(async () => {
   initDateRange()
   await loadUserPhones()
+  // 读取 URL 查询参数并应用搜索条件
+  applyQueryParams()
+  loadData()
+})
+
+/** 应用 URL 查询参数到搜索表单 */
+const applyQueryParams = () => {
+  if (route.query.manualReviewState !== undefined) {
+    searchForm.manualReviewState = Number(route.query.manualReviewState)
+  }
+  if (route.query.resultStatus !== undefined) {
+    searchForm.resultStatus = Number(route.query.resultStatus)
+  }
+  if (route.query.toTransportdeptState !== undefined) {
+    searchForm.toTransportdeptState = Number(route.query.toTransportdeptState)
+  }
+}
+
+// 监听路由变化，重新应用查询参数
+watch(() => route.query, () => {
+  applyQueryParams()
   loadData()
 })
 </script>
@@ -833,6 +858,10 @@ onMounted(async () => {
   margin-bottom: 0;
 }
 
+.search-form :deep(.el-row + .el-row) {
+  margin-top: 12px;
+}
+
 .search-form :deep(.el-form-item__label) {
   font-size: 13px;
   font-weight: 500;
@@ -845,10 +874,15 @@ onMounted(async () => {
   border-radius: 6px;
 }
 
-/* 按钮组列：靠底对齐 */
+/* 按钮组列：保持与查询条件对齐 */
 .btn-group-col {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
+  padding-top: 0px;
+}
+
+.btn-group-col :deep(.el-form-item) {
+  margin-top: 0;
 }
 
 .btn-group {

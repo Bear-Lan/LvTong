@@ -9,11 +9,13 @@ const routes = [
   {
     path: '/login',
     name: 'Login',
+    meta: { title: '登录' },
     component: () => import('@/views/Login.vue')
   },
   {
     path: '/greenchannel',
     name: 'GreenChannel',
+    meta: { title: '绿通校验' },
     component: () => import('@/views/GreenChannel.vue')
   },
   {
@@ -24,16 +26,19 @@ const routes = [
       {
         path: 'dashboard',
         name: 'Dashboard',
+        meta: { title: '首页概览' },
         component: () => import('@/views/Dashboard.vue')
       },
       {
         path: 'users',
         name: 'UserManagement',
+        meta: { title: '用户管理' },
         component: () => import('@/views/UserManagement.vue')
       },
       {
         path: 'inspection',
         name: 'VehicleInspection',
+        meta: { title: '历史记录' },
         component: () => import('@/views/HistoricalRecords.vue')
       }
     ]

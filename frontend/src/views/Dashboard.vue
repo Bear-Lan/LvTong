@@ -3,23 +3,27 @@
     Dashboard 首页概览（新版布局）
     布局结构：
       左侧（16栏）：信息总览卡片 + 时段分析图表 + 车型/货物类型图表
-      右侧（8栏）：待办事项 + 文件通知 + 数据同步
+      右侧（8栏）：待办事项 + 货物排行 + 数据同步
   -->
   <div class="dashboard">
+    <!-- 页面头部：标题 + 时间范围控制 -->
+    <div class="dashboard-header">
+      <h2 class="page-title">
+        <el-icon><DataLine /></el-icon>
+        首页概览
+      </h2>
+      <el-radio-group v-model="timeType" size="default" @change="handleTimeTypeChange">
+        <el-radio-button value="day">日</el-radio-button>
+        <el-radio-button value="month">月</el-radio-button>
+        <el-radio-button value="year">年</el-radio-button>
+      </el-radio-group>
+    </div>
     <el-row :gutter="20">
       <!-- 左侧区域（16栏） -->
       <el-col :span="16">
         <div class="left-section">
           <!-- 第一行：信息总览卡片 -->
           <div class="section-block">
-            <div class="section-header">
-              <span class="section-title">信息总览</span>
-              <el-radio-group v-model="timeType" size="small" @change="handleTimeTypeChange">
-                <el-radio-button value="day">日</el-radio-button>
-                <el-radio-button value="month">月</el-radio-button>
-                <el-radio-button value="year">年</el-radio-button>
-              </el-radio-group>
-            </div>
             <el-row :gutter="16">
               <!-- 卡片1：绿通车/收割机数量 + 查验车次 -->
               <el-col :span="8">
@@ -170,6 +174,7 @@
                 :key="item.id"
                 class="todo-item"
                 :class="item.type"
+                @click="goToInspection(item)"
               >
                 <div class="todo-left">
                   <el-icon v-if="item.type === 'pending_review'" color="#faad14"><Clock /></el-icon>
@@ -184,32 +189,28 @@
             </div>
           </el-card>
 
-          <!-- 第二部分：文件通知 -->
+          <!-- 第二部分：货物排行 -->
           <el-card class="panel-card" shadow="never">
             <template #header>
               <div class="panel-header">
                 <span class="panel-title">
-                  <el-icon color="#409eff"><Document /></el-icon>
-                  文件通知
+                  <el-icon color="#409eff"><Histogram /></el-icon>
+                  货物排行
                 </span>
               </div>
             </template>
-            <div v-if="notices.length === 0" class="empty-state">
-              <span>暂无通知</span>
+            <div v-if="goodsTypeStats.length === 0" class="empty-state">
+              <span>暂无数据</span>
             </div>
-            <div v-else class="notice-list">
+            <div v-else class="goods-rank-list">
               <div
-                v-for="item in notices"
-                :key="item.id"
-                class="notice-item"
+                v-for="(item, index) in goodsTypeStats.slice(0, 3)"
+                :key="item.goodsTypeName || item.name"
+                class="goods-rank-item"
               >
-                <el-tag size="small" :type="getNoticeTagType(item.type)" effect="plain">
-                  {{ getNoticeTypeText(item.type) }}
-                </el-tag>
-                <div class="notice-content">
-                  <span class="notice-title">{{ item.title }}</span>
-                  <span class="notice-date">{{ item.date }}</span>
-                </div>
+                <span class="rank-num" :class="{ 'top-three': index < 3 }">{{ index + 1 }}</span>
+                <span class="goods-name">{{ item.goodsTypeName || item.name || '未知' }}</span>
+                <span class="goods-count">{{ item.count || item.value || 0 }}次</span>
               </div>
             </div>
           </el-card>
@@ -245,7 +246,7 @@
                 </div>
                 <div class="exempt-stat">
                   <span class="stat-num success">{{ exemptRate.exempt }}</span>
-                  <span class="stat-label">免检数</span>
+                  <span class="stat-label">已复核数</span>
                 </div>
               </div>
             </div>
@@ -282,9 +283,10 @@
  */
 
 import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   Van, Money, CircleCheck, DataLine, Histogram, PieChart,
-  List, Document, Clock, Warning, WarningFilled, SuccessFilled
+  List, Clock, Warning, WarningFilled, SuccessFilled
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
@@ -297,6 +299,20 @@ import InspectionDetail from '@/components/InspectionDetail.vue'
 
 /** 时间类型：day=日, month=月, year=年 */
 const timeType = ref('day')
+const router = useRouter()
+
+/** 跳转到车辆查验页面 */
+const goToInspection = (item) => {
+  const query = {}
+  if (item.type === 'pending_review') {
+    query.manualReviewState = 0  // 未审核
+  } else if (item.type === 'fake_green') {
+    query.resultStatus = 2  // 不合格
+  } else if (item.type === 'unuploaded') {
+    query.toTransportdeptState = 0  // 未上传
+  }
+  router.push({ path: '/inspection', query })
+}
 
 /** 信息总览数据 */
 const infoOverview = reactive({
@@ -321,8 +337,7 @@ const goodsTypeStats = ref([])
 /** 待办事项 */
 const todoItems = ref([])
 
-/** 文件通知 */
-const notices = ref([])
+/** 待办事项 */
 
 /** 数据同步 */
 const exemptRate = reactive({
@@ -388,9 +403,6 @@ const loadData = async () => {
       // 待办事项
       todoItems.value = d.todoItems || []
 
-      // 文件通知
-      notices.value = d.notices || []
-
       // 数据同步
       const exempt = d.exemptRate || {}
       exemptRate.total = exempt.total || 0
@@ -435,26 +447,6 @@ const getTagType = (type) => {
     case 'fake_green': return 'danger'
     case 'upload_failed': return 'danger'
     default: return 'info'
-  }
-}
-
-/** 获取通知标签类型 */
-const getNoticeTagType = (type) => {
-  switch (type) {
-    case 'important': return 'danger'
-    case 'policy': return 'primary'
-    case 'report': return 'success'
-    default: return 'info'
-  }
-}
-
-/** 获取通知类型文本 */
-const getNoticeTypeText = (type) => {
-  switch (type) {
-    case 'important': return '重要'
-    case 'policy': return '政策'
-    case 'report': return '报告'
-    default: return '通知'
   }
 }
 
@@ -705,6 +697,28 @@ const handleResize = () => {
   min-height: calc(100vh - 60px);
 }
 
+/* ========== 页面头部 ========== */
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding: 16px 20px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.page-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 /* ========== 左侧区域 ========== */
 .left-section {
   display: flex;
@@ -895,6 +909,12 @@ const handleResize = () => {
   padding: 12px;
   border-radius: 8px;
   background: #f5f7fa;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.todo-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 .todo-item.pending_review { background: #fdf6ec; border: 1px solid #faecd8; }
 .todo-item.fake_green { background: #fef0f0; border: 1px solid #fde2e2; }
@@ -910,37 +930,53 @@ const handleResize = () => {
   color: #303133;
 }
 
-/* ========== 文件通知 ========== */
-.notice-list {
+/* ========== 货物排行 ========== */
+.goods-rank-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
-.notice-item {
+.goods-rank-item {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
-  padding: 8px 0;
-  border-bottom: 1px solid #ebeef5;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #f5f7fa;
+  transition: all 0.2s;
 }
-.notice-item:last-child { border-bottom: none; }
+.goods-rank-item:hover {
+  background: #ecf5ff;
+}
 
-.notice-content {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.rank-num {
+  width: 22px;
+  height: 22px;
+  line-height: 22px;
+  text-align: center;
+  border-radius: 50%;
+  background: #e0e0e0;
+  color: #666;
+  font-size: 12px;
+  font-weight: 600;
+}
+.rank-num.top-three {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+}
+
+.goods-name {
   flex: 1;
-}
-
-.notice-title {
   font-size: 13px;
   color: #303133;
-  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.notice-date {
-  font-size: 11px;
+.goods-count {
+  font-size: 12px;
   color: #909399;
 }
 

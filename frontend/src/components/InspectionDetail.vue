@@ -376,7 +376,7 @@
             </div>
             <div class="data-row">
               <span class="data-label">班组</span>
-              <span class="data-value">班组{{ form.groupId || row.groupId || '-' }}</span>
+              <span class="data-value">{{ (form.groupId || row.groupId) ? '班组' + (form.groupId || row.groupId) : '-' }}</span>
             </div>
             <!-- 备注内容：可编辑时显示输入框 -->
             <div class="data-row" v-if="editable">

@@ -60,6 +60,12 @@
             <Fold v-if="!isCollapsed" />
             <Expand v-else />
           </el-icon>
+          <el-breadcrumb separator="/">
+            <el-breadcrumb-item :to="{ path: '/' }">绿通快检系统</el-breadcrumb-item>
+            <el-breadcrumb-item v-for="(item, index) in breadcrumbs" :key="index">
+              {{ item.meta?.title || item.name }}
+            </el-breadcrumb-item>
+          </el-breadcrumb>
         </div>
         <div class="header-right">
           <el-dropdown @command="handleCommand">
@@ -105,6 +111,11 @@ const userStore = useUserStore()
 const isCollapsed = ref(false)
 
 const activeMenu = computed(() => route.path)
+
+const breadcrumbs = computed(() => {
+  const matched = route.matched.filter(item => item.meta && item.meta.title)
+  return matched.filter(item => item.path !== '/')
+})
 
 const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value
@@ -281,6 +292,16 @@ const openDatascreen = () => {
   padding: 0 20px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
   z-index: 10;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.el-breadcrumb {
+  font-size: 14px;
 }
 
 .collapse-btn {
