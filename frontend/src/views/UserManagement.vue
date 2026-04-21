@@ -660,8 +660,12 @@ onMounted(() => {
    ================================================ */
 .user-mgmt-container {
   display: flex;
-  height: calc(100vh - 60px);
+  min-height: calc(100vh - 60px);
   background: var(--bg-page);
+  padding-left: 16px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  box-sizing: border-box;
   overflow: hidden;
 }
 
@@ -676,11 +680,12 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  border-radius: var(--radius);
 }
 
 /* 列表头部 */
 .list-header {
-  padding: 20px 16px 0;
+  padding: 16px 16px 0;
   flex-shrink: 0;
 }
 
@@ -906,11 +911,11 @@ onMounted(() => {
    ================================================ */
 .user-detail-panel {
   flex: 1;
-  padding: 24px;
+  padding-left: 16px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 12px;
   min-width: 0;
 }
 
@@ -924,11 +929,11 @@ onMounted(() => {
   background: var(--bg-card);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  padding: 24px;
+  padding: 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
+  gap: 16px;
   flex-shrink: 0;
 }
 
@@ -1049,10 +1054,12 @@ onMounted(() => {
   box-shadow: var(--shadow);
   flex: 1;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .info-section {
-  padding: 24px;
+  padding: 16px;
 }
 
 .section-title {
@@ -1061,7 +1068,7 @@ onMounted(() => {
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  margin: 0 0 16px;
+  margin: 0 0 12px;
 }
 
 /* 2列网格 */
