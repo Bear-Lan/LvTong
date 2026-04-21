@@ -453,6 +453,7 @@ public class VehicleInspectionController {
         map.put("tailImagePath", v.getTailImagePath());
         map.put("topImagePath", v.getTopImagePath());
         map.put("goodsImagePath", v.getGoodsImagePath());
+        map.put("evidencesImagePath", v.getEvidencesImagePath());
         map.put("licenseImagePath", v.getLicenseImagePath());
         map.put("passcodeImagePath", v.getPasscodeImagePath());
 

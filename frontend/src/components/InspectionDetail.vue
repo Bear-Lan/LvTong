@@ -97,22 +97,34 @@
               </div>
             </div>
 
-            <!-- 通行凭证 -->
-            <div class="evidence-item">
-              <div class="evidence-img-box" v-if="row.passcodeImagePath">
-                <el-image
-                  :src="formatImageUrl(row.passcodeImagePath)"
-                  fit="fill"
-                  :preview-src-list="[formatImageUrl(row.passcodeImagePath)]"
-                  class="evidence-img"
-                  :initial-index="4"
-                />
+            <!-- 证据链照片 -->
+            <div class="evidence-item evidence-col-right">
+              <div
+                class="goods-img-container"
+                :class="{ 'scroll-mode': useEvidenceScrollMode }"
+                v-if="evidencesImages.length > 0"
+                :style="useEvidenceScrollMode ? {} : { gridTemplateColumns: `repeat(${evidencesPerRow}, ${evidencesColWidth})` }"
+              >
+                <div
+                  v-for="(img, idx) in evidencesImages"
+                  :key="idx"
+                  class="goods-img-wrapper"
+                >
+                  <el-image
+                    :src="formatImageUrl(img)"
+                    fit="fill"
+                    :preview-src-list="evidencesImages.map(p => formatImageUrl(p))"
+                    :initial-index="idx"
+                    class="evidence-img"
+                  />
+                </div>
               </div>
               <div class="evidence-placeholder" v-else>
                 <el-icon><Picture /></el-icon>
               </div>
               <div class="evidence-label">
-                <span class="type-tag">凭证</span>通行凭证
+                <span class="type-tag">证据链</span>证据链照
+                <span v-if="evidencesImages.length > 0" class="goods-count">({{ evidencesImages.length }}张)</span>
               </div>
             </div>
           </div>
@@ -443,6 +455,17 @@
             <span class="result-label">复核结果</span>
             <span class="result-value">{{ row.manualReviewText || '未审核' }}</span>
           </div>
+
+          <!-- 通行凭证照片 -->
+          <div class="result-item passcode-img-item" v-if="row.passcodeImagePath">
+            <span class="result-label">通行凭证</span>
+            <el-image
+              :src="formatImageUrl(row.passcodeImagePath)"
+              fit="contain"
+              :preview-src-list="[formatImageUrl(row.passcodeImagePath)]"
+              class="passcode-img"
+            />
+          </div>
         </div>
 
         <!-- 右侧：操作按钮 -->
@@ -690,6 +713,35 @@ const goodsImages = computed(() => {
     .map(p => p.trim())
     .filter(p => p && (p.startsWith('/') || /^[A-Za-z]:/.test(p)))
 })
+
+/** 证据链照片数组 */
+const evidencesImages = computed(() => {
+  if (!props.row.evidencesImagePath) return []
+  return props.row.evidencesImagePath
+    .split(/[,，]/)
+    .map(p => p.trim())
+    .filter(p => p && (p.startsWith('/') || /^[A-Za-z]:/.test(p)))
+})
+
+/** 证据链照片每行列数 */
+const evidencesPerRow = computed(() => {
+  const count = evidencesImages.value.length
+  if (count <= 4) return count
+  if (count === 5) return 3
+  if (count === 6) return 3
+  if (count === 7) return 4
+  if (count === 8) return 4
+  if (count === 9) return 3
+  return count
+})
+
+/** 证据链照片列宽 */
+const evidencesColWidth = computed(() => {
+  return evidencesImages.value.length >= 10 ? 'minmax(70px, 1fr)' : '1fr'
+})
+
+/** 证据链照片是否横向滚动 */
+const useEvidenceScrollMode = computed(() => evidencesImages.value.length >= 10)
 
 /**
  * 根据货物图片数量计算每行显示的列数
@@ -1542,6 +1594,21 @@ onMounted(() => {
   display: flex;
   gap: 10px;
   margin-left: 20px;
+}
+
+/* 通行凭证照片样式 */
+.passcode-img-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.passcode-img {
+  width: 100px;
+  height: 60px;
+  border-radius: 4px;
+  border: 1px solid #ebeef5;
 }
 
 /* ========== 货车长宽高弹窗样式 ========== */

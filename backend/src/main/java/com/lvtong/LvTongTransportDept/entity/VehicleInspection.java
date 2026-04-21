@@ -109,6 +109,10 @@ public class VehicleInspection {
     @TableField("passcode_image_path")
     private String passcodeImagePath;
 
+    /** 证据链照片（多张，用逗号分隔） */
+    @TableField("evidences_image_path")
+    private String evidencesImagePath;
+
     // ================================================================
     // 通行码信息（ETC 通行卡数据）
     // ================================================================
@@ -294,6 +298,9 @@ public class VehicleInspection {
 
     public String getPasscodeImagePath() { return passcodeImagePath; }
     public void setPasscodeImagePath(String passcodeImagePath) { this.passcodeImagePath = passcodeImagePath; }
+
+    public String getEvidencesImagePath() { return evidencesImagePath; }
+    public void setEvidencesImagePath(String evidencesImagePath) { this.evidencesImagePath = evidencesImagePath; }
 
     public String getPasscodeVehicleId() { return passcodeVehicleId; }
     public void setPasscodeVehicleId(String passcodeVehicleId) { this.passcodeVehicleId = passcodeVehicleId; }

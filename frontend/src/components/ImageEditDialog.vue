@@ -117,26 +117,40 @@
               </div>
             </div>
 
-            <!-- 通行凭证 -->
-            <div class="evidence-item" :class="{ 'no-image': !row.passcodeImagePath, 'excluded': excludedTypes.includes('passcodeImagePath') }">
-              <div class="evidence-img-box" v-if="row.passcodeImagePath">
-                <el-image
-                  :src="formatImageUrl(row.passcodeImagePath)"
-                  fit="fill"
-                  :preview-src-list="[formatImageUrl(row.passcodeImagePath)]"
-                  class="evidence-img"
-                />
-                <div class="delete-btn" @click.stop="toggleImage('passcodeImagePath')">
-                  <el-icon v-if="excludedTypes.includes('passcodeImagePath')"><Plus /></el-icon>
-                  <el-icon v-else><Close /></el-icon>
+            <!-- 证据链照片 -->
+            <div class="evidence-item" :class="{ 'no-image': !row.evidencesImagePath, 'excluded': excludedTypes.includes('evidencesImagePath') }">
+              <div
+                class="goods-img-container"
+                :class="{ 'scroll-mode': useEvidenceScrollMode }"
+                v-if="evidencesImages.length > 0"
+                :style="useEvidenceScrollMode ? {} : { gridTemplateColumns: `repeat(${evidencesPerRow}, ${evidencesColWidth})` }"
+              >
+                <div
+                  v-for="(img, idx) in evidencesImages"
+                  :key="idx"
+                  class="goods-img-wrapper"
+                  :class="{ 'excluded': excludedEvidences.includes(idx) }"
+                >
+                  <el-image
+                    :src="formatImageUrl(img)"
+                    fit="fill"
+                    :preview-src-list="evidencesImages.map(p => formatImageUrl(p))"
+                    :initial-index="idx"
+                    class="evidence-img"
+                  />
+                  <div class="delete-btn" @click.stop="toggleEvidenceImage(idx)">
+                    <el-icon v-if="excludedEvidences.includes(idx)"><Plus /></el-icon>
+                    <el-icon v-else><Close /></el-icon>
+                  </div>
                 </div>
               </div>
               <div class="evidence-placeholder" v-else>
                 <el-icon><Picture /></el-icon>
               </div>
               <div class="evidence-label">
-                <span class="type-tag">凭证</span>通行凭证
-                <span v-if="excludedTypes.includes('passcodeImagePath')" class="excluded-tag">已排除</span>
+                <span class="type-tag">证据链</span>证据链照片
+                <span v-if="evidencesImages.length > 0" class="goods-count">({{ evidencesImages.length }}张)</span>
+                <span v-if="excludedEvidences.length > 0" class="excluded-tag">已排除 {{ excludedEvidences.length }} 张</span>
               </div>
             </div>
           </div>
@@ -370,6 +384,17 @@
               <el-option label="审核未通过" :value="2" />
             </el-select>
           </div>
+
+          <!-- 通行凭证照片 -->
+          <div class="result-item" v-if="row.passcodeImagePath">
+            <span class="result-label">通行凭证</span>
+            <el-image
+              :src="formatImageUrl(row.passcodeImagePath)"
+              fit="contain"
+              :preview-src-list="[formatImageUrl(row.passcodeImagePath)]"
+              class="passcode-img"
+            />
+          </div>
         </div>
 
         <!-- 右侧：操作按钮 -->
@@ -423,6 +448,18 @@ const goodsImages = computed(() => {
     .filter(p => p && (p.startsWith('/') || /^[A-Za-z]:/.test(p)))
 })
 
+// 证据链照片数组
+const evidencesImages = computed(() => {
+  if (!props.row.evidencesImagePath) return []
+  return props.row.evidencesImagePath
+    .split(/[,，]/)
+    .map(p => p.trim())
+    .filter(p => p && (p.startsWith('/') || /^[A-Za-z]:/.test(p)))
+})
+
+// 排除的证据链照片索引
+const excludedEvidences = ref([])
+
 /**
  * 根据货物图片数量计算每行显示的列数
  * 1-4张: 每行显示全部(1-4列)
@@ -452,19 +489,46 @@ const goodsColWidth = computed(() => {
 })
 
 /**
+ * 证据链照片每行列数
+ */
+const evidencesPerRow = computed(() => {
+  const count = evidencesImages.value.length
+  if (count <= 4) return count
+  if (count === 5) return 3
+  if (count === 6) return 3
+  if (count === 7) return 4
+  if (count === 8) return 4
+  if (count === 9) return 3
+  return count
+})
+
+/**
+ * 证据链照片列宽
+ */
+const evidencesColWidth = computed(() => {
+  return evidencesImages.value.length >= 10 ? 'minmax(70px, 1fr)' : '1fr'
+})
+
+/**
+ * 证据链照片是否横向滚动
+ */
+const useEvidenceScrollMode = computed(() => evidencesImages.value.length >= 10)
+
+/**
  * 判断是否使用横向滚动模式（10张及以上）
  */
 const useScrollMode = computed(() => goodsImages.value.length >= 10)
 
 // 已排除的图片数量
 const excludedCount = computed(() => {
-  return excludedTypes.value.length + excludedGoods.value.length
+  return excludedTypes.value.length + excludedGoods.value.length + excludedEvidences.value.length
 })
 
 // 监听 row 变化，初始化数据
 watch(() => props.row, () => {
   excludedTypes.value = []
   excludedGoods.value = []
+  excludedEvidences.value = []
   manualReviewState.value = props.row.manualReviewState ?? 0
 }, { immediate: true })
 
@@ -511,12 +575,26 @@ const toggleGoodsImage = (idx) => {
   }
 }
 
+// 切换证据链照片的排除状态
+const toggleEvidenceImage = (idx) => {
+  const eviIdx = excludedEvidences.value.indexOf(idx)
+  if (eviIdx >= 0) {
+    excludedEvidences.value.splice(eviIdx, 1)
+  } else {
+    excludedEvidences.value.push(idx)
+  }
+}
+
 // 构建最终的排除列表
 const buildExcludeList = () => {
   const excludeList = [...excludedTypes.value]
   // 货物照使用下标格式 goods_0, goods_1, ...
   for (const idx of excludedGoods.value) {
     excludeList.push('goods_' + idx)
+  }
+  // 证据链照片使用下标格式 evidences_0, evidences_1, ...
+  for (const idx of excludedEvidences.value) {
+    excludeList.push('evidences_' + idx)
   }
   return excludeList
 }
@@ -974,6 +1052,14 @@ const handleConfirm = async () => {
 
 .bottom-result-section .result-value.danger {
   color: #f56c6c;
+}
+
+/* 通行凭证照片样式 */
+.bottom-result-section .passcode-img {
+  width: 100px;
+  height: 60px;
+  border-radius: 4px;
+  border: 1px solid #ebeef5;
 }
 
 .result-actions {

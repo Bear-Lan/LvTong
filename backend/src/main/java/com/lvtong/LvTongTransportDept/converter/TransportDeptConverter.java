@@ -246,6 +246,20 @@ public class TransportDeptConverter {
                 }
             }
         }
+        //证据链照片（多张）
+        if (StringUtils.hasText(r.getEvidencesImagePath())) {
+            int eviIdx = 0;
+            for (String path : r.getEvidencesImagePath().split("[,，]")) {
+                if (StringUtils.hasText(path)) {
+                    // 检查该证据链照片是否被排除（下标格式：evidences_0, evidences_1, ...）
+                    String excludeKey = "evidences_" + eviIdx;
+                    if (!excludeSet.contains(excludeKey)) {
+                        addPhoto(photos, path.trim(), "24", errors);
+                    }
+                    eviIdx++;
+                }
+            }
+        }
 
         return photos;
     }
