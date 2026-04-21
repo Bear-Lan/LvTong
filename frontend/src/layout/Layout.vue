@@ -4,7 +4,9 @@
     <aside class="sidebar" :class="{ collapsed: isCollapsed }">
       <div class="sidebar-header">
         <img src="/favicon.png" alt="logo" class="logo" />
-        <span v-if="!isCollapsed" class="brand">绿通快检系统</span>
+        <div v-if="!isCollapsed" class="brand-wrapper">
+          <span class="brand">绿通快检系统</span>
+        </div>
       </div>
 
       <el-menu
@@ -35,22 +37,22 @@
 
       <div class="sidebar-waves">
         <svg class="wave wave1" viewBox="0 0 220 65" preserveAspectRatio="none">
-          <path d="M0,30 C35,4 75,56 110,30 C145,4 185,56 220,30 L220,65 L0,65 Z" />
+          <path d="M0,30 C35,4 75,56 110,60 C145,4 185,56 220,15 L220,65 L0,65 Z" />
         </svg>
         <svg class="wave wave2" viewBox="0 0 220 65" preserveAspectRatio="none">
-          <path d="M0,36 C45,10 85,62 110,36 C135,10 175,62 220,36 L220,65 L0,65 Z" />
+          <path d="M0,36 C45,10 85,62 110,66 C135,10 175,62 220,20 L220,65 L0,65 Z" />
         </svg>
         <svg class="wave wave3" viewBox="0 0 220 65" preserveAspectRatio="none">
-          <path d="M0,42 C40,16 80,64 110,42 C140,16 180,64 220,42 L220,65 L0,65 Z" />
+          <path d="M0,42 C40,16 80,64 110,55 C140,16 180,64 220,25 L220,65 L0,65 Z" />
         </svg>
         <svg class="wave wave4" viewBox="0 0 220 65" preserveAspectRatio="none">
-          <path d="M0,50 C35,24 75,66 110,50 C145,24 185,66 220,50 L220,65 L0,65 Z" />
+          <path d="M0,50 C35,24 75,66 110,57 C145,24 185,66 220,30 L220,65 L0,65 Z" />
         </svg>
       </div>
     </aside>
 
     <!-- 主体区域 -->
-    <div class="main-wrapper">
+    <div class="main-wrapper" :class="{ collapsed: isCollapsed }">
       <!-- 顶部栏 -->
       <header class="header">
         <div class="header-left">
@@ -118,7 +120,7 @@ const handleCommand = (command) => {
 
 // 新窗口打开3D大屏
 const openDatascreen = () => {
-  window.open('/greenchannel', '_blank')
+  window.open('/greenchannel/', '_blank')
 }
 </script>
 
@@ -136,34 +138,51 @@ const openDatascreen = () => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  position: relative;
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  z-index: 100;
 }
 
 .sidebar.collapsed {
   width: 64px;
 }
 
+.sidebar.collapsed + .main-wrapper,
+.main-wrapper.collapsed {
+  margin-left: 64px;
+}
+
 .sidebar-header {
-  height: 60px;
+  height: auto;
+  min-height: 90px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  padding: 0 16px;
-  gap: 12px;
+  justify-content: center;
+  padding: 12px 10px;
+  gap: 8px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .logo {
-  width: 32px;
-  height: 32px;
+  width: 50%;
+  height: auto;
   object-fit: contain;
   flex-shrink: 0;
 }
 
+.brand-wrapper {
+  text-align: center;
+}
+
 .brand {
   color: #fff;
-  font-size: 18px;
+  font-size: 24px;
   font-weight: 600;
   letter-spacing: 2px;
+  line-height: 1.3;
   white-space: nowrap;
 }
 
@@ -182,7 +201,7 @@ const openDatascreen = () => {
 }
 
 :deep(.el-menu-item.is-active) {
-  background-color: rgba(255, 255, 255, 0.25) !important;
+  background-color: #5BA6A2 !important;
 }
 
 .sidebar-waves {
@@ -266,7 +285,12 @@ const openDatascreen = () => {
   display: flex;
   flex-direction: column;
   background: #f5f7fa;
-  overflow: hidden;
+  margin-left: 220px;
+  min-height: 100vh;
+}
+
+.main-wrapper.collapsed {
+  margin-left: 64px;
 }
 
 /* 顶部栏 */
