@@ -120,7 +120,7 @@ const handleCommand = (command) => {
 
 // 新窗口打开3D大屏
 const openDatascreen = () => {
-  window.open('/greenchannel/', '_blank')
+  window.open('/#/greenchannel/', '_blank')
 }
 </script>
 
