@@ -36,19 +36,19 @@
       </el-menu>
 
       <div class="sidebar-waves">
-        <svg class="wave wave1" viewBox="0 0 220 65" preserveAspectRatio="none">
-          <path d="M0,30 C35,4 75,56 110,60 C145,4 185,56 220,15 L220,65 L0,65 Z" />
-        </svg>
-        <svg class="wave wave2" viewBox="0 0 220 65" preserveAspectRatio="none">
-          <path d="M0,36 C45,10 85,62 110,66 C135,10 175,62 220,20 L220,65 L0,65 Z" />
-        </svg>
-        <svg class="wave wave3" viewBox="0 0 220 65" preserveAspectRatio="none">
-          <path d="M0,42 C40,16 80,64 110,55 C140,16 180,64 220,25 L220,65 L0,65 Z" />
-        </svg>
-        <svg class="wave wave4" viewBox="0 0 220 65" preserveAspectRatio="none">
-          <path d="M0,50 C35,24 75,66 110,57 C145,24 185,66 220,30 L220,65 L0,65 Z" />
-        </svg>
-      </div>
+  <svg class="wave wave1" viewBox="0 0 1200 600" preserveAspectRatio="none">
+    <path d="M0,450 C200,420 400,550 600,350 C800,150 1000,250 1200,80 L1200,600 L0,600 Z" />
+  </svg>
+  <svg class="wave wave2" viewBox="0 0 1200 600" preserveAspectRatio="none">
+    <path d="M0,480 C250,440 450,580 650,380 C850,180 1050,280 1200,120 L1200,600 L0,600 Z" />
+  </svg>
+  <svg class="wave wave3" viewBox="0 0 1200 600" preserveAspectRatio="none">
+    <path d="M0,430 C150,400 350,520 550,320 C750,120 950,220 1200,50 L1200,600 L0,600 Z" />
+  </svg>
+  <svg class="wave wave4" viewBox="0 0 1200 600" preserveAspectRatio="none">
+    <path d="M0,500 C300,460 500,600 700,400 C900,200 1100,300 1200,150 L1200,600 L0,600 Z" />
+  </svg>
+</div>
     </aside>
 
     <!-- 主体区域 -->
@@ -209,74 +209,52 @@ const openDatascreen = () => {
   bottom: 0;
   left: 0;
   width: 100%;
-  height: 180px;
+  height: 360px; /* 容器调高，以展示巨大的坡度 */
   overflow: hidden;
   pointer-events: none;
+  /* 如果你的背景不是渐变的，建议加上这个背景色，会让波浪更亮 */
+
 }
 
 .wave {
   position: absolute;
   bottom: 0;
   left: 0;
-  width: 200%;
-  height: 65px;
-}
-
-.wave path {
-  width: 100%;
+  width: 250%; /* 宽度拉长，动画会更平滑，坡度更自然 */
   height: 100%;
 }
 
-.wave1 {
-  bottom: 50px;
-  animation: waveMove1 6s ease-in-out infinite;
+.wave path {
+  fill: rgba(144, 255, 252, 0.4); 
 }
-.wave1 path {
-  fill: rgba(30, 120, 220, 0.35);
+
+/* 调整各层的动画和明度，制造出图中的层叠感 */
+.wave1 {
+  animation: waveMove 15s linear infinite;
+  opacity: 0.3;
 }
 
 .wave2 {
-  bottom: 33px;
-  animation: waveMove2 5s ease-in-out infinite;
-}
-.wave2 path {
-  fill: rgba(40, 140, 240, 0.4);
+  animation: waveMove 12s linear infinite;
+  opacity: 0.5;
+  margin-left: -50px; /* 错开起始位置 */
 }
 
 .wave3 {
-  bottom: 16px;
-  animation: waveMove3 4.5s ease-in-out infinite;
-}
-.wave3 path {
-  fill: rgba(50, 160, 255, 0.45);
+  animation: waveMove 10s linear infinite;
+  opacity: 0.2; /* 淡淡的叠层 */
 }
 
 .wave4 {
-  bottom: 0;
-  animation: waveMove4 4s ease-in-out infinite;
-}
-.wave4 path {
-  fill: rgba(60, 180, 255, 0.5);
+  animation: waveMove 8s linear infinite;
+  opacity: 0.6; /* 这一层最亮，突出主要坡度 */
 }
 
-@keyframes waveMove1 {
-  0%, 100% { transform: translateX(0); }
-  50% { transform: translateX(-25%); }
-}
-
-@keyframes waveMove2 {
-  0%, 100% { transform: translateX(-10%); }
-  50% { transform: translateX(-35%); }
-}
-
-@keyframes waveMove3 {
-  0%, 100% { transform: translateX(-5%); }
-  50% { transform: translateX(-20%); }
-}
-
-@keyframes waveMove4 {
-  0%, 100% { transform: translateX(-15%); }
-  50% { transform: translateX(-30%); }
+/* 统一采用大范围平移，让波浪产生流动感 */
+@keyframes waveMove {
+  0% { transform: translateX(0); }
+  50% { transform: translateX(-15%); } /* 加上一点点回弹感 */
+  100% { transform: translateX(0); }
 }
 
 /* 主体区域 */
