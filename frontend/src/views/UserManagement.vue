@@ -163,6 +163,10 @@
                 </span>
               </span>
             </div>
+            <div class="info-item" v-if="selectedUser.userTypeText">
+              <span class="info-label">用户类型</span>
+              <span class="info-value">{{ selectedUser.userTypeText }}</span>
+            </div>
             <div class="info-item">
               <span class="info-label">账号状态</span>
               <span class="info-value">
@@ -251,6 +255,11 @@
             <el-option label="已禁用" :value="-1" />
           </el-select>
         </el-form-item>
+        <el-form-item label="用户类型">
+          <el-select v-model="editForm.userType" multiple collapse-tags collapse-tags-tooltip placeholder="请选择用户类型" style="width: 100%;">
+            <el-option v-for="t in userTypeOptions" :key="t.value" :label="t.label" :value="t.value" />
+          </el-select>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="editDialogVisible = false">取消</el-button>
@@ -310,6 +319,11 @@
             <el-option v-for="g in groups" :key="g.id" :label="g.name" :value="g.id" />
           </el-select>
         </el-form-item>
+        <el-form-item label="用户类型">
+          <el-select v-model="addForm.userType" multiple collapse-tags collapse-tags-tooltip placeholder="请选择用户类型" style="width: 100%;">
+            <el-option v-for="t in userTypeOptions" :key="t.value" :label="t.label" :value="t.value" />
+          </el-select>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="addDialogVisible = false">取消</el-button>
@@ -335,6 +349,14 @@ const searchKeyword = ref('')
 const sortBy = ref('default')
 const users = ref([])
 const groups = ref([])
+
+// 用户类型选项：1=站长，2=班长，3=查验人员，4=复核人员
+const userTypeOptions = [
+  { value: '1', label: '站长' },
+  { value: '2', label: '班长' },
+  { value: '3', label: '查验人员' },
+  { value: '4', label: '复核人员' }
+]
 const selectedUser = ref(null)
 
 // 弹窗状态
@@ -350,7 +372,7 @@ const addFormRef = ref()
 // 管理员编辑表单
 const editForm = ref({
   username: '', realName: '', email: '', phone: '',
-  groupId: null, role: 1, status: 0
+  groupId: null, role: 1, status: 0, userType: ''
 })
 
 // 普通用户个人信息表单
@@ -362,7 +384,7 @@ const profileForm = ref({
 // 新增用户表单
 const addForm = ref({
   username: '', password: '', realName: '', email: '', phone: '',
-  groupId: null
+  groupId: null, userType: ''
 })
 
 // 表单验证规则
@@ -483,7 +505,8 @@ const openEditDialog = () => {
     phone: selectedUser.value.phone || '',
     groupId: selectedUser.value.groupId ?? null,
     role: selectedUser.value.role ?? 1,
-    status: selectedUser.value.status ?? 0
+    status: selectedUser.value.status ?? 0,
+    userType: userTypeToArray(selectedUser.value.userType)
   }
   editDialogVisible.value = true
 }
@@ -501,7 +524,8 @@ const handleAdminSubmit = async () => {
           phone: editForm.value.phone,
           groupId: editForm.value.groupId,
           role: editForm.value.role,
-          status: editForm.value.status
+          status: editForm.value.status,
+          userType: userTypeToString(editForm.value.userType)
         })
         ElMessage.success('更新成功')
         editDialogVisible.value = false
@@ -576,7 +600,8 @@ const handleAddSubmit = async () => {
           realName: addForm.value.realName,
           email: addForm.value.email,
           phone: addForm.value.phone,
-          groupId: addForm.value.groupId
+          groupId: addForm.value.groupId,
+          userType: userTypeToString(addForm.value.userType)
         })
         ElMessage.success('新增成功')
         addDialogVisible.value = false
@@ -646,6 +671,18 @@ const formatRelativeTime = (date) => {
   if (diff < 7 * day) return Math.floor(diff / day) + '天前'
   if (diff < 30 * day) return Math.floor(diff / (7 * day)) + '周前'
   return formatDate(date)
+}
+
+// userType 字符串转数组（用于多选框）
+const userTypeToArray = (userType) => {
+  if (!userType) return []
+  return userType.split('|').filter(t => t)
+}
+
+// userType 数组转字符串（用于提交）
+const userTypeToString = (arr) => {
+  if (!arr || arr.length === 0) return ''
+  return arr.join('|')
 }
 
 onMounted(() => {

@@ -9,6 +9,7 @@ public class UpdateUserRequest {
     private Integer role;
     private Integer status;
     private Long groupId;
+    private String userType;
 
     // 普通用户可修改的字段（个人信息）
     private String username;
@@ -62,6 +63,14 @@ public class UpdateUserRequest {
 
     public void setGroupId(Long groupId) {
         this.groupId = groupId;
+    }
+
+    public String getUserType() {
+        return userType;
+    }
+
+    public void setUserType(String userType) {
+        this.userType = userType;
     }
 
     public String getUsername() {

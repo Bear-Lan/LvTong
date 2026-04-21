@@ -65,7 +65,8 @@ public class UserController {
                 user.getRealName(),
                 user.getEmail(),
                 user.getPhone(),
-                user.getGroupId()
+                user.getGroupId(),
+                user.getUserType()
         );
         return ApiResponse.success("新增成功");
     }
@@ -176,6 +177,8 @@ public class UserController {
         map.put("groupName", resolveGroupName(user.getGroupId()));
         map.put("role", user.getRole());
         map.put("roleText", UserConstants.getRoleText(user.getRole()));
+        map.put("userType", user.getUserType());
+        map.put("userTypeText", resolveUserTypeText(user.getUserType()));
         map.put("status", user.getStatus());
         map.put("statusText", UserConstants.getStatusText(user.getStatus()));
         map.put("createdTime", user.getCreatedTime());
@@ -190,5 +193,30 @@ public class UserController {
     private String resolveGroupName(Long groupId) {
         if (groupId == null) return "";
         return "班组" + groupId;
+    }
+
+    /**
+     * 解析用户类型文本
+     * userType 格式：多个角色用"|"分隔，如 "1|2" 表示"站长|班长"
+     * 1=站长，2=班长，3=查验人员，4=复核人员
+     */
+    private String resolveUserTypeText(String userType) {
+        if (userType == null || userType.isBlank()) return "";
+        Map<String, String> typeMap = Map.of(
+                "1", "站长",
+                "2", "班长",
+                "3", "查验人员",
+                "4", "复核人员"
+        );
+        String[] types = userType.split("\\|");
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < types.length; i++) {
+            String text = typeMap.get(types[i].trim());
+            if (text != null) {
+                if (i > 0) sb.append("|");
+                sb.append(text);
+            }
+        }
+        return sb.toString();
     }
 }

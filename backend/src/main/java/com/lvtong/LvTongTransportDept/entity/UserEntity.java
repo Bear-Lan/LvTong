@@ -44,6 +44,9 @@ public class UserEntity {
     /** 角色：0=管理员，1=普通用户 */
     private Integer role;
 
+    /** 用户类型：多个角色用"|"分隔。1=站长，2=班长，3=查验人员，4=复核人员 */
+    private String userType;
+
     /**
      * 账号状态：0=正常，-1=禁用
      */
@@ -86,6 +89,9 @@ public class UserEntity {
 
     public Integer getRole() { return role; }
     public void setRole(Integer role) { this.role = role; }
+
+    public String getUserType() { return userType; }
+    public void setUserType(String userType) { this.userType = userType; }
 
     public Integer getStatus() { return status; }
     public void setStatus(Integer status) { this.status = status; }

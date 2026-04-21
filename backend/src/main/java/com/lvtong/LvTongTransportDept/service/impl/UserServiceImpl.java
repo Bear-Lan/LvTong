@@ -61,7 +61,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserEntity register(String username, String password, String realName,
-                               String email, String phone, Long groupId) {
+                               String email, String phone, Long groupId, String userType) {
         if (getUserByUserName(username) != null) {
             throw new BusinessException("用户名已存在");
         }
@@ -74,6 +74,7 @@ public class UserServiceImpl implements UserService {
         user.setPhone(phone);
         user.setGroupId(groupId);
         user.setRole(UserConstants.ROLE_USER);
+        user.setUserType(userType);
         user.setStatus(UserConstants.STATUS_ACTIVE);
 
         userMapper.insert(user);
@@ -141,6 +142,9 @@ public class UserServiceImpl implements UserService {
         }
         if (request.getGroupId() != null) {
             wrapper.set(UserEntity::getGroupId, request.getGroupId());
+        }
+        if (request.getUserType() != null) {
+            wrapper.set(UserEntity::getUserType, request.getUserType());
         }
 
         wrapper.set(UserEntity::getUpdatedTime, LocalDateTime.now());

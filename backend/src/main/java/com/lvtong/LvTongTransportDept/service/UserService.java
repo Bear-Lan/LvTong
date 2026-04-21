@@ -46,7 +46,7 @@ public interface UserService {
      * @return 创建成功的用户实体
      */
     UserEntity register(String username, String password, String realName,
-                        String email, String phone, Long groupId);
+                        String email, String phone, Long groupId, String userType);
 
     /**
      * 用户登录
