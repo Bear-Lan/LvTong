@@ -1,7 +1,6 @@
 package com.lvtong.LvTongTransportDept.service.impl;
 
 import com.lvtong.LvTongTransportDept.config.ThreeLevelPlatformProperties;
-import com.lvtong.LvTongTransportDept.converter.TransportDeptConverter;
 import com.lvtong.LvTongTransportDept.dto.ThreeLevelCheckResultDto;
 import com.lvtong.LvTongTransportDept.dto.TransportDeptCheckResultDto;
 import com.lvtong.LvTongTransportDept.entity.VehicleInspection;
@@ -44,7 +43,7 @@ public class ThreeLevelPlatformServiceImpl implements ThreeLevelPlatformService 
     public Map<String, Object> receiveAndSave(ThreeLevelCheckResultDto dto) {
         try {
             // 1. 保存图片到本地
-            Map<String, String> imagePaths = saveImages(dto.getPhotos());
+            Map<String, List<String>> imagePaths = saveImages(dto.getPhotos());
 
             // 2. 转换并保存查验记录
             VehicleInspection record = convertToEntity(dto, imagePaths);
@@ -181,8 +180,6 @@ public class ThreeLevelPlatformServiceImpl implements ThreeLevelPlatformService 
 
         // 填充缺失字段为空（交通部上报不包含的字段）
         record.setPasscodeVehicleId(dto.getVehicleId());
-        record.setPasscodeVehicleColorName(dto.getPlateNumber() != null && dto.getPlateNumber().contains("_")
-                ? dto.getPlateNumber().split("_")[1] : null);
         record.setPasscodeEnStationId(dto.getEnStationId());
         record.setPasscodeExStationId(dto.getExStationId());
         record.setPasscodeEnWeight(dto.getEnWeight() != null ? dto.getEnWeight().toString() : null);

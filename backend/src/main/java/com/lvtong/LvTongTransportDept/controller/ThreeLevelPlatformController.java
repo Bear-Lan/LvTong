@@ -9,12 +9,10 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Base64;
@@ -27,11 +25,10 @@ import java.util.Map;
 @Tag(name = "三级平台接收", description = "接收二级平台上交的查验记录")
 @RestController
 @RequestMapping("/api/three-level")
-@RequiredArgsConstructor
 public class ThreeLevelPlatformController {
 
     @Autowired
-    private final ThreeLevelPlatformService threeLevelPlatformService;
+    private ThreeLevelPlatformService threeLevelPlatformService;
 
     @Operation(summary = "接收查验记录", description = "接收二级平台上交的查验记录（含图片），需要签名验证")
     @PostMapping("/upload")
@@ -47,7 +44,6 @@ public class ThreeLevelPlatformController {
             String jsonStr = com.alibaba.fastjson2.JSON.toJSONString(dto);
             String signContent = ModelSignTools.generateSignContent(jsonStr);
 
-            // 构建签名验证内容
             String verifyContent = signContent + "&auth=" + auth + "&nonce=" + nonce;
             MessageDigest md = MessageDigest.getInstance("MD5");
             byte[] digest = md.digest(verifyContent.getBytes(StandardCharsets.UTF_8));
@@ -67,10 +63,12 @@ public class ThreeLevelPlatformController {
         // 2. 保存数据
         try {
             Map<String, Object> result = threeLevelPlatformService.receiveAndSave(dto);
-            if (Boolean.TRUE.equals(result.get("success")) {
+            Boolean success = (Boolean) result.get("success");
+            if (Boolean.TRUE.equals(success)) {
                 return ApiResponse.success("接收成功", result);
             }
-            return ApiResponse.error((String) result.get("msg"));
+            String msg = (String) result.get("msg");
+            return ApiResponse.error(msg);
         } catch (BusinessException e) {
             log.error("接收业务异常: {}", e.getMessage());
             return ApiResponse.error(e.getMessage());
