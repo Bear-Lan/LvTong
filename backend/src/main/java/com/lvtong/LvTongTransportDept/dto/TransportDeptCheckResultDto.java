@@ -148,7 +148,5 @@ public class TransportDeptCheckResultDto {
 
         public String position;
 
-
-
     }
 }
