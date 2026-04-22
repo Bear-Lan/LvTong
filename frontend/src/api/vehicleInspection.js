@@ -53,7 +53,7 @@ import request from '@/utils/request'
  * @param {Object} params
  * @param {string}   [params.plateNumber]   车牌号（模糊查询，支持部分匹配）
  * @param {string}   [params.driverPhone]    司机电话（精确查询）
- * @param {string}   [params.operatorName]   操作员姓名（精确查询）
+ * @param {string}   [params.operatorName]   查验员姓名（精确查询）
  * @param {number}   [params.resultStatus]  查验结果（1=合格, 2=不合格）
  * @param {string[]} [params.dateRange]      时间范围 [开始时间, 结束时间]（格式: yyyy-MM-dd HH:mm:ss）
  * @param {number}   [params.page]          页码（从 1 开始）

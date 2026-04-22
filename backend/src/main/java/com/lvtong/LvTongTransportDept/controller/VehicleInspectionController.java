@@ -481,6 +481,7 @@ public class VehicleInspectionController {
 
         // 查验业务信息
         map.put("operatorName", v.getOperatorName());
+        map.put("acceptanceTime", v.getAcceptanceTime());
         map.put("inspectionTime", v.getInspectionTime());
         map.put("createdTime", v.getCreatedTime());
         map.put("updatedTime", v.getUpdatedTime());

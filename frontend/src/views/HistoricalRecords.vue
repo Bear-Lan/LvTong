@@ -265,10 +265,24 @@
           </template>
         </el-table-column>
 
-        <!-- 操作员 -->
-        <el-table-column label="操作员" width="90" align="center" show-overflow-tooltip>
+        <!-- 查验员 -->
+        <el-table-column label="查验员" width="90" align="center" show-overflow-tooltip>
           <template #default="{ row }">
             <span>{{ row.operatorName || '-' }}</span>
+          </template>
+        </el-table-column>
+
+        <!-- 受理时间 -->
+        <el-table-column label="受理时间" width="130" align="center">
+          <template #default="{ row }">
+            <span class="time-text">{{ row.acceptanceTime || '-' }}</span>
+          </template>
+        </el-table-column>
+
+        <!-- 放行时间 -->
+        <el-table-column label="放行时间" width="130" align="center">
+          <template #default="{ row }">
+            <span class="time-text">{{ row.inspectionTime || '-' }}</span>
           </template>
         </el-table-column>
 
@@ -311,12 +325,6 @@
         <el-table-column label="上传时间" width="130" align="center">
           <template #default="{ row }">
             <span class="time-text">{{ row.toTransportdeptTime || '-' }}</span>
-          </template>
-        </el-table-column>
-        <!-- 查验时间 -->
-        <el-table-column label="查验时间" width="130" align="center">
-          <template #default="{ row }">
-            <span class="time-text">{{ row.inspectionTime || '-' }}</span>
           </template>
         </el-table-column>
 

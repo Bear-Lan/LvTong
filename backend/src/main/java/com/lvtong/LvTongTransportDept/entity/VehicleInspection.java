@@ -167,11 +167,15 @@ public class VehicleInspection {
     // ================================================================
     // 查验业务信息
     // ================================================================
-    /** 查验操作员姓名 */
+    /** 查验员姓名 */
     @TableField("operator_name")
     private String operatorName;
 
-    /** 查验时间 */
+    /** 受理时间 */
+    @TableField("acceptance_time")
+    private LocalDateTime acceptanceTime;
+
+    /** 放行时间 */
     @TableField("inspection_time")
     private LocalDateTime inspectionTime;
 
@@ -352,6 +356,9 @@ public class VehicleInspection {
 
     public String getOperatorName() { return operatorName; }
     public void setOperatorName(String operatorName) { this.operatorName = operatorName; }
+
+    public LocalDateTime getAcceptanceTime() { return acceptanceTime; }
+    public void setAcceptanceTime(LocalDateTime acceptanceTime) { this.acceptanceTime = acceptanceTime; }
 
     public LocalDateTime getInspectionTime() { return inspectionTime; }
     public void setInspectionTime(LocalDateTime inspectionTime) { this.inspectionTime = inspectionTime; }
