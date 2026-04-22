@@ -181,7 +181,7 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
             wrapper.like(VehicleInspection::getPlateNumber, plateNumber);
         }
         if (StringUtils.hasText(driverPhone)) {
-            wrapper.eq(VehicleInspection::getDriverPhone, driverPhone);
+            wrapper.like(VehicleInspection::getDriverPhone, driverPhone);
         }
         if (StringUtils.hasText(operatorName)) {
             wrapper.eq(VehicleInspection::getOperatorName, operatorName);

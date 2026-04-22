@@ -55,7 +55,7 @@
             <el-form-item>
               <el-select
                 v-model="searchForm.reviewerPhone"
-                placeholder="请选择核验员"
+                placeholder="请选择复核员"
                 clearable
                 filterable
                 style="width: 100%;"

@@ -30,14 +30,15 @@ public class UserController {
     private UserService userService;
 
     /**
-     * 获取所有用户电话（用于核验员下拉选择）
+     * 获取复核员电话列表（用于复核员下拉选择）
      */
     @GetMapping("/phones")
-    @Operation(summary = "获取用户电话列表", description = "返回所有正常用户的电话列表，用于核验员下拉选择")
+    @Operation(summary = "获取复核员电话列表", description = "返回复核员（userType包含4）的电话列表，用于复核员下拉选择")
     public ApiResponse<List<Map<String, String>>> getUserPhones() {
         List<UserEntity> users = userService.getAllUsers();
         List<Map<String, String>> data = users.stream()
                 .filter(u -> u.getPhone() != null && !u.getPhone().isBlank())
+                .filter(u -> u.getUserType() != null && u.getUserType().contains("4"))
                 .map(u -> {
                     Map<String, String> item = new java.util.HashMap<>();
                     item.put("phone", u.getPhone());

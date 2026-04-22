@@ -16,7 +16,7 @@
       <!-- 标题：右上角 -->
       <div class="detail-title" v-if="editable">详细编辑页面</div>
         <!-- 第一区域：证据链照片
-             第一行：车头照、车尾照、行驶证、顶部照、通行凭证（5列）
+             第一行：车头照、车尾照、行驶证、顶部照、通行码（5列）
              第二行：透视影像+车身照（占50%）、货物照（占50%） -->
         <div class="detail-section evidence-section">
           <!-- 第一行：5列等宽网格 -->
@@ -456,15 +456,19 @@
             <span class="result-value">{{ row.manualReviewText || '未审核' }}</span>
           </div>
 
-          <!-- 通行凭证照片 -->
-          <div class="result-item passcode-img-item" v-if="row.passcodeImagePath">
-            <span class="result-label">通行凭证</span>
+          <!-- 通行码照片 -->
+          <div class="result-item passcode-img-item">
+            <span class="result-label">通行码</span>
             <el-image
+              v-if="row.passcodeImagePath"
               :src="formatImageUrl(row.passcodeImagePath)"
               fit="contain"
               :preview-src-list="[formatImageUrl(row.passcodeImagePath)]"
               class="passcode-img"
             />
+            <div v-else class="passcode-img passcode-placeholder">
+              <span>通行码</span>
+            </div>
           </div>
         </div>
 
@@ -1596,7 +1600,7 @@ onMounted(() => {
   margin-left: 20px;
 }
 
-/* 通行凭证照片样式 */
+/* 通行码照片样式 */
 .passcode-img-item {
   display: flex;
   flex-direction: column;
@@ -1609,6 +1613,15 @@ onMounted(() => {
   height: 60px;
   border-radius: 4px;
   border: 1px solid #ebeef5;
+}
+
+.passcode-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f5f7fa;
+  color: #909399;
+  font-size: 12px;
 }
 
 /* ========== 货车长宽高弹窗样式 ========== */
