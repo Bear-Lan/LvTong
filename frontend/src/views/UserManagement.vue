@@ -260,6 +260,16 @@
             <el-option v-for="t in userTypeOptions" :key="t.value" :label="t.label" :value="t.value" />
           </el-select>
         </el-form-item>
+        <!-- 管理员修改自己时显示密码修改字段 -->
+        <template v-if="isEditingSelf">
+          <el-divider>修改密码（选填）</el-divider>
+          <el-form-item label="原密码" prop="password">
+            <el-input v-model="editForm.password" type="password" placeholder="请输入原密码" show-password />
+          </el-form-item>
+          <el-form-item label="新密码" prop="newPassword">
+            <el-input v-model="editForm.newPassword" type="password" placeholder="请输入新密码" show-password />
+          </el-form-item>
+        </template>
       </el-form>
       <template #footer>
         <el-button @click="editDialogVisible = false">取消</el-button>
@@ -372,8 +382,12 @@ const addFormRef = ref()
 // 管理员编辑表单
 const editForm = ref({
   username: '', realName: '', email: '', phone: '',
-  groupId: null, role: 1, status: 0, userType: ''
+  groupId: null, role: 1, status: 0, userType: '',
+  password: '', newPassword: ''
 })
+
+// 是否正在编辑当前用户（管理员自己）
+const isEditingSelf = computed(() => selectedUser.value && userStore.userInfo.userId === selectedUser.value.id)
 
 // 普通用户个人信息表单
 const profileForm = ref({
@@ -506,7 +520,9 @@ const openEditDialog = () => {
     groupId: selectedUser.value.groupId ?? null,
     role: selectedUser.value.role ?? 1,
     status: selectedUser.value.status ?? 0,
-    userType: userTypeToArray(selectedUser.value.userType)
+    userType: userTypeToArray(selectedUser.value.userType),
+    password: '',
+    newPassword: ''
   }
   editDialogVisible.value = true
 }
@@ -518,7 +534,7 @@ const handleAdminSubmit = async () => {
     if (valid) {
       submitLoading.value = true
       try {
-        await updateUser(selectedUser.value.id, {
+        const updateData = {
           realName: editForm.value.realName,
           email: editForm.value.email,
           phone: editForm.value.phone,
@@ -526,12 +542,35 @@ const handleAdminSubmit = async () => {
           role: editForm.value.role,
           status: editForm.value.status,
           userType: userTypeToString(editForm.value.userType)
-        })
+        }
+        // 管理员修改自己时，传递密码字段
+        if (isEditingSelf.value) {
+          if (editForm.value.password) {
+            updateData.password = editForm.value.password
+          }
+          if (editForm.value.newPassword) {
+            updateData.newPassword = editForm.value.newPassword
+          }
+        }
+        await updateUser(selectedUser.value.id, updateData)
+        // 如果修改的是当前用户密码，需要重新登录
+        if (isEditingSelf.value && (updateData.password || updateData.newPassword)) {
+          ElMessage.success('密码已修改，请重新登录')
+          editDialogVisible.value = false
+          userStore.logout()
+          window.location.href = '/login'
+          return
+        }
         ElMessage.success('更新成功')
         editDialogVisible.value = false
         await fetchUsers()
         const updated = users.value.find(u => u.id === selectedUser.value.id)
         if (updated) selectedUser.value = updated
+        // 如果修改的是当前用户，清空密码字段
+        if (isEditingSelf.value) {
+          editForm.value.password = ''
+          editForm.value.newPassword = ''
+        }
       } catch (error) {
         ElMessage.error(error.message || '更新失败')
       } finally {

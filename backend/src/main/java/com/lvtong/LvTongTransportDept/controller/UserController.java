@@ -107,18 +107,27 @@ public class UserController {
     /**
      * 管理员更新指定用户信息
      * 可修改：realName, email, phone, role, status, groupId
+     * 注意：管理员修改自己的信息时，也可修改密码（需提供原密码）
      */
     @PutMapping("/{id}")
-    @Operation(summary = "更新指定用户信息", description = "仅管理员可用，可修改任意用户的 realName, email, phone, role, status, usergroup")
+    @Operation(summary = "更新指定用户信息", description = "管理员修改用户信息，可修改任意用户的 realName, email, phone, role, status, usergroup，修改自己时也可修改密码")
     public ApiResponse<String> updateUser(
             @Parameter(description = "用户ID") @PathVariable Long id,
             @RequestBody UpdateUserRequest updateRequest,
             HttpServletRequest request) {
         Integer role = (Integer) request.getAttribute("role");
+        Long currentUserId = (Long) request.getAttribute("userId");
+
         if (role == null || role != UserConstants.ROLE_ADMIN) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "无权限，仅管理员可操作");
         }
-        userService.updateUserByAdmin(id, updateRequest);
+
+        // 管理员修改自己的信息时，允许修改密码（调用 updateUserBySelf）
+        if (id.equals(currentUserId)) {
+            userService.updateUserBySelf(id, updateRequest, currentUserId);
+        } else {
+            userService.updateUserByAdmin(id, updateRequest);
+        }
         return ApiResponse.success("更新成功");
     }
 
