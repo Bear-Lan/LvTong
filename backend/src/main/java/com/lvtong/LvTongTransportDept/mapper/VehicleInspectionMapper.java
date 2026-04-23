@@ -191,4 +191,40 @@ public interface VehicleInspectionMapper extends BaseMapper<VehicleInspection> {
             "WHERE inspection_time >= #{startTime} AND inspection_time < #{endTime}")
     Map<String, Object> selectExemptRate(@Param("startTime") LocalDateTime startTime,
                                           @Param("endTime") LocalDateTime endTime);
+
+    /**
+     * 按小时统计平均处理时长（秒）
+     */
+    @Select("SELECT HOUR(inspection_time) AS hour, " +
+            "AVG(TIMESTAMPDIFF(SECOND, acceptance_time, inspection_time)) AS avgSeconds " +
+            "FROM vehicle_inspections " +
+            "WHERE acceptance_time IS NOT NULL AND inspection_time IS NOT NULL " +
+            "AND inspection_time >= #{startTime} AND inspection_time < #{endTime} " +
+            "GROUP BY HOUR(inspection_time) ORDER BY hour")
+    List<Map<String, Object>> selectHourlyProcessTime(@Param("startTime") LocalDateTime startTime,
+                                                       @Param("endTime") LocalDateTime endTime);
+
+    /**
+     * 按天统计平均处理时长（秒）
+     */
+    @Select("SELECT DATE(inspection_time) AS label, " +
+            "AVG(TIMESTAMPDIFF(SECOND, acceptance_time, inspection_time)) AS avgSeconds " +
+            "FROM vehicle_inspections " +
+            "WHERE acceptance_time IS NOT NULL AND inspection_time IS NOT NULL " +
+            "AND inspection_time >= #{startTime} AND inspection_time < #{endTime} " +
+            "GROUP BY DATE(inspection_time) ORDER BY label")
+    List<Map<String, Object>> selectDailyProcessTime(@Param("startTime") LocalDateTime startTime,
+                                                      @Param("endTime") LocalDateTime endTime);
+
+    /**
+     * 按月统计平均处理时长（秒）
+     */
+    @Select("SELECT DATE_FORMAT(inspection_time, '%Y-%m') AS label, " +
+            "AVG(TIMESTAMPDIFF(SECOND, acceptance_time, inspection_time)) AS avgSeconds " +
+            "FROM vehicle_inspections " +
+            "WHERE acceptance_time IS NOT NULL AND inspection_time IS NOT NULL " +
+            "AND inspection_time >= #{startTime} AND inspection_time < #{endTime} " +
+            "GROUP BY DATE_FORMAT(inspection_time, '%Y-%m') ORDER BY label")
+    List<Map<String, Object>> selectMonthlyProcessTime(@Param("startTime") LocalDateTime startTime,
+                                                        @Param("endTime") LocalDateTime endTime);
 }

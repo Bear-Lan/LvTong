@@ -568,8 +568,87 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
         Map<String, Object> data = new HashMap<>();
         data.put("total", total);
         data.put("exempt", exempt);
-        data.put("rate", Math.round(rate * 10) / 10.0); // 保留一位小数
+        data.put("rate", Math.round(rate * 10) / 10.0);
         return data;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getProcessTimeDistribution(LocalDateTime startTime, LocalDateTime endTime, String timeType) {
+        switch (timeType) {
+            case "day":
+                return fillHourlyProcessTime(mapper.selectHourlyProcessTime(startTime, endTime));
+            case "month":
+                return fillDailyProcessTime(mapper.selectDailyProcessTime(startTime, endTime), startTime.toLocalDate(), endTime.toLocalDate());
+            case "year":
+                return fillMonthlyProcessTime(mapper.selectMonthlyProcessTime(startTime, endTime));
+            default:
+                return fillHourlyProcessTime(mapper.selectHourlyProcessTime(startTime, endTime));
+        }
+    }
+
+    private List<Map<String, Object>> fillHourlyProcessTime(List<Map<String, Object>> dbRows) {
+        Map<Integer, Double> hourData = new HashMap<>();
+        for (int i = 0; i < 24; i++) hourData.put(i, 0.0);
+        for (Map<String, Object> row : dbRows) {
+            if (row.get("hour") != null && row.get("avgSeconds") != null) {
+                hourData.put(((Number) row.get("hour")).intValue(), ((Number) row.get("avgSeconds")).doubleValue());
+            }
+        }
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (int h = 0; h < 24; h++) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("hour", h);
+            item.put("avgSeconds", hourData.get(h));
+            item.put("label", String.format("%02d:00", h));
+            result.add(item);
+        }
+        return result;
+    }
+
+    private List<Map<String, Object>> fillDailyProcessTime(List<Map<String, Object>> dbRows, LocalDate startDate, LocalDate endDate) {
+        Map<LocalDate, Double> dayData = new LinkedHashMap<>();
+        LocalDate current = startDate;
+        while (!current.isAfter(endDate.minusDays(1))) {
+            dayData.put(current, 0.0);
+            current = current.plusDays(1);
+        }
+        for (Map<String, Object> row : dbRows) {
+            if (row.get("label") != null && row.get("avgSeconds") != null) {
+                LocalDate date = LocalDate.parse(row.get("label").toString());
+                dayData.put(date, ((Number) row.get("avgSeconds")).doubleValue());
+            }
+        }
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map.Entry<LocalDate, Double> entry : dayData.entrySet()) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("label", entry.getKey().toString());
+            item.put("avgSeconds", entry.getValue());
+            result.add(item);
+        }
+        return result;
+    }
+
+    private List<Map<String, Object>> fillMonthlyProcessTime(List<Map<String, Object>> dbRows) {
+        Map<String, Double> monthData = new LinkedHashMap<>();
+        LocalDate now = LocalDate.now();
+        for (int i = 11; i >= 0; i--) {
+            LocalDate month = now.minusMonths(i);
+            monthData.put(String.format("%d-%02d", month.getYear(), month.getMonthValue()), 0.0);
+        }
+        for (Map<String, Object> row : dbRows) {
+            if (row.get("label") != null && row.get("avgSeconds") != null) {
+                monthData.put(row.get("label").toString(), ((Number) row.get("avgSeconds")).doubleValue());
+            }
+        }
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map.Entry<String, Double> entry : monthData.entrySet()) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("label", entry.getKey());
+            item.put("avgSeconds", entry.getValue());
+            result.add(item);
+        }
+        return result;
     }
 
     @Override

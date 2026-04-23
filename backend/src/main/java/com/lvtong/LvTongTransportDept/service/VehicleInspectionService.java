@@ -86,6 +86,12 @@ public interface VehicleInspectionService {
     /** 获取免检比例 */
     Map<String, Object> getExemptRate(LocalDateTime startTime, LocalDateTime endTime);
 
+    /**
+     * 获取处理时长分布
+     * @param timeType day=按小时, month=按天, year=按月
+     */
+    List<Map<String, Object>> getProcessTimeDistribution(LocalDateTime startTime, LocalDateTime endTime, String timeType);
+
     /** 导出查询（全量数据，不分页） */
     List<VehicleInspection> searchForExport(
             String plateNumber,

@@ -125,20 +125,41 @@
             </el-row>
           </div>
 
-          <!-- 第二行：时段分析（24小时折线图） -->
+          <!-- 第二行：时段分析 + 受理时长 -->
           <div class="section-block">
-            <el-card class="chart-card" shadow="never">
-              <template #header>
-                <div class="panel-header">
-                  <span class="panel-title">
-                    <el-icon color="#409eff"><DataLine /></el-icon>
-                    时段分析
-                  </span>
-                  <span class="panel-sub">查验量趋势</span>
-                </div>
-              </template>
-              <div ref="lineChartRef" class="chart-container-line"></div>
-            </el-card>
+            <el-row :gutter="16">
+              <!-- 时段分析（24小时折线图） -->
+              <el-col :span="12">
+                <el-card class="chart-card" shadow="never">
+                  <template #header>
+                    <div class="panel-header">
+                      <span class="panel-title">
+                        <el-icon color="#409eff"><DataLine /></el-icon>
+                        时段分析
+                      </span>
+                      <span class="panel-sub">查验量趋势</span>
+                    </div>
+                  </template>
+                  <div ref="lineChartRef" class="chart-container-line"></div>
+                </el-card>
+              </el-col>
+
+              <!-- 受理时长曲线图 -->
+              <el-col :span="12">
+                <el-card class="chart-card" shadow="never">
+                  <template #header>
+                    <div class="panel-header">
+                      <span class="panel-title">
+                        <el-icon color="#9b59b6"><Timer /></el-icon>
+                        受理时长
+                      </span>
+                      <span class="panel-sub">平均处理时长</span>
+                    </div>
+                  </template>
+                  <div ref="processTimeChartRef" class="chart-container-line"></div>
+                </el-card>
+              </el-col>
+            </el-row>
           </div>
 
           <!-- 第三行：车型分布 + 货物类别 -->
@@ -210,7 +231,7 @@
 import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  Van, Money, CircleCheck, DataLine, Histogram, PieChart, Refresh
+  Van, Money, CircleCheck, DataLine, Histogram, PieChart, Refresh, Timer
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
@@ -252,6 +273,9 @@ const infoOverview = reactive({
 /** 时段分布数据 */
 const hourlyDistribution = ref([])
 
+/** 处理时长分布数据 */
+const processTimeDistribution = ref([])
+
 /** 车型分布数据 */
 const vehicleTypeStats = ref([])
 
@@ -287,11 +311,13 @@ const showDetail = (item) => {
 // ================================================================
 
 const lineChartRef = ref(null)
+const processTimeChartRef = ref(null)
 const barChartRef = ref(null)
 const pieChartRef = ref(null)
 
 // ECharts 实例
 let lineChart = null
+let processTimeChart = null
 let barChart = null
 let pieChart = null
 
@@ -318,6 +344,9 @@ const loadData = async () => {
       // 时段分布
       hourlyDistribution.value = d.hourlyDistribution || []
 
+      // 处理时长分布
+      processTimeDistribution.value = d.processTimeDistribution || []
+
       // 车型分布
       vehicleTypeStats.value = d.vehicleTypeStats || []
 
@@ -338,6 +367,7 @@ const loadData = async () => {
       renderLineChart()
       renderBarChart()
       renderPieChart()
+      renderProcessTimeChart()
     } else {
       ElMessage.error(res.message || '加载统计数据失败')
     }
@@ -461,6 +491,92 @@ const renderLineChart = () => {
         color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
           { offset: 0, color: 'rgba(64,158,255,0.3)' },
           { offset: 1, color: 'rgba(64,158,255,0.05)' }
+        ])
+      }
+    }]
+  })
+}
+
+/**
+ * 渲染受理时长曲线图
+ */
+const renderProcessTimeChart = () => {
+  if (!processTimeChartRef.value) return
+  if (!processTimeChart) processTimeChart = echarts.init(processTimeChartRef.value)
+
+  const data = processTimeDistribution.value
+  if (!data || data.length === 0) return
+
+  const firstItem = data[0]
+  const hasHour = firstItem.hour !== undefined
+  const hasLabel = firstItem.label !== undefined
+
+  let labels, values, isDaily = false, isMonthly = false
+
+  if (hasHour) {
+    const hourMap = {}
+    data.forEach(d => {
+      hourMap[d.hour] = d.avgSeconds || 0
+    })
+    labels = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`)
+    values = labels.map((_, i) => hourMap[i] || 0)
+  } else if (hasLabel) {
+    const firstLabel = firstItem.label || ''
+    isMonthly = firstLabel.length === 7
+    isDaily = !isMonthly
+
+    labels = data.map(d => d.label || d.date)
+    values = data.map(d => d.avgSeconds || 0)
+  }
+
+  // 格式化时长为分:秒
+  const formatDuration = (seconds) => {
+    if (!seconds || seconds === 0) return '0:00'
+    const mins = Math.floor(seconds / 60)
+    const secs = Math.floor(seconds % 60)
+    return `${mins}:${String(secs).padStart(2, '0')}`
+  }
+
+  processTimeChart.setOption({
+    tooltip: {
+      trigger: 'axis',
+      formatter: (params) => {
+        const val = params[0].data
+        return `${params[0].axisValue}<br/>平均时长：<b>${formatDuration(val)}</b>`
+      }
+    },
+    grid: { left: 50, right: 20, top: 20, bottom: 30 },
+    xAxis: {
+      type: 'category',
+      data: labels,
+      axisLabel: {
+        interval: hasHour ? 2 : 'auto',
+        fontSize: 10,
+        color: '#909399',
+        rotate: isDaily ? 30 : 0
+      },
+      axisLine: { lineStyle: { color: '#e4e7ed' } }
+    },
+    yAxis: {
+      type: 'value',
+      name: '时长',
+      nameTextStyle: { fontSize: 10, color: '#909399' },
+      axisLabel: { fontSize: 10, color: '#909399' },
+      splitLine: { lineStyle: { color: '#f0f0f0' } },
+      axisLine: { show: true, lineStyle: { color: '#e4e7ed' } }
+    },
+    series: [{
+      type: 'line',
+      data: values,
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 6,
+      lineStyle: { color: '#9b59b6', width: 2 },
+      itemStyle: { color: '#9b59b6' },
+      areaStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: 'rgba(155,89,182,0.3)' },
+          { offset: 1, color: 'rgba(155,89,182,0.05)' }
         ])
       }
     }]
@@ -608,12 +724,14 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
   lineChart?.dispose()
+  processTimeChart?.dispose()
   barChart?.dispose()
   pieChart?.dispose()
 })
 
 const handleResize = () => {
   lineChart?.resize()
+  processTimeChart?.resize()
   barChart?.resize()
   pieChart?.resize()
 }

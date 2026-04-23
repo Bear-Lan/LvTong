@@ -383,6 +383,9 @@ public class VehicleInspectionController {
         // 免检比例
         data.put("exemptRate", inspectionService.getExemptRate(startTime, endTime));
 
+        // 处理时长分布
+        data.put("processTimeDistribution", inspectionService.getProcessTimeDistribution(startTime, endTime, timeType));
+
         return ApiResponse.success(data);
     }
 
