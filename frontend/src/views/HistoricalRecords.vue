@@ -147,7 +147,7 @@
                 <el-button type="primary" @click="handleQuery" :loading="loading">查询</el-button>
                 <el-button @click="handleReset">重置</el-button>
                 <el-button type="success" :loading="uploadLoading" @click="handleUpload">上报</el-button>
-                <el-button type="success" :loading="exportLoading" @click="handleExport">导出</el-button>
+                <el-button type="warning" :loading="exportLoading" @click="handleExport">导出</el-button>
               </div>
             </el-form-item>
           </el-col>
