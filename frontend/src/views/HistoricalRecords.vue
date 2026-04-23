@@ -147,7 +147,7 @@
                 <el-button type="primary" @click="handleQuery" :loading="loading">查询</el-button>
                 <el-button @click="handleReset">重置</el-button>
                 <el-button type="success" :loading="uploadLoading" @click="handleUpload">上报</el-button>
-                <el-button type="" :loading="uploadLoading" @click="">导出</el-button>
+                <el-button type="success" :loading="exportLoading" @click="handleExport">导出</el-button>
               </div>
             </el-form-item>
           </el-col>
@@ -384,10 +384,11 @@
  */
 
 import { ref, reactive, computed, onMounted, watch } from 'vue'
+import * as XLSX from 'xlsx'
 import { useRoute } from 'vue-router'
 import {Search, RefreshLeft, Van, View, Edit, Upload} from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getInspectionList } from '@/api/vehicleInspection'
+import { getInspectionList, getInspectionExport } from '@/api/vehicleInspection'
 import { getUserPhoneList } from '@/api/user'
 import InspectionDetail from '@/components/InspectionDetail.vue'
 import ImageEditDialog from '@/components/ImageEditDialog.vue'
@@ -413,6 +414,9 @@ const selectedRadio = ref(null)
 
 /** 上报按钮 loading */
 const uploadLoading = ref(false)
+
+/** 导出按钮 loading */
+const exportLoading = ref(false)
 
 /** 详情弹窗显示状态 */
 const detailVisible = ref(false)
@@ -626,6 +630,130 @@ const handleUpload = async () => {
   // 设置当前行数据，打开图片编辑弹窗
   currentRow.value = { ...selectedRow }
   imageEditVisible.value = true
+}
+
+/**
+ * handleExport：导出Excel表格
+ * 调用全量导出API获取所有符合条件的数据
+ */
+const handleExport = async () => {
+  exportLoading.value = true
+  try {
+    // 构建请求参数（与loadData保持一致）
+    const params = {}
+    if (searchForm.plateNumber) params.plateNumber = searchForm.plateNumber
+    if (searchForm.driverPhone) params.driverPhone = searchForm.driverPhone
+    if (searchForm.reviewerPhone) params.reviewerPhone = searchForm.reviewerPhone
+    if (searchForm.resultStatus !== null) params.resultStatus = searchForm.resultStatus
+    if (dateRange.value && dateRange.value.length === 2) {
+      params.startTime = dateRange.value[0] + ' 00:00:00'
+      params.endTime = dateRange.value[1] + ' 23:59:59'
+    }
+    if (searchForm.manualReviewState !== null) params.manualReviewState = searchForm.manualReviewState
+    if (searchForm.toTransportdeptState !== null) params.toTransportdeptState = searchForm.toTransportdeptState
+
+    // 调用全量导出API
+    const res = await getInspectionExport(params)
+    if (res.code !== 200) {
+      ElMessage.error(res.message || '获取导出数据失败')
+      return
+    }
+    const exportDataList = res.data || []
+    if (!exportDataList.length) {
+      ElMessage.warning('没有可导出的数据')
+      return
+    }
+
+    // 准备表头
+    const headers = [
+      { key: 'plateNumber', title: '车牌号码' },
+      { key: 'driverPhone', title: '司机电话' },
+      { key: 'vehicleTypeText', title: '车辆类型' },
+      { key: 'goodsTypeName', title: '货物类型' },
+      { key: 'vehicleContainerTypeText', title: '货箱类型' },
+      { key: 'loadRate', title: '满载率' },
+      { key: 'operatorName', title: '查验员' },
+      { key: 'acceptanceTime', title: '受理时间' },
+      { key: 'inspectionTime', title: '放行时间' },
+      { key: 'duration', title: '受理时长' },
+      { key: 'resultStatusText', title: '查验结果' },
+      { key: 'manualReviewStateText', title: '复核结果' },
+      { key: 'toTransportdeptStateText', title: '上传状态' },
+      { key: 'toTransportdeptComment', title: '上传备注' },
+      { key: 'toTransportdeptTime', title: '上传时间' }
+    ]
+
+    // 计算受理时长（放行时间 - 受理时间）
+    const calcDuration = (row) => {
+      if (!row.acceptanceTime || !row.inspectionTime) return ''
+      const start = new Date(row.acceptanceTime)
+      const end = new Date(row.inspectionTime)
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) return ''
+      const diffMs = end.getTime() - start.getTime()
+      if (diffMs <= 0) return ''
+      const totalSeconds = Math.floor(diffMs / 1000)
+      const hours = Math.floor(totalSeconds / 3600)
+      const minutes = Math.floor((totalSeconds % 3600) / 60)
+      const seconds = totalSeconds % 60
+      if (hours > 0) {
+        return `${hours}小时${minutes}分${seconds}秒`
+      }
+      if (minutes > 0) {
+        return `${minutes}分${seconds}秒`
+      }
+      return `${seconds}秒`
+    }
+
+    // 转换数据格式
+    const exportData = exportDataList.map(row => {
+      const obj = {}
+      headers.forEach(h => {
+        let val = row[h.key]
+        // 特殊字段处理
+        if (h.key === 'loadRate') {
+          val = val != null ? val + '%' : ''
+        } else if (h.key === 'duration') {
+          val = calcDuration(row)
+        } else if (h.key === 'manualReviewStateText') {
+          if (row.manualReviewState === 1) val = '审核通过'
+          else if (row.manualReviewState === 2) val = '审核未通过'
+          else val = '待审核'
+        } else if (h.key === 'toTransportdeptStateText') {
+          if (row.toTransportdeptState === 1) val = '成功'
+          else if (row.toTransportdeptState === 2) val = '失败'
+          else if (row.toTransportdeptState === 0) val = '未上传'
+          else val = ''
+        }
+        obj[h.title] = val ?? ''
+      })
+      return obj
+    })
+
+    // 创建工作簿
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.json_to_sheet(exportData)
+
+    // 设置列宽
+    ws['!cols'] = [
+      { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 10 },
+      { wch: 8 }, { wch: 10 }, { wch: 18 }, { wch: 18 }, { wch: 12 },
+      { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 16 }, { wch: 18 }
+    ]
+
+    XLSX.utils.book_append_sheet(wb, ws, '查验记录')
+
+    // 生成文件名（当前日期）
+    const now = new Date()
+    const fileName = `查验记录_${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}.xlsx`
+
+    // 导出文件
+    XLSX.writeFile(wb, fileName)
+    ElMessage.success('导出成功')
+  } catch {
+    ElMessage.error('导出失败')
+  } finally {
+    exportLoading.value = false
+  }
 }
 
 // ================================================================

@@ -119,6 +119,52 @@ public class VehicleInspectionController {
     }
 
     /**
+     * 导出查询（全量数据，不分页）
+     * 返回符合筛选条件的全部数据，用于Excel导出
+     */
+    @GetMapping("/export")
+    @Operation(
+        summary = "导出查询",
+        description = "获取车辆查验记录（全量），支持多条件筛选，用于Excel导出"
+    )
+    public ApiResponse<List<Map<String, Object>>> getExportList(
+            @Parameter(description = "车牌号（模糊查询）")
+            @RequestParam(required = false) String plateNumber,
+
+            @Parameter(description = "司机电话（精确查询）")
+            @RequestParam(required = false) String driverPhone,
+
+            @Parameter(description = "核验员电话（精确查询）")
+            @RequestParam(required = false) String reviewerPhone,
+
+            @Parameter(description = "开始时间（格式：yyyy-MM-dd HH:mm:ss）")
+            @RequestParam(required = false)
+            @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime startTime,
+
+            @Parameter(description = "结束时间（格式：yyyy-MM-dd HH:mm:ss）")
+            @RequestParam(required = false)
+            @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime endTime,
+
+            @Parameter(description = "查验结果: 1=合格, 2=不合格")
+            @RequestParam(required = false) Integer resultStatus,
+
+            @Parameter(description = "复核结果: 0=待审核, 1=审核通过, 2=审核未通过")
+            @RequestParam(required = false) Integer manualReviewState,
+
+            @Parameter(description = "上传状态: 0=未上传, 1=成功, -1=失败")
+            @RequestParam(required = false) Integer toTransportdeptState) {
+
+        List<VehicleInspection> list = inspectionService.searchForExport(
+                plateNumber, driverPhone, reviewerPhone,
+                startTime, endTime, resultStatus, manualReviewState, toTransportdeptState);
+
+        // 转换为Map格式
+        List<Map<String, Object>> data = list.stream().map(this::convertToMap).toList();
+
+        return ApiResponse.success(data);
+    }
+
+    /**
      * 获取农产品品种列表（用于货物类型下拉选择）
      * 返回所有品种数据，前端自行构建筛选条件
      */

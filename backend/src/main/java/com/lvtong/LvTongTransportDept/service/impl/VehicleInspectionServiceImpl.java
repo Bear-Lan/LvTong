@@ -487,4 +487,48 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
         data.put("rate", Math.round(rate * 10) / 10.0); // 保留一位小数
         return data;
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<VehicleInspection> searchForExport(
+            String plateNumber,
+            String driverPhone,
+            String reviewerPhone,
+            LocalDateTime startTime,
+            LocalDateTime endTime,
+            Integer resultStatus,
+            Integer manualReviewState,
+            Integer toTransportdeptState) {
+
+        LambdaQueryWrapper<VehicleInspection> wrapper = new LambdaQueryWrapper<>();
+
+        if (StringUtils.hasText(plateNumber)) {
+            wrapper.like(VehicleInspection::getPlateNumber, plateNumber);
+        }
+        if (StringUtils.hasText(driverPhone)) {
+            wrapper.like(VehicleInspection::getDriverPhone, driverPhone);
+        }
+        if (StringUtils.hasText(reviewerPhone)) {
+            wrapper.eq(VehicleInspection::getReviewerPhone, reviewerPhone);
+        }
+        if (startTime != null && endTime != null) {
+            wrapper.between(VehicleInspection::getInspectionTime, startTime, endTime);
+        } else if (startTime != null) {
+            wrapper.ge(VehicleInspection::getInspectionTime, startTime);
+        } else if (endTime != null) {
+            wrapper.le(VehicleInspection::getInspectionTime, endTime);
+        }
+        if (resultStatus != null) {
+            wrapper.eq(VehicleInspection::getResultStatus, resultStatus);
+        }
+        if (manualReviewState != null) {
+            wrapper.eq(VehicleInspection::getManualReviewState, manualReviewState);
+        }
+        if (toTransportdeptState != null) {
+            wrapper.eq(VehicleInspection::getToTransportdeptState, toTransportdeptState);
+        }
+
+        wrapper.orderByDesc(VehicleInspection::getInspectionTime);
+        return mapper.selectList(wrapper);
+    }
 }

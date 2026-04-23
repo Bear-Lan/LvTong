@@ -85,4 +85,15 @@ public interface VehicleInspectionService {
 
     /** 获取免检比例 */
     Map<String, Object> getExemptRate(LocalDateTime startTime, LocalDateTime endTime);
+
+    /** 导出查询（全量数据，不分页） */
+    List<VehicleInspection> searchForExport(
+            String plateNumber,
+            String driverPhone,
+            String reviewerPhone,
+            LocalDateTime startTime,
+            LocalDateTime endTime,
+            Integer resultStatus,
+            Integer manualReviewState,
+            Integer toTransportdeptState);
 }

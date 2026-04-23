@@ -81,6 +81,23 @@ export function getInspectionList(params) {
 }
 
 /**
+ * 导出查询（全量数据）
+ *
+ * 【适用场景】
+ * HistoricalRecords.vue 导出Excel时调用。
+ *
+ * @param {Object} params 查询参数
+ * @returns {Promise} 全量数据列表
+ */
+export function getInspectionExport(params) {
+  return request({
+    url: '/inspection/export',
+    method: 'get',
+    params
+  })
+}
+
+/**
  * 根据 ID 获取单条查验记录详情
  *
  * 【适用场景】
