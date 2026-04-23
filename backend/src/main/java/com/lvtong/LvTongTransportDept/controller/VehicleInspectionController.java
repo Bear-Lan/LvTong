@@ -345,8 +345,9 @@ public class VehicleInspectionController {
 
         switch (timeType) {
             case "month":
-                startTime = now.toLocalDate().withDayOfMonth(1).atStartOfDay();
-                endTime = now.toLocalDate().plusMonths(1).withDayOfMonth(1).atStartOfDay();
+                // 最近30天
+                startTime = now.toLocalDate().minusDays(29).atStartOfDay();
+                endTime = now.toLocalDate().plusDays(1).atStartOfDay();
                 break;
             case "year":
                 startTime = now.toLocalDate().withDayOfYear(1).atStartOfDay();
@@ -364,8 +365,8 @@ public class VehicleInspectionController {
         // 信息总览（按时间范围统计）
         data.put("infoOverview", inspectionService.getInfoOverview(startTime, endTime));
 
-        // 查验时段分布（24小时，按指定时间范围）
-        data.put("hourlyDistribution", inspectionService.getHourlyDistributionByRange(startTime, endTime));
+        // 查验时段分布（按timeType返回不同粒度：day=24小时，month=31天，year=12月）
+        data.put("hourlyDistribution", inspectionService.getHourlyDistributionByRange(startTime, endTime, timeType));
 
         // 车型分布（横向条形图）
         data.put("vehicleTypeStats", inspectionService.getVehicleTypeStats(startTime, endTime));

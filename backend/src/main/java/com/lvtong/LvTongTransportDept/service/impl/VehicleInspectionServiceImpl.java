@@ -13,9 +13,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -373,16 +375,98 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> getHourlyDistributionByRange(LocalDateTime startTime, LocalDateTime endTime) {
-        // 判断时间范围是否超过24小时
-        long hours = java.time.Duration.between(startTime, endTime).toHours();
-        if (hours <= 24) {
-            // 按小时统计
-            return mapper.selectHourlyDistribution(startTime, endTime);
-        } else {
-            // 按天统计
-            return mapper.selectTimeDistribution(startTime, endTime);
+    public List<Map<String, Object>> getHourlyDistributionByRange(LocalDateTime startTime, LocalDateTime endTime, String timeType) {
+        switch (timeType) {
+            case "day":
+                // 按小时统计（24小时分布），补充完整24小时数据
+                return fillHourlyData(mapper.selectHourlyDistribution(startTime, endTime));
+            case "month":
+                // 按天统计（当月所有天数），补充完整日期数据
+                return fillDailyData(mapper.selectTimeDistribution(startTime, endTime), startTime.toLocalDate(), endTime.toLocalDate());
+            case "year":
+                // 按月统计（最近12月），补充完整12月数据
+                return fillMonthlyData(mapper.selectMonthlyDistribution(startTime, endTime));
+            default:
+                // 默认按小时统计
+                return fillHourlyData(mapper.selectHourlyDistribution(startTime, endTime));
         }
+    }
+
+    /** 补充完整的24小时数据 */
+    private List<Map<String, Object>> fillHourlyData(List<Map<String, Object>> dbRows) {
+        Map<Integer, Long> hourCounts = new HashMap<>();
+        for (int i = 0; i < 24; i++) hourCounts.put(i, 0L);
+        for (Map<String, Object> row : dbRows) {
+            hourCounts.put(((Number) row.get("hour")).intValue(),
+                      ((Number) row.get("count")).longValue());
+        }
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (int h = 0; h < 24; h++) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("hour", h);
+            item.put("count", hourCounts.get(h));
+            item.put("label", String.format("%02d:00", h));
+            result.add(item);
+        }
+        return result;
+    }
+
+    /** 补充完整的天数据 */
+    private List<Map<String, Object>> fillDailyData(List<Map<String, Object>> dbRows, LocalDate startDate, LocalDate endDate) {
+        Map<LocalDate, Long> dayCounts = new LinkedHashMap<>();
+        // 遍历日期范围
+        LocalDate current = startDate;
+        while (current.isBefore(endDate)) {
+            dayCounts.put(current, 0L);
+            current = current.plusDays(1);
+        }
+        // 填充数据库结果
+        for (Map<String, Object> row : dbRows) {
+            Object labelObj = row.get("label");
+            if (labelObj != null) {
+                LocalDate date = LocalDate.parse(labelObj.toString());
+                dayCounts.put(date, ((Number) row.get("count")).longValue());
+            }
+        }
+        // 按日期顺序返回
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map.Entry<LocalDate, Long> entry : dayCounts.entrySet()) {
+            Map<String, Object> item = new HashMap<>();
+            LocalDate date = entry.getKey();
+            item.put("label", String.format("%d月%d日", date.getMonthValue(), date.getDayOfMonth()));
+            item.put("count", entry.getValue());
+            result.add(item);
+        }
+        return result;
+    }
+
+    /** 补充完整的月数据 */
+    private List<Map<String, Object>> fillMonthlyData(List<Map<String, Object>> dbRows) {
+        // 使用LinkedHashMap保持插入顺序
+        Map<String, Long> monthCounts = new LinkedHashMap<>();
+        LocalDate now = LocalDate.now();
+        // 填充最近12月的空数据（从最早到最近）
+        for (int i = 11; i >= 0; i--) {
+            LocalDate monthDate = now.minusMonths(i);
+            String label = String.format("%s-%02d", monthDate.getYear(), monthDate.getMonthValue());
+            monthCounts.put(label, 0L);
+        }
+        // 填充数据库结果
+        for (Map<String, Object> row : dbRows) {
+            String label = row.get("label") != null ? row.get("label").toString() : null;
+            if (label != null) {
+                monthCounts.put(label, ((Number) row.get("count")).longValue());
+            }
+        }
+        // 按顺序返回
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map.Entry<String, Long> entry : monthCounts.entrySet()) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("label", entry.getKey());
+            item.put("count", entry.getValue());
+            result.add(item);
+        }
+        return result;
     }
 
     @Override

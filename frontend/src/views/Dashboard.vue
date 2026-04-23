@@ -13,9 +13,9 @@
         首页概览
       </h2>
       <el-radio-group v-model="timeType" size="default" @change="handleTimeTypeChange">
-        <el-radio-button value="day">日</el-radio-button>
-        <el-radio-button value="month">月</el-radio-button>
-        <el-radio-button value="year">年</el-radio-button>
+        <el-radio-button label="day">日</el-radio-button>
+        <el-radio-button label="month">月</el-radio-button>
+        <el-radio-button label="year">年</el-radio-button>
       </el-radio-group>
     </div>
     <el-row :gutter="20">
@@ -298,7 +298,7 @@ import InspectionDetail from '@/components/InspectionDetail.vue'
 // ================================================================
 
 /** 时间类型：day=日, month=月, year=年 */
-const timeType = ref('day')
+const timeType = ref('month')
 const router = useRouter()
 
 /** 跳转到车辆查验页面 */
@@ -426,7 +426,8 @@ const loadData = async () => {
 // 时间切换处理
 // ================================================================
 
-const handleTimeTypeChange = () => {
+const handleTimeTypeChange = (val) => {
+  timeType.value = val
   loadData()
 }
 
@@ -469,12 +470,16 @@ const renderLineChart = () => {
   if (!lineChart) lineChart = echarts.init(lineChartRef.value)
 
   const data = hourlyDistribution.value
+  if (!data || data.length === 0) return
 
-  // 判断是按小时还是按天显示
-  const isHourly = data.length > 0 && data[0].hour !== undefined
+  // 判断数据类型：hour=按小时(day模式)，label包含-表示按天或按月
+  const firstItem = data[0]
+  const hasHour = firstItem.hour !== undefined
+  const hasLabel = firstItem.label !== undefined
 
-  let labels, values
-  if (isHourly) {
+  let labels, values, isDaily = false, isMonthly = false
+
+  if (hasHour) {
     // 按小时：生成 0-23 小时标签
     const hourMap = {}
     data.forEach(d => {
@@ -482,32 +487,33 @@ const renderLineChart = () => {
     })
     labels = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`)
     values = labels.map((_, i) => hourMap[i] || 0)
-  } else {
-    // 按天
+  } else if (hasLabel) {
+    // 判断是按天(month模式)还是按月(year模式)
+    const firstLabel = firstItem.label || ''
+    isMonthly = firstLabel.length === 7 // 如 "2024-01"
+    isDaily = !isMonthly
+
     labels = data.map(d => d.label || d.date)
     values = data.map(d => d.count || 0)
   }
 
-  // 确保有数据
-  if (labels.length === 0) {
-    labels = isHourly ? Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`) : ['暂无数据']
-    values = isHourly ? Array(24).fill(0) : [0]
-  }
+  // 提示框文字
+  const tooltipUnit = timeType.value === 'day' ? '辆' : '次'
 
   lineChart.setOption({
     tooltip: {
       trigger: 'axis',
-      formatter: (params) => `${params[0].axisValue}<br/>查验量：<b>${params[0].data}</b> 辆`
+      formatter: (params) => `${params[0].axisValue}<br/>查验量：<b>${params[0].data}</b> ${tooltipUnit}`
     },
     grid: { left: 50, right: 20, top: 20, bottom: 30 },
     xAxis: {
       type: 'category',
       data: labels,
       axisLabel: {
-        interval: isHourly ? 2 : 'auto',
+        interval: hasHour ? 2 : 'auto',
         fontSize: 10,
         color: '#909399',
-        rotate: !isHourly ? 30 : 0
+        rotate: isDaily ? 30 : 0
       },
       axisLine: { lineStyle: { color: '#e4e7ed' } }
     },

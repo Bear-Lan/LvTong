@@ -159,6 +159,16 @@ public interface VehicleInspectionMapper extends BaseMapper<VehicleInspection> {
                                                       @Param("endTime") LocalDateTime endTime);
 
     /**
+     * 按月统计查验数量（用于 Dashboard 年视图时段分析）
+     */
+    @Select("SELECT DATE_FORMAT(inspection_time, '%Y-%m') AS label, COUNT(*) AS count " +
+            "FROM vehicle_inspections " +
+            "WHERE inspection_time >= #{startTime} AND inspection_time < #{endTime} " +
+            "GROUP BY DATE_FORMAT(inspection_time, '%Y-%m') ORDER BY label")
+    List<Map<String, Object>> selectMonthlyDistribution(@Param("startTime") LocalDateTime startTime,
+                                                      @Param("endTime") LocalDateTime endTime);
+
+    /**
      * 获取车型分布统计（横向条形图数据）
      */
     @Select("SELECT " +
