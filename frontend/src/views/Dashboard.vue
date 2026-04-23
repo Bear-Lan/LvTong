@@ -19,14 +19,14 @@
       </el-radio-group>
     </div>
     <el-row :gutter="20">
-      <!-- 左侧区域（16栏） -->
-      <el-col :span="16">
+      <!-- 左侧区域（24栏，全宽） -->
+      <el-col :span="24">
         <div class="left-section">
           <!-- 第一行：信息总览卡片 -->
           <div class="section-block">
             <el-row :gutter="16">
               <!-- 卡片1：绿通车/收割机数量 + 查验车次 -->
-              <el-col :span="8">
+              <el-col :span="6">
                 <el-card class="stat-card" shadow="hover">
                   <div class="stat-inner">
                     <div class="stat-icon-wrap blue">
@@ -53,7 +53,7 @@
               </el-col>
 
               <!-- 卡片2：通行费用 -->
-              <el-col :span="8">
+              <el-col :span="6">
                 <el-card class="stat-card" shadow="hover">
                   <div class="stat-inner">
                     <div class="stat-icon-wrap green">
@@ -70,7 +70,7 @@
               </el-col>
 
               <!-- 卡片3：合格/不合格数量 + 上传记录数 -->
-              <el-col :span="8">
+              <el-col :span="6">
                 <el-card class="stat-card" shadow="hover">
                   <div class="stat-inner">
                     <div class="stat-icon-wrap amber">
@@ -90,6 +90,33 @@
                       </div>
                       <div class="stat-sub">
                         上传记录：{{ infoOverview.uploadCount }}
+                      </div>
+                    </div>
+                  </div>
+                </el-card>
+              </el-col>
+
+              <!-- 卡片4：数据同步 -->
+              <el-col :span="6">
+                <el-card class="stat-card" shadow="hover">
+                  <div class="stat-inner">
+                    <div class="stat-icon-wrap purple">
+                      <el-icon size="28"><Refresh /></el-icon>
+                    </div>
+                    <div class="stat-body">
+                      <div class="stat-value-row">
+                        <span class="stat-value-item">
+                          <span class="value">{{ exemptRate.total }}</span>
+                          <span class="label">总查验数</span>
+                        </span>
+                        <span class="stat-divider">|</span>
+                        <span class="stat-value-item success">
+                          <span class="value">{{ exemptRate.exempt }}</span>
+                          <span class="label">已复核</span>
+                        </span>
+                      </div>
+                      <div class="stat-sub">
+                        复核率：{{ exemptRate.rate }}%
                       </div>
                     </div>
                   </div>
@@ -151,109 +178,7 @@
         </div>
       </el-col>
 
-      <!-- 右侧区域（8栏） -->
-      <el-col :span="8">
-        <div class="right-section">
-          <!-- 第一部分：待办事项 -->
-          <el-card class="panel-card" shadow="never">
-            <template #header>
-              <div class="panel-header">
-                <span class="panel-title">
-                  <el-icon color="#f56c6c"><List /></el-icon>
-                  待办事项
-                </span>
-              </div>
-            </template>
-            <div v-if="todoItems.length === 0" class="empty-state">
-              <el-icon size="32" color="#dcdfe6"><SuccessFilled /></el-icon>
-              <span>暂无待办事项</span>
-            </div>
-            <div v-else class="todo-list">
-              <div
-                v-for="item in todoItems"
-                :key="item.id"
-                class="todo-item"
-                :class="item.type"
-                @click="goToInspection(item)"
-              >
-                <div class="todo-left">
-                  <el-icon v-if="item.type === 'pending_review'" color="#faad14"><Clock /></el-icon>
-                  <el-icon v-else-if="item.type === 'fake_green'" color="#f56c6c"><Warning /></el-icon>
-                  <el-icon v-else color="#f56c6c"><WarningFilled /></el-icon>
-                  <span class="todo-title">{{ item.title }}</span>
-                </div>
-                <el-tag size="small" :type="getTagType(item.type)">
-                  {{ item.count }} 条
-                </el-tag>
-              </div>
-            </div>
-          </el-card>
-
-          <!-- 第二部分：货物排行 -->
-          <el-card class="panel-card" shadow="never">
-            <template #header>
-              <div class="panel-header">
-                <span class="panel-title">
-                  <el-icon color="#409eff"><Histogram /></el-icon>
-                  货物排行
-                </span>
-              </div>
-            </template>
-            <div v-if="goodsTypeStats.length === 0" class="empty-state">
-              <span>暂无数据</span>
-            </div>
-            <div v-else class="goods-rank-list">
-              <div
-                v-for="(item, index) in goodsTypeStats.slice(0, 3)"
-                :key="item.goodsTypeName || item.name"
-                class="goods-rank-item"
-              >
-                <span class="rank-num" :class="{ 'top-three': index < 3 }">{{ index + 1 }}</span>
-                <span class="goods-name">{{ item.goodsTypeName || item.name || '未知' }}</span>
-                <span class="goods-count">{{ item.count || item.value || 0 }}次</span>
-              </div>
-            </div>
-          </el-card>
-
-          <!-- 第三部分：数据同步 -->
-          <el-card class="panel-card" shadow="never">
-            <template #header>
-              <div class="panel-header">
-                <span class="panel-title">
-                  <el-icon color="#67c23a"><PieChart /></el-icon>
-                  数据同步
-                </span>
-              </div>
-            </template>
-            <div class="exempt-container">
-              <div class="exempt-circle">
-                <el-progress
-                  type="circle"
-                  :percentage="exemptRate.rate"
-                  :width="100"
-                  :stroke-width="8"
-                  :color="getExemptColor(exemptRate.rate)"
-                >
-                  <template #default>
-                    <span class="exempt-value">{{ exemptRate.rate }}%</span>
-                  </template>
-                </el-progress>
-              </div>
-              <div class="exempt-stats">
-                <div class="exempt-stat">
-                  <span class="stat-num">{{ exemptRate.total }}</span>
-                  <span class="stat-label">总查验数</span>
-                </div>
-                <div class="exempt-stat">
-                  <span class="stat-num success">{{ exemptRate.exempt }}</span>
-                  <span class="stat-label">已复核数</span>
-                </div>
-              </div>
-            </div>
-          </el-card>
-        </div>
-      </el-col>
-    </el-row>
+      </el-row>
 
     <!-- 详情弹窗 -->
     <InspectionDetail
@@ -285,8 +210,7 @@
 import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  Van, Money, CircleCheck, DataLine, Histogram, PieChart,
-  List, Clock, Warning, WarningFilled, SuccessFilled
+  Van, Money, CircleCheck, DataLine, Histogram, PieChart, Refresh
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
@@ -806,6 +730,7 @@ const handleResize = () => {
 .stat-icon-wrap.blue  { background: linear-gradient(135deg, #409eff, #66b1ff); }
 .stat-icon-wrap.green { background: linear-gradient(135deg, #67c23a, #85ce61); }
 .stat-icon-wrap.amber { background: linear-gradient(135deg, #e6a23c, #f0c78a); }
+.stat-icon-wrap.purple { background: linear-gradient(135deg, #9b59b6, #c39bd3); }
 
 .stat-body { flex: 1; min-width: 0; }
 
@@ -863,6 +788,65 @@ const handleResize = () => {
   font-size: 12px;
   color: #909399;
   margin-top: 4px;
+  text-align: center;
+}
+
+/* ========== 数据同步卡片样式 ========== */
+.stat-inner-sync {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  min-height: 88px;
+}
+
+.sync-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.sync-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sync-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #303133;
+}
+
+.sync-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sync-stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.sync-stat .stat-num {
+  font-size: 16px;
+  font-weight: 700;
+  color: #303133;
+}
+
+.sync-stat .stat-num.success {
+  color: #67c23a;
+}
+
+.sync-stat .stat-label {
+  font-size: 11px;
+  color: #909399;
+  margin-top: 0;
+}
+
+.stat-label.text-center {
   text-align: center;
 }
 
