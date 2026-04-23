@@ -16,46 +16,40 @@
           <el-icon class="title-icon"><Van /></el-icon>
           车辆查验记录
         </h2>
-<!--        暂时不需要新增功能-->
-<!--        <div class="header-actions">-->
-<!--          <el-button type="primary" @click="handleAdd">-->
-<!--            <el-icon><Plus /></el-icon> 新增查验-->
-<!--          </el-button>-->
-<!--        </div>-->
       </div>
-      <el-form :model="searchForm" label-position="top" class="search-form">
-        <el-row :gutter="24">
+      <el-form :model="searchForm" label-position="inline" class="search-form">
+        <el-row :gutter="20">
 
-          <!-- 车牌号 - 支持模糊搜索 -->
+          <!-- 车牌号 -->
           <el-col :span="6">
-            <el-form-item>
+            <el-form-item label="车牌">
               <el-input
                 v-model="searchForm.plateNumber"
-                placeholder="请输入车牌号码"
+                placeholder="车牌号"
                 clearable
-                prefix-icon="Search"
+                style="width: 100%;"
               />
             </el-form-item>
           </el-col>
 
-          <!-- 司机电话 - 精确查询 -->
+          <!-- 司机电话 -->
           <el-col :span="6">
-            <el-form-item>
+            <el-form-item label="电话">
               <el-input
                 v-model="searchForm.driverPhone"
-                placeholder="请输入司机电话"
+                placeholder="电话"
                 clearable
-                prefix-icon="Phone"
+                style="width: 100%;"
               />
             </el-form-item>
           </el-col>
 
-          <!-- 核验员 - 下拉选择 -->
+          <!-- 复核员 -->
           <el-col :span="6">
-            <el-form-item>
+            <el-form-item label="复核员">
               <el-select
                 v-model="searchForm.reviewerPhone"
-                placeholder="请选择复核员"
+                placeholder="请选择"
                 clearable
                 filterable
                 style="width: 100%;"
@@ -70,12 +64,12 @@
             </el-form-item>
           </el-col>
 
-          <!-- 查验结果 - 下拉筛选 -->
+          <!-- 查验结果 -->
           <el-col :span="6">
-            <el-form-item>
+            <el-form-item label="查验结果">
               <el-select
                 v-model="searchForm.resultStatus"
-                placeholder="请选择查验结果"
+                placeholder="请选择"
                 clearable
                 style="width: 100%;"
               >
@@ -87,16 +81,16 @@
 
         </el-row>
 
-        <el-row :gutter="24">
+        <el-row :gutter="8" style="margin-top: 12px;">
 
-          <!-- 时间范围 - 分开的日期选择 -->
-          <el-col :span="12">
-            <el-form-item>
+          <!-- 时间范围 -->
+          <el-col :span="10">
+            <el-form-item label="时间">
               <div class="date-range-split">
                 <el-date-picker
                   v-model="dateRangeStart"
                   type="date"
-                  placeholder="开始时间"
+                  placeholder="开始"
                   format="YYYY-MM-DD"
                   value-format="YYYY-MM-DD"
                   style="width: 48%;"
@@ -105,7 +99,7 @@
                 <el-date-picker
                   v-model="dateRangeEnd"
                   type="date"
-                  placeholder="结束时间"
+                  placeholder="结束"
                   format="YYYY-MM-DD"
                   value-format="YYYY-MM-DD"
                   style="width: 48%;"
@@ -114,28 +108,28 @@
             </el-form-item>
           </el-col>
 
-          <!-- 复核结果 - 下拉筛选 -->
-          <el-col :span="3">
-            <el-form-item>
+          <!-- 复核状态 -->
+          <el-col :span="4">
+            <el-form-item label="复核结果">
               <el-select
                 v-model="searchForm.manualReviewState"
-                placeholder="请选择复核结果"
+                placeholder="请选择"
                 clearable
                 style="width: 100%;"
               >
+                <el-option label="待审核" :value="0" />
                 <el-option label="审核通过" :value="1" />
-                <el-option label="未审核" :value="0" />
                 <el-option label="审核未通过" :value="2" />
               </el-select>
             </el-form-item>
           </el-col>
 
-          <!-- 上传状态 - 下拉筛选 -->
-          <el-col :span="3">
-            <el-form-item>
+          <!-- 上传状态 -->
+          <el-col :span="4">
+            <el-form-item label="上传状态">
               <el-select
                 v-model="searchForm.toTransportdeptState"
-                placeholder="请选择上传状态"
+                placeholder="请选择"
                 clearable
                 style="width: 100%;"
               >
@@ -146,19 +140,14 @@
             </el-form-item>
           </el-col>
 
-          <!-- 查询/重置按钮组 -->
-          <el-col :span="6" class="btn-group-col">
-            <el-form-item label=" " class="btn-group-item">
-              <div class="btn-group">
-                <el-button type="primary" @click="handleQuery" :loading="loading">
-                  <el-icon><Search /></el-icon> 查询
-                </el-button>
-                <el-button @click="handleReset">
-                  <el-icon><RefreshLeft /></el-icon> 重置
-                </el-button>
-                <el-button type="success" :loading="uploadLoading" @click="handleUpload">
-                  <el-icon><upload /></el-icon> {{ uploadLoading ? '上报中...' : '上报交通部' }}
-                </el-button>
+          <!-- 按钮组 -->
+          <el-col :span="6">
+            <el-form-item label=" ">
+              <div class="btn-group-right">
+                <el-button type="primary" @click="handleQuery" :loading="loading">查询</el-button>
+                <el-button @click="handleReset">重置</el-button>
+                <el-button type="success" :loading="uploadLoading" @click="handleUpload">上报</el-button>
+                <el-button type="" :loading="uploadLoading" @click="">导出</el-button>
               </div>
             </el-form-item>
           </el-col>
@@ -181,7 +170,6 @@
       <!--
         数据表格
         - border：显示竖线边框
-        - stripe：奇偶行交替背景色（斑马条纹）
         - v-loading：数据加载中时显示 loading 遮罩
         - @row-click：点击行时高亮选中行
         - highlight-current-row：选中行高亮背景
@@ -222,14 +210,14 @@
         </el-table-column>
 
         <!-- 司机电话 -->
-        <el-table-column label="司机电话" width="95" align="center">
+        <el-table-column label="电话" width="100" align="center">
           <template #default="{ row }">
             <span class="mono-text">{{ row.driverPhone || '-' }}</span>
           </template>
         </el-table-column>
 
         <!-- 车辆类型：显示车种标签 -->
-        <el-table-column label="车辆类型" width="85" align="center">
+        <el-table-column label="车型" width="70" align="center">
           <template #default="{ row }">
             <el-tag
               :type="getVehicleClassTagType(row.vehicleType)"
@@ -243,14 +231,14 @@
         </el-table-column>
 
         <!-- 货物类型（显示品种名称，而非产品编码） -->
-        <el-table-column label="货物类型" min-width="140" align="center" show-overflow-tooltip>
+        <el-table-column label="货物类型" min-width="120" align="center" show-overflow-tooltip>
           <template #default="{ row }">
             <span>{{ row.goodsTypeName || '-' }}</span>
           </template>
         </el-table-column>
 
         <!-- 货箱类型 -->
-        <el-table-column label="货箱类型" width="140" align="center">
+        <el-table-column label="货箱类型" width="100" align="center">
           <template #default="{ row }">
             <span class="container-type">{{ row.vehicleContainerTypeText || '-' }}</span>
           </template>
@@ -266,21 +254,21 @@
         </el-table-column>
 
         <!-- 查验员 -->
-        <el-table-column label="查验员" width="90" align="center" show-overflow-tooltip>
+        <el-table-column label="查验员" width="75" align="center" show-overflow-tooltip>
           <template #default="{ row }">
             <span>{{ row.operatorName || '-' }}</span>
           </template>
         </el-table-column>
 
         <!-- 受理时间 -->
-        <el-table-column label="受理时间" width="130" align="center">
+        <el-table-column label="受理时间" width="110" align="center">
           <template #default="{ row }">
             <span class="time-text">{{ row.acceptanceTime || '-' }}</span>
           </template>
         </el-table-column>
 
         <!-- 放行时间 -->
-        <el-table-column label="放行时间" width="130" align="center">
+        <el-table-column label="放行时间" width="110" align="center">
           <template #default="{ row }">
             <span class="time-text">{{ row.inspectionTime || '-' }}</span>
           </template>
@@ -392,7 +380,6 @@
  * 1. onMounted → loadData() → 请求列表 API → 更新 tableData
  * 2. handleQuery → 重置页码为1 → loadData() → 带搜索条件请求
  * 3. handleReset → 清空搜索表单 → loadData()
- * 4. handleAdd/Edit/View → 设置 currentRow 和弹窗状态 → 打开弹窗
  * 5. 弹窗提交成功 → emit('refresh') → loadData() 刷新列表
  */
 
@@ -760,18 +747,18 @@ const getResultTagType = (status) => {
  */
 const getPlateColor = (colorName) => {
   const colorMap = {
-    '0': { bg: '#1e56a8', text: '#ffffff' },   // 蓝色 → 白字
-    '1': { bg: '#f5b829', text: '#000000' },   // 黄色 → 黑字
-    '2': { bg: '#303133', text: '#ffffff' },   // 黑色 → 白字
-    '3': { bg: '#f3f3f3', text: '#000000' },  // 白色 → 黑字
-    '4': { bg: 'linear-gradient(135deg, #67c23a, #2d8a3e)', text: '#ffffff' },  // 渐绿 → 白字
-    '5': { bg: 'linear-gradient(135deg, #f5b829, #67c23a)', text: '#000000' },   // 黄绿 → 黑字
-    '6': { bg: 'linear-gradient(135deg, #1e56a8, #ffffff)', text: '#000000' },  // 蓝白 → 黑字
-    '7': { bg: '#909399', text: '#000000' },  // 灰色 → 黑字
-    '11': { bg: '#67c23a', text: '#ffffff' }, // 绿色 → 白字
-    '12': { bg: '#e6a23c', text: '#000000' }, // 橙色 → 黑字
+    '0': { bg: '#2980b9', text: '#ffffff' },   // 蓝色 → 白字
+    '1': { bg: '#f1c40f', text: '#2c3e50' },   // 黄色 → 黑字
+    '2': { bg: '#2c3e50', text: '#ecf0f1' },   // 黑色 → 白字
+    '3': { bg: '#ecf0f1', text: '#2c3e50' },  // 白色 → 黑字
+    '4': { bg: '#27ae60', text: '#ffffff' },  // 绿色 → 白字
+    '5': { bg: '#16a085', text: '#ffffff' },  // 蓝绿 → 白字
+    '6': { bg: '#16a085', text: '#ffffff' },  // 蓝绿渐变 → 白字
+    '7': { bg: '#8e44ad', text: '#ffffff' },  // 灰色 → 白字
+    '11': { bg: '#27ae60', text: '#ffffff' }, // 绿色 → 白字
+    '12': { bg: '#ff0000', text: '#ffffff' }, // 红色 → 白字
   }
-  return colorMap[colorName] || { bg: '#f5f7fa', text: '#000000' }
+  return colorMap[colorName] || { bg: '#7f8c8d', text: '#ffffff' }
 }
 
 /**
@@ -830,7 +817,8 @@ watch(() => route.query, () => {
 .history-page {
   padding: 20px 24px;
   background: #f0f2f5;
-  min-height: calc(100vh - 60px); /* 减去顶部导航高度 */
+  min-height: calc(100vh - 60px);
+  overflow-x: hidden;
 }
 
 /* ========== 页面标题 ========== */
@@ -860,14 +848,16 @@ watch(() => route.query, () => {
 .search-card {
   margin-bottom: 20px;
   border-radius: 8px;
+  width: 100%;
+}
+
+.search-form {
+  width: 100%;
 }
 
 .search-form :deep(.el-form-item) {
   margin-bottom: 0;
-}
-
-.search-form :deep(.el-row + .el-row) {
-  margin-top: 12px;
+  width: 100%;
 }
 
 .search-form :deep(.el-form-item__label) {
@@ -895,36 +885,35 @@ watch(() => route.query, () => {
 
 .btn-group {
   display: flex;
-  gap: 3px;
+  gap: 8px;
+}
+
+.btn-group-right {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 /* ========== 列表卡片 ========== */
 .table-card {
   border-radius: 8px;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
-/* 分页摘要 */
-.table-summary {
-  margin-bottom: 14px;
-  padding: 0 4px;
-}
-
-.summary-text {
-  font-size: 13px;
-  color: #909399;
-}
-
-.summary-text strong {
-  color: #409eff;
-  font-weight: 600;
+.table-card :deep(.el-card__body) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
 }
 
 /* ========== 表格样式 ========== */
 .data-table {
   border-radius: 6px;
-  overflow: hidden;
-  font-size: 12px;
+  width: 100%;
 }
 
 /* 行悬停效果 */
@@ -1083,32 +1072,5 @@ watch(() => route.query, () => {
 .pagination-wrapper :deep(.el-pagination__total) {
   font-size: 13px;
   color: #909399;
-}
-
-/* ========== 响应式布局（小屏适配） ========== */
-@media (max-width: 1400px) {
-  .history-page {
-    padding: 16px;
-  }
-
-  /* 4列变2列 */
-  .el-col-6 {
-    width: 50%;
-    max-width: 50%;
-    flex: 0 0 50%;
-  }
-
-  /* 时间范围占满整行 */
-  .el-col-12 {
-    width: 100%;
-    max-width: 100%;
-    flex: 0 0 100%;
-  }
-
-  /* 按钮组左对齐 */
-  .btn-group-col {
-    flex-direction: column;
-    align-items: flex-start;
-  }
 }
 </style>

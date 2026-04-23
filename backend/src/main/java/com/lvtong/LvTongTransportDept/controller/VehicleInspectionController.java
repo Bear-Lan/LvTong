@@ -243,7 +243,7 @@ public class VehicleInspectionController {
             String plateColor = VehicleConstants.getVehicleColorText(updated.getPasscodeVehicleColorName());
             String vehicleTypeText = VehicleConstants.getVehicleTypeText(updated.getVehicleType());
             String containerTypeText = VehicleConstants.getContainerTypeText(updated.getVehicleContainertype());
-            String goodsTypeText = getGoodsTypeText(updated.getGoodsType());
+            String goodsTypeText = resolveGoodsTypeName(updated.getGoodsType());
             String detectDate = updated.getPasscodeExTime();
 
             ImageWatermarkUtil.drawWatermarkAndOverwrite(
@@ -276,17 +276,6 @@ public class VehicleInspectionController {
         return a.equals(b);
     }
 
-    /**
-     * 获取货物类型文本
-     */
-    private String getGoodsTypeText(String goodsType) {
-        if (goodsType == null || goodsType.isBlank()) {
-            return null;
-        }
-        // goodsType 可能是 "01|02|03" 格式，这里简化处理：直接用原始值显示
-        // 如果需要转换为文本，需要从产品表查询
-        return goodsType.replace("|", "、");
-    }
 
     // ================================================================
     // 【Dashboard 统计接口】

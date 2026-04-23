@@ -277,10 +277,13 @@ const openDatascreen = () => {
   background: #f5f7fa;
   margin-left: 170px;
   min-height: 100vh;
+  width: calc(100% - 170px);
+  max-width: 100%;
 }
 
 .main-wrapper.collapsed {
   margin-left: 64px;
+  width: calc(100% - 64px);
 }
 
 /* 顶部栏 */
@@ -339,7 +342,6 @@ const openDatascreen = () => {
 /* 内容区 */
 .content {
   flex: 1;
-  overflow-y: auto;
   padding: 0;
 }
 </style>
