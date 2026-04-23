@@ -13,8 +13,8 @@
         首页概览
       </h2>
       <el-radio-group v-model="timeType" size="default" @change="handleTimeTypeChange">
-        <el-radio-button label="day">日</el-radio-button>
-        <el-radio-button label="month">月</el-radio-button>
+        <el-radio-button label="day">当日</el-radio-button>
+        <el-radio-button label="month">近30天</el-radio-button>
         <el-radio-button label="year">年</el-radio-button>
       </el-radio-group>
     </div>
