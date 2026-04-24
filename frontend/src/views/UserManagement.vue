@@ -256,7 +256,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="用户类型">
-          <el-select v-model="editForm.userType" multiple collapse-tags collapse-tags-tooltip placeholder="请选择用户类型" style="width: 100%;">
+          <el-select v-model="editForm.userType" multiple collapse-tags-tooltip placeholder="请选择用户类型" style="width: 100%;">
             <el-option v-for="t in userTypeOptions" :key="t.value" :label="t.label" :value="t.value" />
           </el-select>
         </el-form-item>
@@ -330,7 +330,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="用户类型">
-          <el-select v-model="addForm.userType" multiple collapse-tags collapse-tags-tooltip placeholder="请选择用户类型" style="width: 100%;">
+          <el-select v-model="addForm.userType" multiple collapse-tags-tooltip placeholder="请选择用户类型" style="width: 100%;">
             <el-option v-for="t in userTypeOptions" :key="t.value" :label="t.label" :value="t.value" />
           </el-select>
         </el-form-item>
@@ -398,7 +398,7 @@ const profileForm = ref({
 // 新增用户表单
 const addForm = ref({
   username: '', password: '', realName: '', email: '', phone: '',
-  groupId: null, userType: ''
+  groupId: 1, userType: ['4']
 })
 
 // 表单验证规则
@@ -622,7 +622,7 @@ const handleProfileSubmit = async () => {
 
 // 管理员：打开新增弹窗
 const openAddDialog = () => {
-  addForm.value = { username: '', password: '', realName: '', email: '', phone: '', groupId: null }
+  addForm.value = { username: '', password: '', realName: '', email: '', phone: '', groupId: 1, userType: ['4'] }
   addDialogVisible.value = true
 }
 

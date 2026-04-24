@@ -473,7 +473,7 @@ const renderLineChart = () => {
     },
     yAxis: {
       type: 'value',
-      name: '查验量',
+      name: '查验量(次)',
       nameTextStyle: { fontSize: 10, color: '#909399' },
       axisLabel: { fontSize: 10, color: '#909399' },
       splitLine: { lineStyle: { color: '#f0f0f0' } },
@@ -559,7 +559,7 @@ const renderProcessTimeChart = () => {
     },
     yAxis: {
       type: 'value',
-      name: '时长',
+      name: '受理时长(分钟)',
       nameTextStyle: { fontSize: 10, color: '#909399' },
       axisLabel: { fontSize: 10, color: '#909399' },
       splitLine: { lineStyle: { color: '#f0f0f0' } },
