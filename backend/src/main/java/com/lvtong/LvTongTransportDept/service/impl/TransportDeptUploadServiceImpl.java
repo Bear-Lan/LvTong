@@ -43,10 +43,6 @@ public class TransportDeptUploadServiceImpl implements TransportDeptUploadServic
     private final TransportDeptProperties props;
 
     private static final String UPLOAD_PATH = "/greenpass/signapi/channel/uploadCheckResult";
-    /** 图片最大宽度（像素），超过则等比缩放 */
-    private static final int MAX_IMAGE_WIDTH = 1280;
-    /** JPEG 压缩质量 0.6 */
-    private static final float COMPRESS_QUALITY = 0.6f;
 
     // ================================================================
     // 对外接口

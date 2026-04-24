@@ -136,8 +136,8 @@ public interface VehicleInspectionMapper extends BaseMapper<VehicleInspection> {
      * 获取信息总览（绿通车/收割机数量、查验车次、通行费用、合格/不合格数、上传记录数）
      */
     @Select("SELECT " +
-            "SUM(CASE WHEN passcode_vehicle_sign = 2 THEN 1 ELSE 0 END) AS greenVehicleCount, " +
-            "SUM(CASE WHEN passcode_vehicle_sign = 3 THEN 1 ELSE 0 END) AS harvesterCount, " +
+            "SUM(CASE WHEN passcode_vehicle_sign IN ('2', '0x02', '0X02') THEN 1 ELSE 0 END) AS greenVehicleCount, " +
+            "SUM(CASE WHEN passcode_vehicle_sign IN ('3', '0x03', '0X03') THEN 1 ELSE 0 END) AS harvesterCount, " +
             "COUNT(*) AS inspectionCount, " +
             "COALESCE(SUM(passcode_fee), 0) AS passFee, " +
             "SUM(CASE WHEN result_status = 1 THEN 1 ELSE 0 END) AS passCount, " +
