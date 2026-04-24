@@ -3,8 +3,16 @@ package com.lvtong.LvTongTransportDept.converter;
 import com.lvtong.LvTongTransportDept.dto.TransportDeptCheckResultDto;
 import com.lvtong.LvTongTransportDept.dto.TransportDeptCheckResultDto.PhotoItem;
 import com.lvtong.LvTongTransportDept.entity.VehicleInspection;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+
+import javax.imageio.ImageIO;
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -18,13 +26,19 @@ import java.util.Set;
  *
  * 【职责】
  * 仅负责将业务实体转换为交通局接口的 JSON 格式。
- * 不负责：HTTP 调用、文件读取、数据库操作。
+ * 图片处理：读取文件 → 缩放压缩 → Base64 编码
  */
+@Slf4j
 @Component
 public class TransportDeptConverter {
 
     private static final DateTimeFormatter INSPECT_TIME_FMT =
             DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+
+    /** 图片最大宽度（像素），超过则等比缩放 */
+    private static final int MAX_IMAGE_WIDTH = 1280;
+    /** JPEG 压缩质量 */
+    private static final float COMPRESS_QUALITY = 0.6f;
 
     // ================================================================
     // 主转换入口
@@ -51,10 +65,9 @@ public class TransportDeptConverter {
         String phone = StringUtils.hasText(r.getDriverPhone()) ? r.getDriverPhone() : "";
         dto.setCheckId(phone + formatInspectTime(r.getInspectionTime()) + "_" + phone);
 
-        // 根据车种设置 sign 和 class：绿通车=0x02/2，联合收割机=0x03/3
-        boolean isHarvester = isHarvesterVehicle(r.getVehicleType());
-        dto.setVehicleSign(isHarvester ? "0x03" : "0x02");
-        dto.setVehicleClass(isHarvester ? 3 : 2);
+        String sign = r.getPasscodeVehicleSign();
+        dto.setVehicleSign(sign != null ? sign : "0x02");
+        dto.setVehicleClass("0x03".equalsIgnoreCase(sign) || "3".equals(sign) ? 3 : 2);
         dto.setDriverTelephone(phone);
         dto.setVehicleId(buildVehicleId(r));
         dto.setFreightTypes(r.getGoodsType());
@@ -155,20 +168,6 @@ public class TransportDeptConverter {
         return StringUtils.hasText(val) ? val : def;
     }
 
-    /**
-     * 判断是否为联合收割机车辆
-     * 绿通车 vehicleType 为 "11"~"16"（一型~六型货车）
-     * 其余均视为联合收割机
-     */
-    private boolean isHarvesterVehicle(String vehicleType) {
-        if (!StringUtils.hasText(vehicleType)) return false;
-        try {
-            int type = Integer.parseInt(vehicleType.trim());
-            return type < 11 || type > 16;
-        } catch (NumberFormatException e) {
-            return true;
-        }
-    }
 
     // ================================================================
     // 照片列表构建
@@ -274,11 +273,73 @@ public class TransportDeptConverter {
             return;
         }
 
+        // 读取文件并压缩为 Base64
+        String base64Content = readImageAsBase64(imagePath, errors);
+        if (base64Content == null) {
+            errors.add("图片 [" + imagePath + "] 读取失败");
+            return;
+        }
+
         PhotoItem item = new PhotoItem();
         item.setTypeId(typeId);
-        item.setContent(normalizePath(imagePath));
+        item.setContent(base64Content);
         item.setTime(timeResult[0]);
         photos.add(item);
+    }
+
+    /**
+     * 读取图片文件，缩放压缩后转为 Base64
+     */
+    private String readImageAsBase64(String imagePath, List<String> errors) {
+        String normalizedPath = normalizePath(imagePath);
+        File file = new File(normalizedPath);
+        if (!file.exists()) {
+            errors.add("图片文件不存在: " + normalizedPath);
+            return null;
+        }
+
+        try {
+            // 读取图片
+            BufferedImage original = ImageIO.read(file);
+            if (original == null) {
+                errors.add("无法读取图片: " + normalizedPath);
+                return null;
+            }
+
+            // 缩放（如果超过最大宽度）
+            BufferedImage scaled = original;
+            if (original.getWidth() > MAX_IMAGE_WIDTH) {
+                double ratio = (double) MAX_IMAGE_WIDTH / original.getWidth();
+                int newHeight = (int) (original.getHeight() * ratio);
+                scaled = new BufferedImage(MAX_IMAGE_WIDTH, newHeight, BufferedImage.TYPE_INT_RGB);
+                Graphics2D g = scaled.createGraphics();
+                g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                g.drawImage(original, 0, 0, MAX_IMAGE_WIDTH, newHeight, null);
+                g.dispose();
+            }
+
+            // JPEG 压缩编码
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ImageIO.write(scaled, "jpg", baos);
+            byte[] imageBytes = baos.toByteArray();
+
+            // Base64 编码
+            String base64 = java.util.Base64.getEncoder().encodeToString(imageBytes);
+
+            // 如果原图比缩放后的大，记录一下
+            if (scaled != original) {
+                log.debug("图片压缩: {} {}x{} → {} {}x{}, {}KB → {}KB",
+                        imagePath, original.getWidth(), original.getHeight(),
+                        MAX_IMAGE_WIDTH, scaled.getHeight(),
+                        original.getWidth() * original.getHeight() * 3 / 1024,
+                        imageBytes.length / 1024);
+            }
+
+            return base64;
+        } catch (IOException e) {
+            errors.add("图片处理失败: " + e.getMessage());
+            return null;
+        }
     }
 
     /** 统一路径分隔符 */
