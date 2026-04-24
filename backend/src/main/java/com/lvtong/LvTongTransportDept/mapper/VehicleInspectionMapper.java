@@ -133,16 +133,13 @@ public interface VehicleInspectionMapper extends BaseMapper<VehicleInspection> {
     List<Map<String, Object>> selectCreditRanking();
 
     /**
-     * 获取信息总览（绿通车/收割机数量、查验车次、通行费用、合格/不合格数、上传记录数）
+     * 获取信息总览
+     * 绿通车/收割机数量、查验车次、绿通减免（合格）、追逃费用（不合格）、
+     * 绿通减免、追逃费用
      */
     @Select("SELECT " +
-            "SUM(CASE WHEN passcode_vehicle_sign IN ('2', '0x02', '0X02') THEN 1 ELSE 0 END) AS greenVehicleCount, " +
-            "SUM(CASE WHEN passcode_vehicle_sign IN ('3', '0x03', '0X03') THEN 1 ELSE 0 END) AS harvesterCount, " +
-            "COUNT(*) AS inspectionCount, " +
-            "COALESCE(SUM(passcode_fee), 0) AS passFee, " +
-            "SUM(CASE WHEN result_status = 1 THEN 1 ELSE 0 END) AS passCount, " +
-            "SUM(CASE WHEN result_status = 2 THEN 1 ELSE 0 END) AS failCount, " +
-            "SUM(CASE WHEN to_transportdept_state = 1 THEN 1 ELSE 0 END) AS uploadCount " +
+            "COALESCE(SUM(CASE WHEN result_status = 1 THEN passcode_fee ELSE 0 END), 0) AS exemptFee, " +
+            "COALESCE(SUM(CASE WHEN result_status = 2 THEN passcode_fee ELSE 0 END), 0) AS chaseFee " +
             "FROM vehicle_inspections " +
             "WHERE inspection_time >= #{startTime} AND inspection_time < #{endTime}")
     Map<String, Object> selectInfoOverview(@Param("startTime") LocalDateTime startTime,
@@ -227,4 +224,16 @@ public interface VehicleInspectionMapper extends BaseMapper<VehicleInspection> {
             "GROUP BY DATE_FORMAT(inspection_time, '%Y-%m') ORDER BY label")
     List<Map<String, Object>> selectMonthlyProcessTime(@Param("startTime") LocalDateTime startTime,
                                                         @Param("endTime") LocalDateTime endTime);
+
+    /**
+     * 聚合统计平均处理时长（总时长 / 总次数）
+     */
+    @Select("SELECT " +
+            "COUNT(*) AS totalCount, " +
+            "AVG(TIMESTAMPDIFF(SECOND, acceptance_time, inspection_time)) AS avgSeconds " +
+            "FROM vehicle_inspections " +
+            "WHERE acceptance_time IS NOT NULL AND inspection_time IS NOT NULL " +
+            "AND inspection_time >= #{startTime} AND inspection_time < #{endTime}")
+    Map<String, Object> selectAvgProcessTime(@Param("startTime") LocalDateTime startTime,
+                                             @Param("endTime") LocalDateTime endTime);
 }

@@ -13,9 +13,9 @@
         首页概览
       </h2>
       <el-radio-group v-model="timeType" size="default" @change="handleTimeTypeChange">
-        <el-radio-button label="day">当日</el-radio-button>
-        <el-radio-button label="month">近30天</el-radio-button>
-        <el-radio-button label="year">年</el-radio-button>
+        <el-radio-button value="day">当日</el-radio-button>
+        <el-radio-button value="month">近30天</el-radio-button>
+        <el-radio-button value="year">年</el-radio-button>
       </el-radio-group>
     </div>
     <el-row :gutter="20">
@@ -25,34 +25,24 @@
           <!-- 第一行：信息总览卡片 -->
           <div class="section-block">
             <el-row :gutter="16">
-              <!-- 卡片1：绿通车/收割机数量 + 查验车次 -->
+              <!-- 卡片1：平均受理时间 -->
               <el-col :span="6">
                 <el-card class="stat-card" shadow="hover">
                   <div class="stat-inner">
                     <div class="stat-icon-wrap blue">
-                      <el-icon size="28"><Van /></el-icon>
+                      <el-icon size="28"><Timer /></el-icon>
                     </div>
                     <div class="stat-body">
-                      <div class="stat-value-row">
-                        <span class="stat-value-item">
-                          <span class="value">{{ infoOverview.greenVehicleCount }}</span>
-                          <span class="label">绿通车</span>
-                        </span>
-                        <span class="stat-divider">|</span>
-                        <span class="stat-value-item">
-                          <span class="value">{{ infoOverview.harvesterCount }}</span>
-                          <span class="label">收割机</span>
-                        </span>
+                      <div class="stat-value large">
+                        {{ formatAcceptanceDuration(infoOverview.avgAcceptanceDuration) }}
                       </div>
-                      <div class="stat-sub">
-                        查验车次：{{ infoOverview.inspectionCount }}
-                      </div>
+                      <div class="stat-label">平均受理时间</div>
                     </div>
                   </div>
                 </el-card>
               </el-col>
 
-              <!-- 卡片2：通行费用 -->
+              <!-- 卡片2：绿通减免|追逃费用 -->
               <el-col :span="6">
                 <el-card class="stat-card" shadow="hover">
                   <div class="stat-inner">
@@ -60,64 +50,60 @@
                       <el-icon size="28"><Money /></el-icon>
                     </div>
                     <div class="stat-body">
-                      <div class="stat-value large">
-                        {{ formatMoney(infoOverview.passFee) }}
+                      <div class="stat-value-row">
+                        <span class="stat-value-item success">
+                          <span class="value">{{ formatMoney(infoOverview.exemptFee) }}</span>
+                          <span class="label">绿通减免</span>
+                        </span>
+                        <span class="stat-divider">|</span>
+                        <span class="stat-value-item danger">
+                          <span class="value">{{ formatMoney(infoOverview.chaseFee) }}</span>
+                          <span class="label">追逃费用</span>
+                        </span>
                       </div>
-                      <div class="stat-label">通行费用（元）</div>
                     </div>
                   </div>
                 </el-card>
               </el-col>
 
-              <!-- 卡片3：合格/不合格数量 + 上传记录数 -->
+              <!-- 卡片3：最大省，省内最大市（暂为空） -->
               <el-col :span="6">
                 <el-card class="stat-card" shadow="hover">
                   <div class="stat-inner">
                     <div class="stat-icon-wrap amber">
-                      <el-icon size="28"><CircleCheck /></el-icon>
+                      <el-icon size="28"><Location /></el-icon>
                     </div>
                     <div class="stat-body">
-                      <div class="stat-value-row">
-                        <span class="stat-value-item success">
-                          <span class="value">{{ infoOverview.passCount }}</span>
-                          <span class="label">合格</span>
-                        </span>
-                        <span class="stat-divider">|</span>
-                        <span class="stat-value-item danger">
-                          <span class="value">{{ infoOverview.failCount }}</span>
-                          <span class="label">不合格</span>
-                        </span>
-                      </div>
-                      <div class="stat-sub">
-                        上传记录：{{ infoOverview.uploadCount }}
-                      </div>
+                      <div class="stat-value large">暂无数据</div>
+                      <div class="stat-label">最大省|省内最大市</div>
                     </div>
                   </div>
                 </el-card>
               </el-col>
 
-              <!-- 卡片4：数据同步 -->
+              <!-- 卡片4：最多的货物种类 -->
               <el-col :span="6">
                 <el-card class="stat-card" shadow="hover">
                   <div class="stat-inner">
                     <div class="stat-icon-wrap purple">
-                      <el-icon size="28"><Refresh /></el-icon>
+                      <el-icon size="28"><Box /></el-icon>
                     </div>
                     <div class="stat-body">
                       <div class="stat-value-row">
-                        <span class="stat-value-item">
-                          <span class="value">{{ exemptRate.total }}</span>
-                          <span class="label">总查验数</span>
-                        </span>
-                        <span class="stat-divider">|</span>
-                        <span class="stat-value-item success">
-                          <span class="value">{{ exemptRate.exempt }}</span>
-                          <span class="label">已复核</span>
-                        </span>
+                        <template v-if="infoOverview.goodsTypeTop && infoOverview.goodsTypeTop.length > 0">
+                          <span class="stat-value-item">
+                            <span class="value">{{ formatGoodsType(infoOverview.goodsTypeTop[0]) }}</span>
+                          </span>
+                          <template v-if="infoOverview.goodsTypeTop.length > 1">
+                            <span class="stat-divider">|</span>
+                            <span class="stat-value-item">
+                              <span class="value">{{ formatGoodsType(infoOverview.goodsTypeTop[1]) }}</span>
+                            </span>
+                          </template>
+                        </template>
+                        <span v-else class="stat-value-item">暂无数据</span>
                       </div>
-                      <div class="stat-sub">
-                        复核率：{{ exemptRate.rate }}%
-                      </div>
+                      <div class="stat-sub">货物种类TOP2</div>
                     </div>
                   </div>
                 </el-card>
@@ -231,7 +217,7 @@
 import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  Van, Money, CircleCheck, DataLine, Histogram, PieChart, Refresh, Timer
+  Money, DataLine, Histogram, PieChart, Timer, Box, Location
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
@@ -261,9 +247,6 @@ const goToInspection = (item) => {
 
 /** 信息总览数据 */
 const infoOverview = reactive({
-  greenVehicleCount: 0,
-  harvesterCount: 0,
-  inspectionCount: 0,
   passFee: 0,
   passCount: 0,
   failCount: 0,
@@ -333,13 +316,10 @@ const loadData = async () => {
 
       // 信息总览
       const overview = d.infoOverview || {}
-      infoOverview.greenVehicleCount = overview.greenVehicleCount || 0
-      infoOverview.harvesterCount = overview.harvesterCount || 0
-      infoOverview.inspectionCount = overview.inspectionCount || 0
-      infoOverview.passFee = overview.passFee || 0
-      infoOverview.passCount = overview.passCount || 0
-      infoOverview.failCount = overview.failCount || 0
-      infoOverview.uploadCount = overview.uploadCount || 0
+      infoOverview.exemptFee = overview.exemptFee || 0
+      infoOverview.chaseFee = overview.chaseFee || 0
+      infoOverview.avgAcceptanceDuration = overview.avgAcceptanceDuration || 0
+      infoOverview.goodsTypeTop = overview.goodsTypeTop || []
 
       // 时段分布
       hourlyDistribution.value = d.hourlyDistribution || []
@@ -352,9 +332,6 @@ const loadData = async () => {
 
       // 货物类别
       goodsTypeStats.value = d.goodsTypeStats || []
-
-      // 待办事项
-      todoItems.value = d.todoItems || []
 
       // 数据同步
       const exempt = d.exemptRate || {}
@@ -391,8 +368,23 @@ const handleTimeTypeChange = (val) => {
 
 /** 格式化金额 */
 const formatMoney = (value) => {
-  if (!value) return '0.00'
-  return value.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  if (!value) return '0.00元'
+  return value.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '元'
+}
+
+/** 格式化平均受理时间（秒转 X分Y秒）*/
+const formatAcceptanceDuration = (seconds) => {
+  if (!seconds || seconds === 0) return '0秒'
+  const mins = Math.floor(seconds / 60)
+  const secs = Math.round(seconds % 60)
+  if (mins === 0) return `${secs}秒`
+  return `${mins}分${secs}秒`
+}
+
+/** 格式化货物种类（名称:数量）*/
+const formatGoodsType = (item) => {
+  if (!item) return '-'
+  return `${item.goodsTypeName || '-' }:${item.count}次`
 }
 
 /** 获取待办事项标签类型 */
@@ -857,7 +849,7 @@ const handleResize = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 6px;
 }
 
 .stat-value-item {
@@ -866,8 +858,8 @@ const handleResize = () => {
   align-items: center;
 }
 .stat-value-item .value {
-  font-size: 26px;
-  font-weight: 800;
+  font-size: 14px;
+  font-weight: 600;
   color: #303133;
   line-height: 1.2;
 }
@@ -881,7 +873,7 @@ const handleResize = () => {
 
 .stat-divider {
   color: #dcdfe6;
-  font-size: 20px;
+  font-size: 14px;
 }
 
 /* 单值展示 */

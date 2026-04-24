@@ -341,7 +341,7 @@ public class VehicleInspectionController {
 
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime startTime;
-        LocalDateTime endTime = now.plusDays(1); // 默认查询到明天
+        LocalDateTime endTime;
 
         switch (timeType) {
             case "month":
@@ -362,9 +362,24 @@ public class VehicleInspectionController {
 
         Map<String, Object> data = new HashMap<>();
 
-        // 信息总览（按时间范围统计）
-        data.put("infoOverview", inspectionService.getInfoOverview(startTime, endTime));
+        // 绿通减免 + 追逃费用（从 DB 查询）
+        Map<String, Object> feeStats = inspectionService.getInfoOverview(startTime, endTime);
 
+        // 货物类别（饼状图用，同时取前3个作为 TOP3）
+        List<Map<String, Object>> goodsTypeStats = inspectionService.getGoodsTypeStats(startTime, endTime);
+        List<Map<String, Object>> goodsTypeTop = goodsTypeStats.stream().limit(3).toList();
+
+        // 平均处理时长（总时长/总次数）
+        Map<String, Object> avgProcessTime = inspectionService.getAvgProcessTime(startTime, endTime);
+        double avgSeconds = avgProcessTime != null && avgProcessTime.get("avgSeconds") != null
+                ? ((Number) avgProcessTime.get("avgSeconds")).doubleValue() : 0;
+        // 构建 infoOverview（复用已有数据）
+        Map<String, Object> infoOverview = new HashMap<>();
+        infoOverview.put("exemptFee", feeStats.get("exemptFee"));
+        infoOverview.put("chaseFee", feeStats.get("chaseFee"));
+        infoOverview.put("avgAcceptanceDuration", avgSeconds);
+        infoOverview.put("goodsTypeTop", goodsTypeTop);
+        data.put("infoOverview", infoOverview);
         // 查验时段分布（按timeType返回不同粒度：day=24小时，month=31天，year=12月）
         data.put("hourlyDistribution", inspectionService.getHourlyDistributionByRange(startTime, endTime, timeType));
 
@@ -372,16 +387,7 @@ public class VehicleInspectionController {
         data.put("vehicleTypeStats", inspectionService.getVehicleTypeStats(startTime, endTime));
 
         // 货物类别占比
-        data.put("goodsTypeStats", inspectionService.getGoodsTypeStats(startTime, endTime));
-
-        // 待办事项
-        data.put("todoItems", inspectionService.getTodoItems());
-
-        // 文件通知（模拟数据）
-        data.put("notices", inspectionService.getNotices());
-
-        // 免检比例
-        data.put("exemptRate", inspectionService.getExemptRate(startTime, endTime));
+        data.put("goodsTypeStats", goodsTypeStats);
 
         // 处理时长分布
         data.put("processTimeDistribution", inspectionService.getProcessTimeDistribution(startTime, endTime, timeType));
@@ -389,6 +395,7 @@ public class VehicleInspectionController {
         return ApiResponse.success(data);
     }
 
+    
     /**
      * 获取大屏统计数据
      *

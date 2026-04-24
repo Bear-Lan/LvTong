@@ -77,20 +77,14 @@ public interface VehicleInspectionService {
     /** 获取车型分布统计（横向条形图数据） */
     List<Map<String, Object>> getVehicleTypeStats(LocalDateTime startTime, LocalDateTime endTime);
 
-    /** 获取待办事项列表 */
-    List<Map<String, Object>> getTodoItems();
-
-    /** 获取文件通知列表 */
-    List<Map<String, Object>> getNotices();
-
-    /** 获取免检比例 */
-    Map<String, Object> getExemptRate(LocalDateTime startTime, LocalDateTime endTime);
-
     /**
      * 获取处理时长分布
      * @param timeType day=按小时, month=按天, year=按月
      */
     List<Map<String, Object>> getProcessTimeDistribution(LocalDateTime startTime, LocalDateTime endTime, String timeType);
+
+    /** 获取平均处理时长（总时长/总次数） */
+    Map<String, Object> getAvgProcessTime(LocalDateTime startTime, LocalDateTime endTime);
 
     /** 导出查询（全量数据，不分页） */
     List<VehicleInspection> searchForExport(
