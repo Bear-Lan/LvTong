@@ -64,7 +64,7 @@ public class TestThreeLevelPlatform {
         dto.setExWeight(18500);
         dto.setLoadRate(85.5);
         dto.setLoadWeight(3.5);
-        dto.setVehicleSize("6000*2500*3500");
+        dto.setVehicleSize("6000|2500|3500");
         dto.setCheckTime(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
         dto.setEnStationId("0101");
         dto.setExStationId("0102");
