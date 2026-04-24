@@ -9,19 +9,31 @@ import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.security.MessageDigest;
+import java.security.cert.X509Certificate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.Base64;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import javax.imageio.ImageIO;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.SSLContext;
+import java.awt.*;
+import java.awt.image.BufferedImage;
 
 /**
  * 三级平台接口测试 - 单独运行
  */
 public class TestThreeLevelPlatform {
 
-    private static final String BASE_URL = "http://localhost:8080/api/three-level";
+    private static final String BASE_URL = "https://localhost:9090/api/three-level";
 
     public static void main(String[] args) {
         System.out.println("=== 三级平台接口测试 ===");
@@ -79,6 +91,7 @@ public class TestThreeLevelPlatform {
 
     /**
      * 加载照片文件并转换为 PhotoItem 列表（包含所有9种类型）
+     * 图片处理：读取文件→缩放压缩→Base64编码
      */
     private static List<PhotoItem> loadPhotos() {
         List<PhotoItem> photos = new ArrayList<>();
@@ -98,27 +111,71 @@ public class TestThreeLevelPlatform {
             return photos;
         }
 
-        try {
-            byte[] imageBytes = Files.readAllBytes(Paths.get(imagePath));
-            String base64Content = Base64.getEncoder().encodeToString(imageBytes);
-            System.out.println("已加载图片: " + imagePath + " (" + imageBytes.length + " bytes)");
+        // 读取并压缩图片
+        String base64Content = readAndCompressImage(imagePath);
+        if (base64Content == null) {
+            return photos;
+        }
 
-            // 每种类型都添加一张照片
-            for (int i = 0; i < typeIds.length; i++) {
-                PhotoItem photo = new PhotoItem();
-                photo.setId("P" + System.currentTimeMillis() + "_" + typeIds[i]);
-                photo.setTypeId(typeIds[i]);
-                photo.setContent(base64Content);
-                photo.setTime(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+        // 每种类型都添加一张照片
+        for (int i = 0; i < typeIds.length; i++) {
+            PhotoItem photo = new PhotoItem();
+            photo.setId("P" + System.currentTimeMillis() + "_" + typeIds[i]);
+            photo.setTypeId(typeIds[i]);
+            photo.setContent(base64Content);
+            photo.setTime(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
 
-                photos.add(photo);
-                System.out.println("  - typeId=" + typeIds[i] + " (" + typeNames[i] + ")");
-            }
-        } catch (IOException e) {
-            System.out.println("读取图片失败: " + e.getMessage());
+            photos.add(photo);
+            System.out.println("  - typeId=" + typeIds[i] + " (" + typeNames[i] + ")");
         }
 
         return photos;
+    }
+
+    /**
+     * 读取图片文件，缩放压缩后转为 Base64
+     */
+    private static String readAndCompressImage(String imagePath) {
+        final int MAX_IMAGE_WIDTH = 1280;
+        final float COMPRESS_QUALITY = 0.6f;
+
+        try {
+            // 读取图片
+            BufferedImage original = ImageIO.read(new File(imagePath));
+            if (original == null) {
+                System.out.println("无法读取图片: " + imagePath);
+                return null;
+            }
+
+            System.out.println("原图尺寸: " + original.getWidth() + "x" + original.getHeight());
+
+            // 缩放（如果超过最大宽度）
+            BufferedImage scaled = original;
+            if (original.getWidth() > MAX_IMAGE_WIDTH) {
+                double ratio = (double) MAX_IMAGE_WIDTH / original.getWidth();
+                int newHeight = (int) (original.getHeight() * ratio);
+                scaled = new BufferedImage(MAX_IMAGE_WIDTH, newHeight, BufferedImage.TYPE_INT_RGB);
+                Graphics2D g = scaled.createGraphics();
+                g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                g.drawImage(original, 0, 0, MAX_IMAGE_WIDTH, newHeight, null);
+                g.dispose();
+                System.out.println("缩放后尺寸: " + MAX_IMAGE_WIDTH + "x" + newHeight);
+            }
+
+            // JPEG 压缩编码
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ImageIO.write(scaled, "jpg", baos);
+            byte[] imageBytes = baos.toByteArray();
+
+            String base64 = Base64.getEncoder().encodeToString(imageBytes);
+            System.out.println("压缩后大小: " + imageBytes.length + " bytes, Base64长度: " + base64.length());
+
+            return base64;
+        } catch (Exception e) {
+            System.out.println("图片处理失败: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
     }
 
     private static Map<String, String> buildHeaders(ThreeLevelCheckResultDto dto) {
@@ -126,16 +183,9 @@ public class TestThreeLevelPlatform {
         String nonce = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
                 + "_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
 
-        // 先保存照片列表（用于请求），签名计算时需要排除照片内容
-        List<PhotoItem> savedPhotos = dto.getPhotos();
-        dto.setPhotos(new ArrayList<>());  // 清空照片避免序列化内存溢出
-
-        // 生成签名字符串
+        // 生成签名字符串（带上压缩后的照片）
         String jsonStr = JSON.toJSONString(dto);
         String signContent = ModelSignTools.generateSignContent(jsonStr);
-
-        // 恢复照片列表（用于实际请求）
-        dto.setPhotos(savedPhotos);
 
         // 计算签名
         String verifyContent = signContent + "&auth=" + auth + "&nonce=" + nonce;
@@ -171,9 +221,12 @@ public class TestThreeLevelPlatform {
 
     private static void sendRequest(ThreeLevelCheckResultDto dto, Map<String, String> headers) {
         try {
+            // 忽略 SSL 证书验证
+            disableSSLVerification();
+
             String urlStr = BASE_URL + "/upload";
             URL url = new URL(urlStr);
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setDoOutput(true);
             conn.setConnectTimeout(10000);
@@ -217,6 +270,32 @@ public class TestThreeLevelPlatform {
                 sb.append(line);
             }
             return sb.toString();
+        }
+    }
+
+    /**
+     * 忽略 SSL 证书验证（用于测试环境）
+     */
+    private static void disableSSLVerification() {
+        try {
+            TrustManager[] trustAllCerts = new TrustManager[]{
+                new javax.net.ssl.X509TrustManager() {
+                    public X509Certificate[] getAcceptedIssuers() {
+                        return null;
+                    }
+                    public void checkClientTrusted(X509Certificate[] certs, String authType) {
+                    }
+                    public void checkServerTrusted(X509Certificate[] certs, String authType) {
+                    }
+                }
+            };
+            SSLContext sc = SSLContext.getInstance("SSL");
+            sc.init(null, trustAllCerts, new java.security.SecureRandom());
+            HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+            HostnameVerifier allHostsValid = (hostname, session) -> true;
+            HttpsURLConnection.setDefaultHostnameVerifier(allHostsValid);
+        } catch (Exception e) {
+            System.out.println("SSL 证书验证设置失败: " + e.getMessage());
         }
     }
 }
