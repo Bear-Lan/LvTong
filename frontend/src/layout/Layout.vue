@@ -31,7 +31,7 @@
         </el-menu-item>
         <el-menu-item index="#" @click="openDatascreen" v-if="userStore.userInfo.role === 0">
           <el-icon><Monitor /></el-icon>
-          <template #title>3D大屏</template>
+          <template #title>智慧大屏</template>
         </el-menu-item>
       </el-menu>
 
@@ -143,7 +143,7 @@ const openDatascreen = () => {
 
 /* 侧边栏 */
 .sidebar {
-  width: 220px;
+  width: 170px;
   background: #03D5CD;
   transition: width 0.3s;
   display: flex;
@@ -178,7 +178,7 @@ const openDatascreen = () => {
 }
 
 .logo {
-  width: 50%;
+  width: 25%;
   height: auto;
   object-fit: contain;
   flex-shrink: 0;
@@ -190,7 +190,7 @@ const openDatascreen = () => {
 
 .brand {
   color: #fff;
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 600;
   letter-spacing: 2px;
   line-height: 1.3;
@@ -205,6 +205,7 @@ const openDatascreen = () => {
 :deep(.el-menu-item) {
   height: 56px;
   line-height: 56px;
+  text-align: center;
 }
 
 :deep(.el-menu-item:hover) {
@@ -274,12 +275,15 @@ const openDatascreen = () => {
   display: flex;
   flex-direction: column;
   background: #f5f7fa;
-  margin-left: 220px;
+  margin-left: 170px;
   min-height: 100vh;
+  width: calc(100% - 170px);
+  max-width: 100%;
 }
 
 .main-wrapper.collapsed {
   margin-left: 64px;
+  width: calc(100% - 64px);
 }
 
 /* 顶部栏 */
@@ -338,7 +342,6 @@ const openDatascreen = () => {
 /* 内容区 */
 .content {
   flex: 1;
-  overflow-y: auto;
   padding: 0;
 }
 </style>

@@ -13,20 +13,20 @@
         首页概览
       </h2>
       <el-radio-group v-model="timeType" size="default" @change="handleTimeTypeChange">
-        <el-radio-button value="day">日</el-radio-button>
-        <el-radio-button value="month">月</el-radio-button>
-        <el-radio-button value="year">年</el-radio-button>
+        <el-radio-button label="day">当日</el-radio-button>
+        <el-radio-button label="month">近30天</el-radio-button>
+        <el-radio-button label="year">年</el-radio-button>
       </el-radio-group>
     </div>
     <el-row :gutter="20">
-      <!-- 左侧区域（16栏） -->
-      <el-col :span="16">
+      <!-- 左侧区域（24栏，全宽） -->
+      <el-col :span="24">
         <div class="left-section">
           <!-- 第一行：信息总览卡片 -->
           <div class="section-block">
             <el-row :gutter="16">
               <!-- 卡片1：绿通车/收割机数量 + 查验车次 -->
-              <el-col :span="8">
+              <el-col :span="6">
                 <el-card class="stat-card" shadow="hover">
                   <div class="stat-inner">
                     <div class="stat-icon-wrap blue">
@@ -53,7 +53,7 @@
               </el-col>
 
               <!-- 卡片2：通行费用 -->
-              <el-col :span="8">
+              <el-col :span="6">
                 <el-card class="stat-card" shadow="hover">
                   <div class="stat-inner">
                     <div class="stat-icon-wrap green">
@@ -70,7 +70,7 @@
               </el-col>
 
               <!-- 卡片3：合格/不合格数量 + 上传记录数 -->
-              <el-col :span="8">
+              <el-col :span="6">
                 <el-card class="stat-card" shadow="hover">
                   <div class="stat-inner">
                     <div class="stat-icon-wrap amber">
@@ -95,23 +95,71 @@
                   </div>
                 </el-card>
               </el-col>
+
+              <!-- 卡片4：数据同步 -->
+              <el-col :span="6">
+                <el-card class="stat-card" shadow="hover">
+                  <div class="stat-inner">
+                    <div class="stat-icon-wrap purple">
+                      <el-icon size="28"><Refresh /></el-icon>
+                    </div>
+                    <div class="stat-body">
+                      <div class="stat-value-row">
+                        <span class="stat-value-item">
+                          <span class="value">{{ exemptRate.total }}</span>
+                          <span class="label">总查验数</span>
+                        </span>
+                        <span class="stat-divider">|</span>
+                        <span class="stat-value-item success">
+                          <span class="value">{{ exemptRate.exempt }}</span>
+                          <span class="label">已复核</span>
+                        </span>
+                      </div>
+                      <div class="stat-sub">
+                        复核率：{{ exemptRate.rate }}%
+                      </div>
+                    </div>
+                  </div>
+                </el-card>
+              </el-col>
             </el-row>
           </div>
 
-          <!-- 第二行：时段分析（24小时折线图） -->
+          <!-- 第二行：时段分析 + 受理时长 -->
           <div class="section-block">
-            <el-card class="chart-card" shadow="never">
-              <template #header>
-                <div class="panel-header">
-                  <span class="panel-title">
-                    <el-icon color="#409eff"><DataLine /></el-icon>
-                    时段分析
-                  </span>
-                  <span class="panel-sub">查验量趋势</span>
-                </div>
-              </template>
-              <div ref="lineChartRef" class="chart-container-line"></div>
-            </el-card>
+            <el-row :gutter="16">
+              <!-- 时段分析（24小时折线图） -->
+              <el-col :span="12">
+                <el-card class="chart-card" shadow="never">
+                  <template #header>
+                    <div class="panel-header">
+                      <span class="panel-title">
+                        <el-icon color="#409eff"><DataLine /></el-icon>
+                        时段分析
+                      </span>
+                      <span class="panel-sub">查验量趋势</span>
+                    </div>
+                  </template>
+                  <div ref="lineChartRef" class="chart-container-line"></div>
+                </el-card>
+              </el-col>
+
+              <!-- 受理时长曲线图 -->
+              <el-col :span="12">
+                <el-card class="chart-card" shadow="never">
+                  <template #header>
+                    <div class="panel-header">
+                      <span class="panel-title">
+                        <el-icon color="#9b59b6"><Timer /></el-icon>
+                        受理时长
+                      </span>
+                      <span class="panel-sub">平均处理时长</span>
+                    </div>
+                  </template>
+                  <div ref="processTimeChartRef" class="chart-container-line"></div>
+                </el-card>
+              </el-col>
+            </el-row>
           </div>
 
           <!-- 第三行：车型分布 + 货物类别 -->
@@ -151,109 +199,7 @@
         </div>
       </el-col>
 
-      <!-- 右侧区域（8栏） -->
-      <el-col :span="8">
-        <div class="right-section">
-          <!-- 第一部分：待办事项 -->
-          <el-card class="panel-card" shadow="never">
-            <template #header>
-              <div class="panel-header">
-                <span class="panel-title">
-                  <el-icon color="#f56c6c"><List /></el-icon>
-                  待办事项
-                </span>
-              </div>
-            </template>
-            <div v-if="todoItems.length === 0" class="empty-state">
-              <el-icon size="32" color="#dcdfe6"><SuccessFilled /></el-icon>
-              <span>暂无待办事项</span>
-            </div>
-            <div v-else class="todo-list">
-              <div
-                v-for="item in todoItems"
-                :key="item.id"
-                class="todo-item"
-                :class="item.type"
-                @click="goToInspection(item)"
-              >
-                <div class="todo-left">
-                  <el-icon v-if="item.type === 'pending_review'" color="#faad14"><Clock /></el-icon>
-                  <el-icon v-else-if="item.type === 'fake_green'" color="#f56c6c"><Warning /></el-icon>
-                  <el-icon v-else color="#f56c6c"><WarningFilled /></el-icon>
-                  <span class="todo-title">{{ item.title }}</span>
-                </div>
-                <el-tag size="small" :type="getTagType(item.type)">
-                  {{ item.count }} 条
-                </el-tag>
-              </div>
-            </div>
-          </el-card>
-
-          <!-- 第二部分：货物排行 -->
-          <el-card class="panel-card" shadow="never">
-            <template #header>
-              <div class="panel-header">
-                <span class="panel-title">
-                  <el-icon color="#409eff"><Histogram /></el-icon>
-                  货物排行
-                </span>
-              </div>
-            </template>
-            <div v-if="goodsTypeStats.length === 0" class="empty-state">
-              <span>暂无数据</span>
-            </div>
-            <div v-else class="goods-rank-list">
-              <div
-                v-for="(item, index) in goodsTypeStats.slice(0, 3)"
-                :key="item.goodsTypeName || item.name"
-                class="goods-rank-item"
-              >
-                <span class="rank-num" :class="{ 'top-three': index < 3 }">{{ index + 1 }}</span>
-                <span class="goods-name">{{ item.goodsTypeName || item.name || '未知' }}</span>
-                <span class="goods-count">{{ item.count || item.value || 0 }}次</span>
-              </div>
-            </div>
-          </el-card>
-
-          <!-- 第三部分：数据同步 -->
-          <el-card class="panel-card" shadow="never">
-            <template #header>
-              <div class="panel-header">
-                <span class="panel-title">
-                  <el-icon color="#67c23a"><PieChart /></el-icon>
-                  数据同步
-                </span>
-              </div>
-            </template>
-            <div class="exempt-container">
-              <div class="exempt-circle">
-                <el-progress
-                  type="circle"
-                  :percentage="exemptRate.rate"
-                  :width="100"
-                  :stroke-width="8"
-                  :color="getExemptColor(exemptRate.rate)"
-                >
-                  <template #default>
-                    <span class="exempt-value">{{ exemptRate.rate }}%</span>
-                  </template>
-                </el-progress>
-              </div>
-              <div class="exempt-stats">
-                <div class="exempt-stat">
-                  <span class="stat-num">{{ exemptRate.total }}</span>
-                  <span class="stat-label">总查验数</span>
-                </div>
-                <div class="exempt-stat">
-                  <span class="stat-num success">{{ exemptRate.exempt }}</span>
-                  <span class="stat-label">已复核数</span>
-                </div>
-              </div>
-            </div>
-          </el-card>
-        </div>
-      </el-col>
-    </el-row>
+      </el-row>
 
     <!-- 详情弹窗 -->
     <InspectionDetail
@@ -285,8 +231,7 @@
 import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  Van, Money, CircleCheck, DataLine, Histogram, PieChart,
-  List, Clock, Warning, WarningFilled, SuccessFilled
+  Van, Money, CircleCheck, DataLine, Histogram, PieChart, Refresh, Timer
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
@@ -298,7 +243,7 @@ import InspectionDetail from '@/components/InspectionDetail.vue'
 // ================================================================
 
 /** 时间类型：day=日, month=月, year=年 */
-const timeType = ref('day')
+const timeType = ref('month')
 const router = useRouter()
 
 /** 跳转到车辆查验页面 */
@@ -327,6 +272,9 @@ const infoOverview = reactive({
 
 /** 时段分布数据 */
 const hourlyDistribution = ref([])
+
+/** 处理时长分布数据 */
+const processTimeDistribution = ref([])
 
 /** 车型分布数据 */
 const vehicleTypeStats = ref([])
@@ -363,11 +311,13 @@ const showDetail = (item) => {
 // ================================================================
 
 const lineChartRef = ref(null)
+const processTimeChartRef = ref(null)
 const barChartRef = ref(null)
 const pieChartRef = ref(null)
 
 // ECharts 实例
 let lineChart = null
+let processTimeChart = null
 let barChart = null
 let pieChart = null
 
@@ -394,6 +344,9 @@ const loadData = async () => {
       // 时段分布
       hourlyDistribution.value = d.hourlyDistribution || []
 
+      // 处理时长分布
+      processTimeDistribution.value = d.processTimeDistribution || []
+
       // 车型分布
       vehicleTypeStats.value = d.vehicleTypeStats || []
 
@@ -414,6 +367,7 @@ const loadData = async () => {
       renderLineChart()
       renderBarChart()
       renderPieChart()
+      renderProcessTimeChart()
     } else {
       ElMessage.error(res.message || '加载统计数据失败')
     }
@@ -426,7 +380,8 @@ const loadData = async () => {
 // 时间切换处理
 // ================================================================
 
-const handleTimeTypeChange = () => {
+const handleTimeTypeChange = (val) => {
+  timeType.value = val
   loadData()
 }
 
@@ -469,12 +424,16 @@ const renderLineChart = () => {
   if (!lineChart) lineChart = echarts.init(lineChartRef.value)
 
   const data = hourlyDistribution.value
+  if (!data || data.length === 0) return
 
-  // 判断是按小时还是按天显示
-  const isHourly = data.length > 0 && data[0].hour !== undefined
+  // 判断数据类型：hour=按小时(day模式)，label包含-表示按天或按月
+  const firstItem = data[0]
+  const hasHour = firstItem.hour !== undefined
+  const hasLabel = firstItem.label !== undefined
 
-  let labels, values
-  if (isHourly) {
+  let labels, values, isDaily = false, isMonthly = false
+
+  if (hasHour) {
     // 按小时：生成 0-23 小时标签
     const hourMap = {}
     data.forEach(d => {
@@ -482,38 +441,39 @@ const renderLineChart = () => {
     })
     labels = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`)
     values = labels.map((_, i) => hourMap[i] || 0)
-  } else {
-    // 按天
+  } else if (hasLabel) {
+    // 判断是按天(month模式)还是按月(year模式)
+    const firstLabel = firstItem.label || ''
+    isMonthly = firstLabel.length === 7 // 如 "2024-01"
+    isDaily = !isMonthly
+
     labels = data.map(d => d.label || d.date)
     values = data.map(d => d.count || 0)
   }
 
-  // 确保有数据
-  if (labels.length === 0) {
-    labels = isHourly ? Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`) : ['暂无数据']
-    values = isHourly ? Array(24).fill(0) : [0]
-  }
+  // 提示框文字
+  const tooltipUnit = timeType.value === 'day' ? '辆' : '次'
 
   lineChart.setOption({
     tooltip: {
       trigger: 'axis',
-      formatter: (params) => `${params[0].axisValue}<br/>查验量：<b>${params[0].data}</b> 辆`
+      formatter: (params) => `${params[0].axisValue}<br/>查验量：<b>${params[0].data}</b> ${tooltipUnit}`
     },
     grid: { left: 50, right: 20, top: 20, bottom: 30 },
     xAxis: {
       type: 'category',
       data: labels,
       axisLabel: {
-        interval: isHourly ? 2 : 'auto',
+        interval: hasHour ? 2 : 'auto',
         fontSize: 10,
         color: '#909399',
-        rotate: !isHourly ? 30 : 0
+        rotate: isDaily ? 30 : 0
       },
       axisLine: { lineStyle: { color: '#e4e7ed' } }
     },
     yAxis: {
       type: 'value',
-      name: '查验量',
+      name: '查验量(次)',
       nameTextStyle: { fontSize: 10, color: '#909399' },
       axisLabel: { fontSize: 10, color: '#909399' },
       splitLine: { lineStyle: { color: '#f0f0f0' } },
@@ -531,6 +491,92 @@ const renderLineChart = () => {
         color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
           { offset: 0, color: 'rgba(64,158,255,0.3)' },
           { offset: 1, color: 'rgba(64,158,255,0.05)' }
+        ])
+      }
+    }]
+  })
+}
+
+/**
+ * 渲染受理时长曲线图
+ */
+const renderProcessTimeChart = () => {
+  if (!processTimeChartRef.value) return
+  if (!processTimeChart) processTimeChart = echarts.init(processTimeChartRef.value)
+
+  const data = processTimeDistribution.value
+  if (!data || data.length === 0) return
+
+  const firstItem = data[0]
+  const hasHour = firstItem.hour !== undefined
+  const hasLabel = firstItem.label !== undefined
+
+  let labels, values, isDaily = false, isMonthly = false
+
+  if (hasHour) {
+    const hourMap = {}
+    data.forEach(d => {
+      hourMap[d.hour] = d.avgSeconds || 0
+    })
+    labels = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`)
+    values = labels.map((_, i) => hourMap[i] || 0)
+  } else if (hasLabel) {
+    const firstLabel = firstItem.label || ''
+    isMonthly = firstLabel.length === 7
+    isDaily = !isMonthly
+
+    labels = data.map(d => d.label || d.date)
+    values = data.map(d => d.avgSeconds || 0)
+  }
+
+  // 格式化时长为分:秒
+  const formatDuration = (seconds) => {
+    if (!seconds || seconds === 0) return '0:00'
+    const mins = Math.floor(seconds / 60)
+    const secs = Math.floor(seconds % 60)
+    return `${mins}:${String(secs).padStart(2, '0')}`
+  }
+
+  processTimeChart.setOption({
+    tooltip: {
+      trigger: 'axis',
+      formatter: (params) => {
+        const val = params[0].data
+        return `${params[0].axisValue}<br/>平均时长：<b>${formatDuration(val)}</b>`
+      }
+    },
+    grid: { left: 50, right: 20, top: 20, bottom: 30 },
+    xAxis: {
+      type: 'category',
+      data: labels,
+      axisLabel: {
+        interval: hasHour ? 2 : 'auto',
+        fontSize: 10,
+        color: '#909399',
+        rotate: isDaily ? 30 : 0
+      },
+      axisLine: { lineStyle: { color: '#e4e7ed' } }
+    },
+    yAxis: {
+      type: 'value',
+      name: '受理时长(分钟)',
+      nameTextStyle: { fontSize: 10, color: '#909399' },
+      axisLabel: { fontSize: 10, color: '#909399' },
+      splitLine: { lineStyle: { color: '#f0f0f0' } },
+      axisLine: { show: true, lineStyle: { color: '#e4e7ed' } }
+    },
+    series: [{
+      type: 'line',
+      data: values,
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 6,
+      lineStyle: { color: '#9b59b6', width: 2 },
+      itemStyle: { color: '#9b59b6' },
+      areaStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: 'rgba(155,89,182,0.3)' },
+          { offset: 1, color: 'rgba(155,89,182,0.05)' }
         ])
       }
     }]
@@ -678,12 +724,14 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
   lineChart?.dispose()
+  processTimeChart?.dispose()
   barChart?.dispose()
   pieChart?.dispose()
 })
 
 const handleResize = () => {
   lineChart?.resize()
+  processTimeChart?.resize()
   barChart?.resize()
   pieChart?.resize()
 }
@@ -800,6 +848,7 @@ const handleResize = () => {
 .stat-icon-wrap.blue  { background: linear-gradient(135deg, #409eff, #66b1ff); }
 .stat-icon-wrap.green { background: linear-gradient(135deg, #67c23a, #85ce61); }
 .stat-icon-wrap.amber { background: linear-gradient(135deg, #e6a23c, #f0c78a); }
+.stat-icon-wrap.purple { background: linear-gradient(135deg, #9b59b6, #c39bd3); }
 
 .stat-body { flex: 1; min-width: 0; }
 
@@ -857,6 +906,65 @@ const handleResize = () => {
   font-size: 12px;
   color: #909399;
   margin-top: 4px;
+  text-align: center;
+}
+
+/* ========== 数据同步卡片样式 ========== */
+.stat-inner-sync {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  min-height: 88px;
+}
+
+.sync-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.sync-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sync-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #303133;
+}
+
+.sync-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sync-stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.sync-stat .stat-num {
+  font-size: 16px;
+  font-weight: 700;
+  color: #303133;
+}
+
+.sync-stat .stat-num.success {
+  color: #67c23a;
+}
+
+.sync-stat .stat-label {
+  font-size: 11px;
+  color: #909399;
+  margin-top: 0;
+}
+
+.stat-label.text-center {
   text-align: center;
 }
 

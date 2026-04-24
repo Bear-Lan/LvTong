@@ -119,6 +119,52 @@ public class VehicleInspectionController {
     }
 
     /**
+     * 导出查询（全量数据，不分页）
+     * 返回符合筛选条件的全部数据，用于Excel导出
+     */
+    @GetMapping("/export")
+    @Operation(
+        summary = "导出查询",
+        description = "获取车辆查验记录（全量），支持多条件筛选，用于Excel导出"
+    )
+    public ApiResponse<List<Map<String, Object>>> getExportList(
+            @Parameter(description = "车牌号（模糊查询）")
+            @RequestParam(required = false) String plateNumber,
+
+            @Parameter(description = "司机电话（精确查询）")
+            @RequestParam(required = false) String driverPhone,
+
+            @Parameter(description = "核验员电话（精确查询）")
+            @RequestParam(required = false) String reviewerPhone,
+
+            @Parameter(description = "开始时间（格式：yyyy-MM-dd HH:mm:ss）")
+            @RequestParam(required = false)
+            @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime startTime,
+
+            @Parameter(description = "结束时间（格式：yyyy-MM-dd HH:mm:ss）")
+            @RequestParam(required = false)
+            @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime endTime,
+
+            @Parameter(description = "查验结果: 1=合格, 2=不合格")
+            @RequestParam(required = false) Integer resultStatus,
+
+            @Parameter(description = "复核结果: 0=待审核, 1=审核通过, 2=审核未通过")
+            @RequestParam(required = false) Integer manualReviewState,
+
+            @Parameter(description = "上传状态: 0=未上传, 1=成功, -1=失败")
+            @RequestParam(required = false) Integer toTransportdeptState) {
+
+        List<VehicleInspection> list = inspectionService.searchForExport(
+                plateNumber, driverPhone, reviewerPhone,
+                startTime, endTime, resultStatus, manualReviewState, toTransportdeptState);
+
+        // 转换为Map格式
+        List<Map<String, Object>> data = list.stream().map(this::convertToMap).toList();
+
+        return ApiResponse.success(data);
+    }
+
+    /**
      * 获取农产品品种列表（用于货物类型下拉选择）
      * 返回所有品种数据，前端自行构建筛选条件
      */
@@ -243,7 +289,7 @@ public class VehicleInspectionController {
             String plateColor = VehicleConstants.getVehicleColorText(updated.getPasscodeVehicleColorName());
             String vehicleTypeText = VehicleConstants.getVehicleTypeText(updated.getVehicleType());
             String containerTypeText = VehicleConstants.getContainerTypeText(updated.getVehicleContainertype());
-            String goodsTypeText = getGoodsTypeText(updated.getGoodsType());
+            String goodsTypeText = resolveGoodsTypeName(updated.getGoodsType());
             String detectDate = updated.getPasscodeExTime();
 
             ImageWatermarkUtil.drawWatermarkAndOverwrite(
@@ -276,17 +322,6 @@ public class VehicleInspectionController {
         return a.equals(b);
     }
 
-    /**
-     * 获取货物类型文本
-     */
-    private String getGoodsTypeText(String goodsType) {
-        if (goodsType == null || goodsType.isBlank()) {
-            return null;
-        }
-        // goodsType 可能是 "01|02|03" 格式，这里简化处理：直接用原始值显示
-        // 如果需要转换为文本，需要从产品表查询
-        return goodsType.replace("|", "、");
-    }
 
     // ================================================================
     // 【Dashboard 统计接口】
@@ -310,8 +345,9 @@ public class VehicleInspectionController {
 
         switch (timeType) {
             case "month":
-                startTime = now.toLocalDate().withDayOfMonth(1).atStartOfDay();
-                endTime = now.toLocalDate().plusMonths(1).withDayOfMonth(1).atStartOfDay();
+                // 最近30天
+                startTime = now.toLocalDate().minusDays(29).atStartOfDay();
+                endTime = now.toLocalDate().plusDays(1).atStartOfDay();
                 break;
             case "year":
                 startTime = now.toLocalDate().withDayOfYear(1).atStartOfDay();
@@ -329,8 +365,8 @@ public class VehicleInspectionController {
         // 信息总览（按时间范围统计）
         data.put("infoOverview", inspectionService.getInfoOverview(startTime, endTime));
 
-        // 查验时段分布（24小时，按指定时间范围）
-        data.put("hourlyDistribution", inspectionService.getHourlyDistributionByRange(startTime, endTime));
+        // 查验时段分布（按timeType返回不同粒度：day=24小时，month=31天，year=12月）
+        data.put("hourlyDistribution", inspectionService.getHourlyDistributionByRange(startTime, endTime, timeType));
 
         // 车型分布（横向条形图）
         data.put("vehicleTypeStats", inspectionService.getVehicleTypeStats(startTime, endTime));
@@ -346,6 +382,9 @@ public class VehicleInspectionController {
 
         // 免检比例
         data.put("exemptRate", inspectionService.getExemptRate(startTime, endTime));
+
+        // 处理时长分布
+        data.put("processTimeDistribution", inspectionService.getProcessTimeDistribution(startTime, endTime, timeType));
 
         return ApiResponse.success(data);
     }
@@ -481,6 +520,7 @@ public class VehicleInspectionController {
 
         // 查验业务信息
         map.put("operatorName", v.getOperatorName());
+        map.put("acceptanceTime", v.getAcceptanceTime());
         map.put("inspectionTime", v.getInspectionTime());
         map.put("createdTime", v.getCreatedTime());
         map.put("updatedTime", v.getUpdatedTime());

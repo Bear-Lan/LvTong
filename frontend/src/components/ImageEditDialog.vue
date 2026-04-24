@@ -338,7 +338,7 @@
               <span class="data-value">{{ row.driverPhone || '-' }}</span>
             </div>
             <div class="data-row">
-              <span class="data-label">验货员</span>
+              <span class="data-label">查验员</span>
               <span class="data-value">{{ row.inspectorPhone || '-' }}</span>
             </div>
             <div class="data-row">

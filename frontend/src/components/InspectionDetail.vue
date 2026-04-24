@@ -14,9 +14,9 @@
     <!-- ================== 整体布局 ================== -->
     <div class="detail-body">
       <!-- 标题：右上角 -->
-      <div class="detail-title" v-if="editable">详细编辑页面</div>
+      <div class="detail-title" v-if="canEdit">详细编辑页面</div>
         <!-- 第一区域：证据链照片
-             第一行：车头照、车尾照、行驶证、顶部照、通行凭证（5列）
+             第一行：车头照、车尾照、行驶证、顶部照、通行码（5列）
              第二行：透视影像+车身照（占50%）、货物照（占50%） -->
         <div class="detail-section evidence-section">
           <!-- 第一行：5列等宽网格 -->
@@ -247,7 +247,7 @@
           <!-- 第二列：车辆与货物信息 -->
           <div class="data-col">
             <!-- 货车类型：可编辑时显示下拉 -->
-            <div class="data-row" v-if="editable">
+            <div class="data-row" v-if="canEdit">
               <span class="data-label">货车类型</span>
               <el-select v-model="form.vehicleType" placeholder="请选择" clearable size="small" style="width: 85%;">
                 <el-option label="一型货车" value="11" />
@@ -263,7 +263,7 @@
               <span class="data-value primary">{{ row.vehicleTypeText || '-' }}</span>
             </div>
             <!-- 货箱类型：可编辑时显示下拉 -->
-            <div class="data-row" v-if="editable">
+            <div class="data-row" v-if="canEdit">
               <span class="data-label">货箱类型</span>
               <el-select v-model="form.vehicleContainertype" placeholder="请选择" clearable size="small" style="width: 85%;">
                 <el-option label="罐式货车" value="1" />
@@ -279,7 +279,7 @@
               <span class="data-value">{{ row.vehicleContainerTypeText || '-' }}</span>
             </div>
             <!-- 货物名称：可编辑时显示选择品种 -->
-            <div class="data-row" v-if="editable">
+            <div class="data-row" v-if="canEdit">
               <span class="data-label">货物名称</span>
               <div class="goods-type-field">
                 <div class="selected-tags" v-if="selectedProducts.length > 0">
@@ -328,7 +328,7 @@
               <span class="data-value plate">{{ row.plateNumber || '-' }}</span>
             </div>
             <!-- 货车长宽高：可编辑时显示弹窗输入 -->
-            <div class="data-row" v-if="editable">
+            <div class="data-row" v-if="canEdit">
               <span class="data-label">长宽高</span>
               <el-input
                 v-model="displayVehicleSize"
@@ -349,7 +349,7 @@
               <span class="data-value mono">{{ formatVehicleSize(row.vehicleSize) }}</span>
             </div>
             <!-- 满载率：可编辑时显示输入框 -->
-            <div class="data-row" v-if="editable">
+            <div class="data-row" v-if="canEdit">
               <span class="data-label">满载率</span>
               <el-input-number v-model="form.loadRate" :min="0" :max="100" :precision="2" size="small" style="width: 84%;" placeholder="0-100" />
             </div>
@@ -358,7 +358,7 @@
               <span class="data-value">{{ row.loadRate != null ? row.loadRate + '%' : '-' }}</span>
             </div>
             <!-- 司机电话：可编辑时显示输入框 -->
-            <div class="data-row" v-if="editable">
+            <div class="data-row" v-if="canEdit">
               <span class="data-label">司机电话</span>
               <el-input v-model="form.driverPhone" placeholder="请输入手机号" size="small" style="width: 85%;" />
             </div>
@@ -367,11 +367,11 @@
               <span class="data-value">{{ row.driverPhone || '-' }}</span>
             </div>
             <div class="data-row">
-              <span class="data-label">验货员</span>
+              <span class="data-label">查验员</span>
               <span class="data-value">{{ row.inspectorPhone || '-' }}</span>
             </div>
             <!-- 复核员：可编辑时显示下拉 -->
-            <div class="data-row" v-if="editable">
+            <div class="data-row" v-if="canEdit">
               <span class="data-label">复核员</span>
               <el-select v-model="form.reviewerPhone" placeholder="请选择核验员" clearable filterable size="small" style="width: 85%;" @change="handleReviewerChange">
                 <el-option
@@ -391,7 +391,7 @@
               <span class="data-value">{{ (form.groupId || row.groupId) ? '班组' + (form.groupId || row.groupId) : '-' }}</span>
             </div>
             <!-- 备注内容：可编辑时显示输入框 -->
-            <div class="data-row" v-if="editable">
+            <div class="data-row" v-if="canEdit">
               <span class="data-label">备注内容</span>
               <el-input v-model="form.historyRecord" placeholder="历史查验记录备注" size="small" style="width: 85%;" />
             </div>
@@ -410,7 +410,7 @@
         <!-- 左侧：查验结果、不合格类型、复核结果 -->
         <div class="result-group">
           <!-- 查验结果 -->
-          <div class="result-item" v-if="editable">
+          <div class="result-item" v-if="canEdit">
             <span class="result-label">查验结果</span>
             <el-select v-model="form.resultStatus" size="small" style="width: 120px;">
               <el-option label="待查验" :value="0" />
@@ -443,7 +443,7 @@
           </div>
 
           <!-- 复核结果 -->
-          <div class="result-item" v-if="editable">
+          <div class="result-item" v-if="canEdit">
             <span class="result-label">复核结果</span>
             <el-select v-model="form.manualReviewState" placeholder="请选择" size="small" style="width: 120px;">
               <el-option label="未审核" :value="0" />
@@ -456,20 +456,24 @@
             <span class="result-value">{{ row.manualReviewText || '未审核' }}</span>
           </div>
 
-          <!-- 通行凭证照片 -->
-          <div class="result-item passcode-img-item" v-if="row.passcodeImagePath">
-            <span class="result-label">通行凭证</span>
+          <!-- 通行码照片 -->
+          <div class="result-item passcode-img-item">
+            <span class="result-label">通行码</span>
             <el-image
+              v-if="row.passcodeImagePath"
               :src="formatImageUrl(row.passcodeImagePath)"
               fit="contain"
               :preview-src-list="[formatImageUrl(row.passcodeImagePath)]"
               class="passcode-img"
             />
+            <div v-else class="passcode-img passcode-placeholder">
+              <span>通行码</span>
+            </div>
           </div>
         </div>
 
         <!-- 右侧：操作按钮 -->
-        <div class="result-actions" v-if="editable">
+        <div class="result-actions" v-if="canEdit">
           <el-button  @click="visible = false">取消</el-button>
           <el-button type="primary"  @click="handleSubmit" :loading="submitting">保存修改</el-button>
         </div>
@@ -667,6 +671,13 @@ const visible = computed({
 // ================================================================
 // 样式辅助函数
 // ================================================================
+
+/**
+ * 是否可编辑：editable=true 且 未上传成功（toTransportdeptState !== 1）
+ */
+const canEdit = computed(() => {
+  return props.editable && props.row.toTransportdeptState !== 1
+})
 
 /**
  * getResultTagType：根据查验结果返回 el-tag 类型
@@ -1596,7 +1607,7 @@ onMounted(() => {
   margin-left: 20px;
 }
 
-/* 通行凭证照片样式 */
+/* 通行码照片样式 */
 .passcode-img-item {
   display: flex;
   flex-direction: column;
@@ -1609,6 +1620,15 @@ onMounted(() => {
   height: 60px;
   border-radius: 4px;
   border: 1px solid #ebeef5;
+}
+
+.passcode-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f5f7fa;
+  color: #909399;
+  font-size: 12px;
 }
 
 /* ========== 货车长宽高弹窗样式 ========== */

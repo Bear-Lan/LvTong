@@ -71,8 +71,8 @@ public interface VehicleInspectionService {
     /** 获取信息总览（按时间范围统计绿通车/收割机数量、查验车次、通行费用、合格/不合格数、上传记录数） */
     Map<String, Object> getInfoOverview(LocalDateTime startTime, LocalDateTime endTime);
 
-    /** 获取查验时段分布（按指定时间范围，支持24小时分布或按天分布） */
-    List<Map<String, Object>> getHourlyDistributionByRange(LocalDateTime startTime, LocalDateTime endTime);
+    /** 获取查验时段分布（按指定时间范围，timeType=day时返回24小时分布，month时返回31天分布，year时返回12月分布） */
+    List<Map<String, Object>> getHourlyDistributionByRange(LocalDateTime startTime, LocalDateTime endTime, String timeType);
 
     /** 获取车型分布统计（横向条形图数据） */
     List<Map<String, Object>> getVehicleTypeStats(LocalDateTime startTime, LocalDateTime endTime);
@@ -85,4 +85,21 @@ public interface VehicleInspectionService {
 
     /** 获取免检比例 */
     Map<String, Object> getExemptRate(LocalDateTime startTime, LocalDateTime endTime);
+
+    /**
+     * 获取处理时长分布
+     * @param timeType day=按小时, month=按天, year=按月
+     */
+    List<Map<String, Object>> getProcessTimeDistribution(LocalDateTime startTime, LocalDateTime endTime, String timeType);
+
+    /** 导出查询（全量数据，不分页） */
+    List<VehicleInspection> searchForExport(
+            String plateNumber,
+            String driverPhone,
+            String reviewerPhone,
+            LocalDateTime startTime,
+            LocalDateTime endTime,
+            Integer resultStatus,
+            Integer manualReviewState,
+            Integer toTransportdeptState);
 }
