@@ -100,11 +100,12 @@ public class ThreeLevelPlatformServiceImpl implements ThreeLevelPlatformService 
                 continue;
             }
 
-            String fileName = UUID.randomUUID().toString() + ".jpg";
+            // 生成文件名：使用照片时间或当前时间
+            String fileName = generatePhotoFileName(photo.getTime(), photo.getTypeId());
             String fullPath = basePath + "/" + fileName;
 
             try {
-                // 解码 Base64 图片
+                // 解码 Base64 图片并保存
                 byte[] imageBytes = Base64.getDecoder().decode(photo.getContent());
                 Files.write(Paths.get(fullPath), imageBytes);
 
@@ -113,6 +114,7 @@ public class ThreeLevelPlatformServiceImpl implements ThreeLevelPlatformService 
                 if (fieldName != null) {
                     paths.computeIfAbsent(fieldName, k -> new ArrayList<>()).add(fullPath);
                 }
+                log.info("保存图片成功: {} -> {}", fileName, fieldName);
             } catch (Exception e) {
                 log.warn("保存图片失败, typeId={}: {}", photo.getTypeId(), e.getMessage());
             }
@@ -122,9 +124,28 @@ public class ThreeLevelPlatformServiceImpl implements ThreeLevelPlatformService 
     }
 
     /**
+     * 根据照片时间生成文件名
+     * 格式：yyyyMMdd_HHmmss_typeId.jpg
+     */
+    private String generatePhotoFileName(String photoTime, String typeId) {
+        try {
+            if (photoTime != null && photoTime.length() >= 15) {
+                // 格式如 2026-04-24T14:30:00 或 20260424143000
+                String timePart = photoTime.replace("-", "").replace(":", "").replace("T", "");
+                timePart = timePart.substring(0, 14); // yyyyMMddHHmmss
+                return timePart + "_" + typeId + ".jpg";
+            }
+        } catch (Exception e) {
+            // 使用 UUID
+        }
+        return UUID.randomUUID().toString() + "_" + typeId + ".jpg";
+    }
+
+    /**
      * 根据 typeId 映射到实体字段名
      * 二级平台上传策略：
      * 1-通行凭证照片, 2-透视影像, 3-车身照, 4-证据链照片, 24-货物照
+     * 11-车头照, 12-车尾照, 13-证件照, 99-车顶照
      */
     private String mapTypeIdToField(String typeId) {
         if (typeId == null) return null;
@@ -133,7 +154,11 @@ public class ThreeLevelPlatformServiceImpl implements ThreeLevelPlatformService 
             case "2" -> "transparentImagePath"; // 透视影像
             case "3" -> "bodyImagePath";      // 车身照
             case "4" -> "evidencesImagePath"; // 证据链照片
+            case "11" -> "headImagePath";     // 车头照
+            case "12" -> "tailImagePath";     // 车尾照
+            case "13" -> "licenseImagePath";  // 证件照
             case "24" -> "goodsImagePath";   // 货物照
+            case "99" -> "topImagePath";      // 车顶照
             default -> null;
         };
     }
