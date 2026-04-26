@@ -66,7 +66,7 @@
                 </el-card>
               </el-col>
 
-              <!-- 卡片3：最大省，省内最大市（暂为空） -->
+              <!-- 卡片3：最大省，省内最大市 -->
               <el-col :span="6">
                 <el-card class="stat-card" shadow="hover">
                   <div class="stat-inner">
@@ -74,8 +74,23 @@
                       <el-icon size="28"><Location /></el-icon>
                     </div>
                     <div class="stat-body">
-                      <div class="stat-value large">暂无数据</div>
-                      <div class="stat-label">最大省|省内最大市</div>
+                      <div class="stat-value-row">
+                        <template v-if="infoOverview.mostProvince && infoOverview.mostProvince !== '暂无数据'">
+                          <span class="stat-value-item success">
+                            <span class="value">{{ infoOverview.mostProvince }}</span>
+                            <span class="label">最大省({{ infoOverview.mostProvinceCount }}次)</span>
+                          </span>
+                          <template v-if="infoOverview.mostProvinceTopStation">
+                            <span class="stat-divider">|</span>
+                            <span class="stat-value-item">
+                              <span class="value">{{ infoOverview.mostProvinceTopStation }}</span>
+                              <span class="label">省内最大站({{ infoOverview.mostProvinceTopStationCount }}次)</span>
+                            </span>
+                          </template>
+                        </template>
+                        <span v-else class="stat-value-item">暂无数据</span>
+                      </div>
+                      <div class="stat-sub">最大省|省内最大市</div>
                     </div>
                   </div>
                 </el-card>
@@ -247,10 +262,14 @@ const goToInspection = (item) => {
 
 /** 信息总览数据 */
 const infoOverview = reactive({
-  passFee: 0,
-  passCount: 0,
-  failCount: 0,
-  uploadCount: 0
+  exemptFee: 0,
+  chaseFee: 0,
+  avgAcceptanceDuration: 0,
+  goodsTypeTop: [],
+  mostProvince: '暂无数据',
+  mostProvinceCount: 0,
+  mostProvinceTopStation: '',
+  mostProvinceTopStationCount: 0
 })
 
 /** 时段分布数据 */
@@ -320,6 +339,10 @@ const loadData = async () => {
       infoOverview.chaseFee = overview.chaseFee || 0
       infoOverview.avgAcceptanceDuration = overview.avgAcceptanceDuration || 0
       infoOverview.goodsTypeTop = overview.goodsTypeTop || []
+      infoOverview.mostProvince = overview.mostProvince || '暂无数据'
+      infoOverview.mostProvinceCount = overview.mostProvinceCount || 0
+      infoOverview.mostProvinceTopStation = overview.mostProvinceTopStation || '暂无数据'
+      infoOverview.mostProvinceTopStationCount = overview.mostProvinceTopStationCount || 0
 
       // 时段分布
       hourlyDistribution.value = d.hourlyDistribution || []

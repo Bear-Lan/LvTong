@@ -373,12 +373,20 @@ public class VehicleInspectionController {
         Map<String, Object> avgProcessTime = inspectionService.getAvgProcessTime(startTime, endTime);
         double avgSeconds = avgProcessTime != null && avgProcessTime.get("avgSeconds") != null
                 ? ((Number) avgProcessTime.get("avgSeconds")).doubleValue() : 0;
+
+        // 最大省份
+        Map<String, Object> mostProvince = inspectionService.getMostProvince(startTime, endTime);
+
         // 构建 infoOverview（复用已有数据）
         Map<String, Object> infoOverview = new HashMap<>();
         infoOverview.put("exemptFee", feeStats.get("exemptFee"));
         infoOverview.put("chaseFee", feeStats.get("chaseFee"));
         infoOverview.put("avgAcceptanceDuration", avgSeconds);
         infoOverview.put("goodsTypeTop", goodsTypeTop);
+        infoOverview.put("mostProvince", mostProvince.get("provinceName"));
+        infoOverview.put("mostProvinceCount", mostProvince.get("count"));
+        infoOverview.put("mostProvinceTopStation", mostProvince.get("topStation"));
+        infoOverview.put("mostProvinceTopStationCount", mostProvince.get("topStationCount"));
         data.put("infoOverview", infoOverview);
         // 查验时段分布（按timeType返回不同粒度：day=24小时，month=31天，year=12月）
         data.put("hourlyDistribution", inspectionService.getHourlyDistributionByRange(startTime, endTime, timeType));

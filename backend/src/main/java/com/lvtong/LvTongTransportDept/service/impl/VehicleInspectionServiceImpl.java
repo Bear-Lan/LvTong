@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.lvtong.LvTongTransportDept.entity.VehicleInspection;
 import com.lvtong.LvTongTransportDept.exception.BusinessException;
 import com.lvtong.LvTongTransportDept.mapper.VehicleInspectionMapper;
+import com.lvtong.LvTongTransportDept.service.ProvinceCacheService;
 import com.lvtong.LvTongTransportDept.service.VehicleInspectionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,9 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
 
     @Autowired
     private VehicleInspectionMapper mapper;
+
+    @Autowired
+    private ProvinceCacheService provinceCacheService;
 
     @Override
     @Transactional(readOnly = true)
@@ -484,6 +488,45 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
     @Override
     public Map<String, Object> getAvgProcessTime(LocalDateTime startTime, LocalDateTime endTime) {
         return mapper.selectAvgProcessTime(startTime, endTime);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, Object> getMostProvince(LocalDateTime startTime, LocalDateTime endTime) {
+        List<Map<String, Object>> provinceList = mapper.selectProvinceStats(startTime, endTime);
+        if (provinceList == null || provinceList.isEmpty()) {
+            Map<String, Object> empty = new HashMap<>();
+            empty.put("provinceName", "暂无数据");
+            empty.put("provinceCode", "");
+            empty.put("count", 0);
+            empty.put("topCity", "");
+            empty.put("topCityCount", 0);
+            return empty;
+        }
+
+        // 最大省份
+        Map<String, Object> top = provinceList.get(0);
+        String provinceCode = top.get("provinceCode") != null ? top.get("provinceCode").toString() : "";
+        String provinceName = provinceCacheService.getProvinceNameByCode(provinceCode);
+        long totalCount = ((Number) top.get("count")).longValue();
+
+        // 省内出现次数最多的站点
+        List<Map<String, Object>> cityStats = mapper.selectCityStatsByProvince(startTime, endTime, provinceCode);
+        String topCity = "";
+        long topCityCount = 0;
+        if (cityStats != null && !cityStats.isEmpty()) {
+            Map<String, Object> cityTop = cityStats.get(0);
+            topCity = cityTop.get("stationName") != null ? cityTop.get("stationName").toString() : "";
+            topCityCount = ((Number) cityTop.get("count")).longValue();
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("provinceName", provinceName);
+        result.put("provinceCode", provinceCode);
+        result.put("count", totalCount);
+        result.put("topStation", topCity);
+        result.put("topStationCount", topCityCount);
+        return result;
     }
 
     private List<Map<String, Object>> fillHourlyProcessTime(List<Map<String, Object>> dbRows) {

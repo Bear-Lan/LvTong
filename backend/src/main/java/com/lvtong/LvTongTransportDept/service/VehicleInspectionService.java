@@ -86,6 +86,9 @@ public interface VehicleInspectionService {
     /** 获取平均处理时长（总时长/总次数） */
     Map<String, Object> getAvgProcessTime(LocalDateTime startTime, LocalDateTime endTime);
 
+    /** 获取最大省份统计（省份代码、省份名称、最大省份内最大城市、数量） */
+    Map<String, Object> getMostProvince(LocalDateTime startTime, LocalDateTime endTime);
+
     /** 导出查询（全量数据，不分页） */
     List<VehicleInspection> searchForExport(
             String plateNumber,
