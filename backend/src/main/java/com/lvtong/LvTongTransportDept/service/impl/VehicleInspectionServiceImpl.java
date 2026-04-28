@@ -510,22 +510,22 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
         String provinceName = provinceCacheService.getProvinceNameByCode(provinceCode);
         long totalCount = ((Number) top.get("count")).longValue();
 
-        // 省内出现次数最多的站点
-        List<Map<String, Object>> cityStats = mapper.selectCityStatsByProvince(startTime, endTime, provinceCode);
-        String topCity = "";
-        long topCityCount = 0;
-        if (cityStats != null && !cityStats.isEmpty()) {
-            Map<String, Object> cityTop = cityStats.get(0);
-            topCity = cityTop.get("stationName") != null ? cityTop.get("stationName").toString() : "";
-            topCityCount = ((Number) cityTop.get("count")).longValue();
+        // 湖北省内出现次数最多的站点（固定查42省份）
+        List<Map<String, Object>> hubeiStationStats = mapper.selectTopStationInHubei(startTime, endTime);
+        String topStation = "";
+        long topStationCount = 0;
+        if (hubeiStationStats != null && !hubeiStationStats.isEmpty()) {
+            Map<String, Object> stationTop = hubeiStationStats.get(0);
+            topStation = stationTop.get("stationName") != null ? stationTop.get("stationName").toString() : "";
+            topStationCount = ((Number) stationTop.get("count")).longValue();
         }
 
         Map<String, Object> result = new HashMap<>();
         result.put("provinceName", provinceName);
         result.put("provinceCode", provinceCode);
         result.put("count", totalCount);
-        result.put("topStation", topCity);
-        result.put("topStationCount", topCityCount);
+        result.put("topStation", topStation);
+        result.put("topStationCount", topStationCount);
         return result;
     }
 

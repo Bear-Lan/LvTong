@@ -254,7 +254,7 @@ public interface VehicleInspectionMapper extends BaseMapper<VehicleInspection> {
                                                    @Param("endTime") LocalDateTime endTime);
 
     /**
-     * 按省份内站点统计查验数量（获取某省份内出现次数最多的站点名称）
+     * 湖北省内站点统计查验数量（获取湖北省内出现次数最多的站点名称）
      */
     @Select("SELECT " +
             "si.station_name AS stationName, " +
@@ -262,12 +262,11 @@ public interface VehicleInspectionMapper extends BaseMapper<VehicleInspection> {
             "FROM vehicle_inspections vi " +
             "INNER JOIN station_info si ON si.station_id = vi.passcode_en_station_id " +
             "WHERE vi.inspection_time >= #{startTime} AND vi.inspection_time < #{endTime} " +
-            "AND si.province = #{provinceCode} " +
+            "AND si.province = '42' " +
             "AND si.station_name IS NOT NULL AND si.station_name != '' " +
             "GROUP BY si.station_name " +
             "ORDER BY count DESC " +
             "LIMIT 1")
-    List<Map<String, Object>> selectCityStatsByProvince(@Param("startTime") LocalDateTime startTime,
-                                                         @Param("endTime") LocalDateTime endTime,
-                                                         @Param("provinceCode") String provinceCode);
+    List<Map<String, Object>> selectTopStationInHubei(@Param("startTime") LocalDateTime startTime,
+                                                      @Param("endTime") LocalDateTime endTime);
 }
