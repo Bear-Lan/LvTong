@@ -1,156 +1,119 @@
 <template>
   <div class="video-monitor-page">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <h2 class="page-title">
-        <el-icon><VideoCamera /></el-icon>
-        视频监控
-      </h2>
-      <div class="header-actions">
-        <el-select v-model="selectedChannel" placeholder="选择通道" style="width: 120px" @change="selectChannel">
-          <el-option v-for="ch in channels" :key="ch.channel" :label="ch.name" :value="ch.channel" />
-        </el-select>
-        <el-tag :type="isPlaying ? 'success' : 'info'">{{ isPlaying ? '播放中' : '未播放' }}</el-tag>
+    <!-- 5路视频分屏容器 -->
+    <div class="video-split-container">
+      <!-- 左侧：车道（占1/3宽度） -->
+      <div class="split-left">
+        <VideoWindow
+          ref="videoLaneRef"
+          channel-key="lane"
+          channel-name="车道"
+          :channel-id="laneChannelId"
+          @fullscreen="handleFullscreen('lane')"
+          @screenshot="handleScreenshot('lane')"
+        />
       </div>
-    </div>
-
-    <!-- 视频播放区域 -->
-    <div class="video-player-container" v-if="currentChannel">
-      <video
-        ref="videoElement"
-        class="webrtc-video"
-        autoplay
-        playsinline
-        controls
-      ></video>
-    </div>
-    <div class="video-empty" v-else>
-      <el-icon><VideoCamera /></el-icon>
-      <p>点击下方通道开始播放</p>
-    </div>
-
-    <!-- 通道列表 -->
-    <div class="channel-grid">
-      <div
-        v-for="ch in channels"
-        :key="ch.channel"
-        class="channel-card"
-        :class="{ active: currentChannel?.channel === ch.channel }"
-        @click="selectChannel(ch.channel)"
-      >
-        <el-icon><VideoCamera /></el-icon>
+      <!-- 右侧：2x2分屏（占2/3宽度） -->
+      <div class="split-right">
+        <div class="split-right-top">
+          <VideoWindow
+            ref="videoAppointmentRef"
+            channel-key="appointment"
+            channel-name="预约机"
+            :channel-id="appointmentChannelId"
+            @fullscreen="handleFullscreen('appointment')"
+            @screenshot="handleScreenshot('appointment')"
+          />
+          <VideoWindow
+            ref="videoFrontRef"
+            channel-key="front"
+            channel-name="车头"
+            :channel-id="frontChannelId"
+            @fullscreen="handleFullscreen('front')"
+            @screenshot="handleScreenshot('front')"
+          />
+        </div>
+        <div class="split-right-bottom">
+          <VideoWindow
+            ref="videoRearRef"
+            channel-key="rear"
+            channel-name="车尾"
+            :channel-id="rearChannelId"
+            @fullscreen="handleFullscreen('rear')"
+            @screenshot="handleScreenshot('rear')"
+          />
+          <VideoWindow
+            ref="video360Ref"
+            channel-key="ptz360"
+            channel-name="360球机"
+            :channel-id="ptz360ChannelId"
+            @fullscreen="handleFullscreen('ptz360')"
+            @screenshot="handleScreenshot('ptz360')"
+          />
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
-import { VideoCamera } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
-import { getStreamUrl, listChannels } from '@/api/stream'
+import { ref, onMounted, defineAsyncComponent } from 'vue'
+import { listChannels } from '@/api/stream'
 
-const MEDIA_SERVER = 'http://127.0.0.1:8889'
+const VideoWindow = defineAsyncComponent(() => import('@/components/VideoWindow.vue'))
 
-const videoElement = ref(null)
-const channels = ref([])
-const selectedChannel = ref(null)
-const currentChannel = ref(null)
-const isPlaying = ref(false)
-let peerConnection = null
+// 各分屏窗口对应的channel id
+const laneChannelId = ref(null)
+const appointmentChannelId = ref(null)
+const frontChannelId = ref(null)
+const rearChannelId = ref(null)
+const ptz360ChannelId = ref(null)
+
+// video elements refs
+const videoLaneRef = ref(null)
+const videoAppointmentRef = ref(null)
+const videoFrontRef = ref(null)
+const videoRearRef = ref(null)
+const video360Ref = ref(null)
 
 onMounted(async () => {
-  await loadChannels()
-})
-
-onUnmounted(() => {
-  stopStream()
-})
-
-const loadChannels = async () => {
   const res = await listChannels()
-  if (res.code === 200) {
-    channels.value = res.data || []
+  if (res.code === 200 && res.data?.length >= 5) {
+    const channels = res.data
+    laneChannelId.value = channels.find(c => c.cameraType === 'lane')?.channel
+    appointmentChannelId.value = channels.find(c => c.cameraType === 'appointment')?.channel
+    frontChannelId.value = channels.find(c => c.cameraType === 'front')?.channel
+    rearChannelId.value = channels.find(c => c.cameraType === 'rear')?.channel
+    ptz360ChannelId.value = channels.find(c => c.cameraType === 'ptz360')?.channel
+  }
+})
+
+const handleFullscreen = (channelKey) => {
+  const refMap = {
+    lane: videoLaneRef,
+    appointment: videoAppointmentRef,
+    front: videoFrontRef,
+    rear: videoRearRef,
+    ptz360: video360Ref
+  }
+  const videoRef = refMap[channelKey]?.value
+  if (videoRef) {
+    videoRef.toggleFullscreen()
   }
 }
 
-const selectChannel = async (channel) => {
-  try {
-    ElMessage.info('正在连接视频流...')
-    selectedChannel.value = channel
-
-    const res = await getStreamUrl(channel)
-    if (res.code !== 200) {
-      ElMessage.error(res.message || '获取流地址失败')
-      return
-    }
-
-    currentChannel.value = {
-      channel: res.data.channel,
-      name: res.data.channelName
-    }
-
-    await startWebRTC(channel)
-    isPlaying.value = true
-    ElMessage.success('开始播放: ' + res.data.channelName)
-  } catch (e) {
-    ElMessage.error('播放失败: ' + e.message)
+const handleScreenshot = (channelKey) => {
+  const refMap = {
+    lane: videoLaneRef,
+    appointment: videoAppointmentRef,
+    front: videoFrontRef,
+    rear: videoRearRef,
+    ptz360: video360Ref
   }
-}
-
-const startWebRTC = async (channel) => {
-  stopStream()
-
-  peerConnection = new RTCPeerConnection()
-
-  peerConnection.ontrack = (event) => {
-    if (videoElement.value && event.streams[0]) {
-      videoElement.value.srcObject = event.streams[0]
-    }
+  const videoRef = refMap[channelKey]?.value
+  if (videoRef) {
+    videoRef.captureScreenshot()
   }
-
-  peerConnection.oniceconnectionstatechange = () => {
-    if (peerConnection.iceConnectionState === 'connected') {
-      isPlaying.value = true
-    }
-  }
-
-  const offer = await peerConnection.createOffer({
-    offerToReceiveAudio: 1,
-    offerToReceiveVideo: 1
-  })
-
-  await peerConnection.setLocalDescription(offer)
-  await new Promise(r => setTimeout(r, 1000))
-
-  const whepUrl = `${MEDIA_SERVER}/channel_${channel}/whep`
-  const response = await fetch(whepUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/sdp' },
-    body: peerConnection.localDescription.sdp
-  })
-
-  if (!response.ok) {
-    const errText = await response.text()
-    throw new Error(`WHEP请求失败: ${response.status} - ${errText}`)
-  }
-
-  const answerSdp = await response.text()
-  await peerConnection.setRemoteDescription(new RTCSessionDescription({
-    type: 'answer',
-    sdp: answerSdp
-  }))
-}
-
-const stopStream = () => {
-  if (peerConnection) {
-    peerConnection.close()
-    peerConnection = null
-  }
-  if (videoElement.value) {
-    videoElement.value.srcObject = null
-  }
-  isPlaying.value = false
 }
 </script>
 
@@ -162,114 +125,36 @@ const stopStream = () => {
   flex-direction: column;
 }
 
-.page-header {
+/* 5路分屏容器 */
+.video-split-container {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-
-.page-title {
-  display: flex;
-  align-items: center;
+  flex: 1;
   gap: 8px;
-  font-size: 18px;
-  font-weight: 600;
-  color: #333;
-  margin: 0;
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.video-player-container {
-  width: 100%;
-  aspect-ratio: 16/9;
-  background: #000;
-  border-radius: 8px;
-  overflow: hidden;
   margin-bottom: 20px;
-  position: relative;
+  min-height: 400px;
 }
 
-.webrtc-video {
-  width: 100%;
+.split-left {
+  flex: 0 0 33.33%;
   height: 100%;
-  object-fit: contain;
 }
 
-.video-info {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 8px 12px;
-  background: rgba(0, 0, 0, 0.7);
-  color: #fff;
-  font-size: 14px;
-}
-
-.video-empty {
-  width: 100%;
-  aspect-ratio: 16/9;
-  background: #1a1a1a;
-  border-radius: 8px;
+.split-right {
+  flex: 0 0 66.67%;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: #666;
-  margin-bottom: 20px;
+  gap: 8px;
 }
 
-.video-empty .el-icon {
-  font-size: 48px;
-  margin-bottom: 12px;
+.split-right-top,
+.split-right-bottom {
+  display: flex;
+  gap: 8px;
+  flex: 1;
 }
 
-.channel-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 12px;
-}
-
-.channel-card {
-  background: #f5f7fa;
-  border-radius: 8px;
-  padding: 16px;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.3s;
-  border: 2px solid transparent;
-}
-
-.channel-card:hover {
-  background: #ecf5ff;
-  border-color: #409eff;
-}
-
-.channel-card.active {
-  background: #f0f9eb;
-  border-color: #67c23a;
-}
-
-.channel-card .el-icon {
-  font-size: 24px;
-  color: #409eff;
-  margin-bottom: 8px;
-}
-
-.channel-card.active .el-icon {
-  color: #67c23a;
-}
-
-.channel-name {
-  display: block;
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 8px;
+.split-right-top > div,
+.split-right-bottom > div {
+  flex: 1;
 }
 </style>
