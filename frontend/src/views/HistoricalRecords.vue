@@ -17,7 +17,7 @@
           车辆查验记录
         </h2>
       </div>
-      <el-form :model="searchForm" label-position="inline" class="search-form">
+      <el-form :model="searchForm" label-position="left" class="search-form">
         <el-row :gutter="20">
 
           <!-- 车牌号 -->
