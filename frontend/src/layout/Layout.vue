@@ -33,6 +33,10 @@
           <el-icon><Monitor /></el-icon>
           <template #title>智慧大屏</template>
         </el-menu-item>
+        <el-menu-item index="/video">
+          <el-icon><VideoCamera /></el-icon>
+          <template #title>视频监控</template>
+        </el-menu-item>
       </el-menu>
 
       <div class="sidebar-waves">
@@ -101,7 +105,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Fold, Expand, HomeFilled, User, SwitchButton, Van, Monitor } from '@element-plus/icons-vue'
+import { Fold, Expand, HomeFilled, User, SwitchButton, Van, Monitor, VideoCamera } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
 

@@ -31,6 +31,7 @@ public class WebConfig implements WebMvcConfigurer {
                         "/api/images",
                         "/api/mobile/**",
                         "/api/inspection/datascreen/**",
+                        "/api/camera/**",
                         "/swagger-ui/**",
                         "/swagger-ui.html",
                         "/api-docs/**",
