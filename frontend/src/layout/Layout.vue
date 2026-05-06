@@ -33,7 +33,7 @@
           <el-icon><Monitor /></el-icon>
           <template #title>智慧大屏</template>
         </el-menu-item>
-        <el-menu-item index="/video">
+        <el-menu-item index="#" @click="openVideoMonitor">
           <el-icon><VideoCamera /></el-icon>
           <template #title>视频监控</template>
         </el-menu-item>
@@ -136,6 +136,10 @@ const handleCommand = (command) => {
 // 新窗口打开3D大屏
 const openDatascreen = () => {
   window.open('/#/greenchannel', '_blank')
+}
+
+const openVideoMonitor = () => {
+  window.open('/#/video', '_blank')
 }
 </script>
 

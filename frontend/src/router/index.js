@@ -19,6 +19,12 @@ const routes = [
     component: () => import('@/views/GreenChannel.vue')
   },
   {
+    path: '/video',
+    name: 'VideoMonitor',
+    meta: { title: '视频监控' },
+    component: () => import('@/views/VideoMonitor.vue')
+  },
+  {
     path: '/',
     component: () => import('@/layout/Layout.vue'),
     meta: { requiresAuth: true },
@@ -40,12 +46,6 @@ const routes = [
         name: 'VehicleInspection',
         meta: { title: '历史记录' },
         component: () => import('@/views/HistoricalRecords.vue')
-      },
-      {
-        path: 'video',
-        name: 'VideoMonitor',
-        meta: { title: '视频监控' },
-        component: () => import('@/views/VideoMonitor.vue')
       }
     ]
   }
