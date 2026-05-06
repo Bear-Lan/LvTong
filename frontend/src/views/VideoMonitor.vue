@@ -1,5 +1,8 @@
 <template>
   <div class="video-monitor-page">
+    <div class="page-header">
+      <h1 class="page-title">硚孝高速毛陈收费站X射线绿通快检试点项目视频监控</h1>
+    </div>
     <!-- 5路视频分屏容器: 左(1列) + 右(2列x2行) -->
     <div class="video-split-container">
       <!-- 左侧：车道（占1/3宽度，全高） -->
@@ -8,6 +11,8 @@
           channel-key="lane"
           channel-name="车道"
           :channel-id="laneChannelId"
+          :media-server-url="mediaServerUrl"
+          :is-rotated="true"
         />
       </div>
       <!-- 右侧：2x2分屏（占2/3宽度） -->
@@ -17,11 +22,13 @@
             channel-key="appointment"
             channel-name="预约机"
             :channel-id="appointmentChannelId"
+            :media-server-url="mediaServerUrl"
           />
           <VideoWindow
             channel-key="front"
             channel-name="车头"
             :channel-id="frontChannelId"
+            :media-server-url="mediaServerUrl"
           />
         </div>
         <div class="split-right-bottom">
@@ -29,11 +36,13 @@
             channel-key="rear"
             channel-name="车尾"
             :channel-id="rearChannelId"
+            :media-server-url="mediaServerUrl"
           />
           <VideoWindow
             channel-key="ptz360"
             channel-name="360球机"
             :channel-id="ptz360ChannelId"
+            :media-server-url="mediaServerUrl"
           />
         </div>
       </div>
@@ -52,6 +61,7 @@ const appointmentChannelId = ref(null)
 const frontChannelId = ref(null)
 const rearChannelId = ref(null)
 const ptz360ChannelId = ref(null)
+const mediaServerUrl = ref('http://127.0.0.1:8889')
 
 onMounted(async () => {
   const res = await listChannels()
@@ -62,6 +72,7 @@ onMounted(async () => {
     frontChannelId.value = channels.find(c => c.cameraType === 'front')?.channel
     rearChannelId.value = channels.find(c => c.cameraType === 'rear')?.channel
     ptz360ChannelId.value = channels.find(c => c.cameraType === 'ptz360')?.channel
+    mediaServerUrl.value = channels[0]?.mediaServerUrl || mediaServerUrl.value
   }
 })
 </script>
@@ -75,6 +86,23 @@ onMounted(async () => {
   flex-direction: column;
   overflow: hidden;
   box-sizing: border-box;
+  background: #0a0a0a;
+}
+
+.page-header {
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-bottom: 2px solid #0f4c75;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.page-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #e0e0e0;
+  text-align: center;
+  letter-spacing: 2px;
 }
 
 /* 5路分屏容器 - 三列等宽 */
@@ -84,19 +112,19 @@ onMounted(async () => {
   gap: 4px;
   padding: 4px;
   width: 100%;
-  height: 100%;
+  height: calc(100vh - 56px);
   box-sizing: border-box;
 }
 
 .split-left {
-  flex: 1;
+  flex: 0 0 20%;
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
 
 .split-right {
-  flex: 1;
+  flex: 0 0 80%;
   display: flex;
   flex-direction: column;
   gap: 4px;

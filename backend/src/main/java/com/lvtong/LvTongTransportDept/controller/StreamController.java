@@ -14,12 +14,14 @@ import java.util.stream.Collectors;
 public class StreamController {
 
     private static final Map<Integer, ChannelInfo> CHANNEL_MAP = new ConcurrentHashMap<>();
+    private static final String MEDIA_SERVER_URL = "http://127.0.0.1:8889";
+
     static {
-        CHANNEL_MAP.put(1, new ChannelInfo(1, "通道1", "车头相机", "front", "webrtc://127.0.0.1:8889/channel_1"));
-        CHANNEL_MAP.put(2, new ChannelInfo(2, "通道2", "车尾相机", "rear", "webrtc://127.0.0.1:8889/channel_2"));
-        CHANNEL_MAP.put(3, new ChannelInfo(3, "通道3", "车道相机", "lane", "webrtc://127.0.0.1:8889/channel_3"));
-        CHANNEL_MAP.put(4, new ChannelInfo(4, "通道4", "预约机", "appointment", "webrtc://127.0.0.1:8889/channel_4"));
-        CHANNEL_MAP.put(5, new ChannelInfo(5, "通道5", "球机", "ptz360", "webrtc://127.0.0.1:8889/channel_5"));
+        CHANNEL_MAP.put(1, new ChannelInfo(1, "通道1", "车头相机", "front", MEDIA_SERVER_URL, "/channel_1"));
+        CHANNEL_MAP.put(2, new ChannelInfo(2, "通道2", "车尾相机", "rear", MEDIA_SERVER_URL, "/channel_2"));
+        CHANNEL_MAP.put(3, new ChannelInfo(3, "通道3", "车道相机", "lane", MEDIA_SERVER_URL, "/channel_3"));
+        CHANNEL_MAP.put(4, new ChannelInfo(4, "通道4", "预约机", "appointment", MEDIA_SERVER_URL, "/channel_4"));
+        CHANNEL_MAP.put(5, new ChannelInfo(5, "通道5", "球机", "ptz360", MEDIA_SERVER_URL, "/channel_5"));
     }
 
     @GetMapping("/channels")
@@ -57,14 +59,16 @@ public class StreamController {
         private String name;
         private String description;
         private String cameraType; // cameraType: front(车头), rear(车尾), lane(车道), appointment(预约机), ptz360(球机)
-        private String url; // 完整媒体服务器URL
+        private String mediaServerUrl; // 媒体服务器基础URL
+        private String url; // 通道相对路径
 
         public ChannelInfo() {}
-        public ChannelInfo(Integer channel, String name, String description, String cameraType, String url) {
+        public ChannelInfo(Integer channel, String name, String description, String cameraType, String mediaServerUrl, String url) {
             this.channel = channel;
             this.name = name;
             this.description = description;
             this.cameraType = cameraType;
+            this.mediaServerUrl = mediaServerUrl;
             this.url = url;
         }
 
@@ -76,6 +80,8 @@ public class StreamController {
         public void setDescription(String description) { this.description = description; }
         public String getCameraType() { return cameraType; }
         public void setCameraType(String cameraType) { this.cameraType = cameraType; }
+        public String getMediaServerUrl() { return mediaServerUrl; }
+        public void setMediaServerUrl(String mediaServerUrl) { this.mediaServerUrl = mediaServerUrl; }
         public String getUrl() { return url; }
         public void setUrl(String url) { this.url = url; }
     }

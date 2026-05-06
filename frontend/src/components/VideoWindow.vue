@@ -3,16 +3,21 @@
     <video
       ref="videoElement"
       class="webrtc-video"
+      :class="{ 'is-rotated': isRotated }"
       autoplay
       playsinline
     ></video>
 
-    <div class="video-label">
-      <span class="channel-name">{{ channelName }}</span>
-      <span class="timestamp">{{ formattedTime }}</span>
-    </div>
-
     <div class="video-actions">
+      <button
+        class="action-btn"
+        :class="{ 'is-disabled': isLoading }"
+        @click.stop="retryConnect"
+        title="重连"
+        :disabled="isLoading"
+      >
+        <el-icon><RefreshRight /></el-icon>
+      </button>
       <button class="action-btn" @click.stop="toggleFullscreen" title="全屏">
         <el-icon><FullScreen /></el-icon>
       </button>
@@ -41,39 +46,23 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { FullScreen, Camera, VideoCamera } from '@element-plus/icons-vue'
+import { FullScreen, Camera, VideoCamera, RefreshRight } from '@element-plus/icons-vue'
 
 const props = defineProps({
   channelKey: { type: String, required: true },
   channelName: { type: String, required: true },
-  channelId: { type: [Number, String], default: null }
+  channelId: { type: [Number, String], default: null },
+  mediaServerUrl: { type: String, default: 'http://127.0.0.1:8889' },
+  isRotated: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['fullscreen', 'screenshot'])
-
-const MEDIA_SERVER = 'http://127.0.0.1:8889'
 
 const videoElement = ref(null)
 const isConnected = ref(false)
 const isLoading = ref(false)
 const hasError = ref(false)
-const formattedTime = ref('')
 let peerConnection = null
-let timeInterval = null
-
-const weekDays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
-
-const updateTime = () => {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  const hour = String(now.getHours()).padStart(2, '0')
-  const minute = String(now.getMinutes()).padStart(2, '0')
-  const second = String(now.getSeconds()).padStart(2, '0')
-  const weekDay = weekDays[now.getDay()]
-  formattedTime.value = `${year}-${month}-${day} ${hour}:${minute}:${second} ${weekDay}`
-}
 
 const startStream = async () => {
   if (!props.channelId || !videoElement.value) return
@@ -112,7 +101,7 @@ const startStream = async () => {
     await peerConnection.setLocalDescription(offer)
     await new Promise(r => setTimeout(r, 1000))
 
-    const whepUrl = `${MEDIA_SERVER}/channel_${props.channelId}/whep`
+    const whepUrl = `${props.mediaServerUrl}/channel_${props.channelId}/whep`
     const response = await fetch(whepUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/sdp' },
@@ -190,9 +179,6 @@ watch(() => props.channelId, async (newId, oldId) => {
 })
 
 onMounted(() => {
-  updateTime()
-  timeInterval = setInterval(updateTime, 1000)
-
   setTimeout(() => {
     if (props.channelId && videoElement.value) {
       startStream()
@@ -202,7 +188,6 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopStream()
-  if (timeInterval) clearInterval(timeInterval)
 })
 
 defineExpose({ toggleFullscreen, handleScreenshot })
@@ -230,35 +215,20 @@ defineExpose({ toggleFullscreen, handleScreenshot })
 .webrtc-video {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: fill;
 }
 
-.video-label {
-  position: absolute;
-  bottom: 8px;
-  left: 8px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 8px;
-  background: rgba(0, 0, 0, 0.6);
-  border-radius: 2px;
-  font-size: 12px;
-  color: #ccc;
-  z-index: 10;
-}
-
-.video-label .channel-name {
-  font-weight: 500;
-  color: #fff;
+.webrtc-video.is-rotated {
+  transform: rotate(90deg);
+  transform-origin: center center;
 }
 
 .video-actions {
   position: absolute;
-  bottom: 8px;
+  top: 8px;
   right: 8px;
   display: flex;
-  gap: 4px;
+  gap: 6px;
   z-index: 10;
 }
 
@@ -278,6 +248,11 @@ defineExpose({ toggleFullscreen, handleScreenshot })
 
 .action-btn:hover {
   background: rgba(255, 255, 255, 0.35);
+}
+
+.action-btn.is-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .action-btn .el-icon {
@@ -340,7 +315,7 @@ defineExpose({ toggleFullscreen, handleScreenshot })
 
 .video-error p {
   font-size: 14px;
-  margin: 0 0 12px 0;
+  margin: 0;
 }
 
 .retry-btn {
