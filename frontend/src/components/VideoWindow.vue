@@ -1,9 +1,10 @@
 <template>
   <div class="video-window" :class="{ 'is-playing': isConnected }">
-    <div class="video-wrapper" :class="{ 'is-rotated': isRotated }">
+    <div ref="videoWrapper" class="video-wrapper">
       <video
         ref="videoElement"
         class="webrtc-video"
+        :style="{ objectFit: fit }"
         autoplay
         playsinline
       ></video>
@@ -49,16 +50,35 @@ const props = defineProps({
   channelName: { type: String, required: true },
   channelId: { type: [Number, String], default: null },
   mediaServerUrl: { type: String, default: 'http://127.0.0.1:8889' },
+  fit: { type: String, default: 'fill' },
   isRotated: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['fullscreen', 'screenshot'])
 
 const videoElement = ref(null)
+const videoWrapper = ref(null)
 const isConnected = ref(false)
 const isLoading = ref(false)
 const hasError = ref(false)
 let peerConnection = null
+
+// 旋转90度后拉伸铺满（不裁切、不溢出）
+const updateRotatedStyle = () => {
+  if (!videoElement.value || !videoWrapper.value) return
+  if (!props.isRotated) {
+    videoElement.value.style.width = '100%'
+    videoElement.value.style.height = '100%'
+    videoElement.value.style.transform = ''
+    return
+  }
+  const cw = videoWrapper.value.clientWidth
+  const ch = videoWrapper.value.clientHeight
+  // 旋转后，宽高互换 → 强制拉伸到容器宽高，旋转后刚好填满
+  videoElement.value.style.width = `${ch}px`
+  videoElement.value.style.height = `${cw}px`
+  videoElement.value.style.transform = 'rotate(90deg)'
+}
 
 const startStream = async () => {
   if (!props.channelId || !videoElement.value) return
@@ -74,6 +94,9 @@ const startStream = async () => {
       videoElement.value.srcObject = event.streams[0]
       isConnected.value = true
       isLoading.value = false
+      videoElement.value.onloadedmetadata = () => {
+        updateRotatedStyle()
+      }
     }
   }
 
@@ -204,6 +227,9 @@ defineExpose({ toggleFullscreen, handleScreenshot })
   border: 1px solid rgba(80, 80, 80, 0.6);
   border-radius: 4px;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background-image:
     linear-gradient(rgba(60, 60, 60, 0.3) 1px, transparent 1px),
     linear-gradient(90deg, rgba(60, 60, 60, 0.3) 1px, transparent 1px);
@@ -215,22 +241,17 @@ defineExpose({ toggleFullscreen, handleScreenshot })
 }
 
 .video-wrapper {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
   width: 100%;
   height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.video-wrapper.is-rotated {
-  transform: translate(-50%, -50%) rotate(90deg);
-}
 
 .webrtc-video {
   width: 100%;
   height: 100%;
-  object-fit: cover;
 }
 
 .video-actions {
