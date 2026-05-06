@@ -27,7 +27,8 @@ public class TransportDeptCheckResultDto {
     // ================================================================
     // 基础信息
     // ================================================================
-
+    /** 拍照位置*/
+    private String position;
     /** 查验ID（格式：手机号_yyyyMMddHHmmss_手机号） */
     private String checkId;
 

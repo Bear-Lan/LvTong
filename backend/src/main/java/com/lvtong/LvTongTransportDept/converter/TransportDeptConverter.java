@@ -37,8 +37,6 @@ public class TransportDeptConverter {
 
     /** 图片最大宽度（像素），超过则等比缩放 */
     private static final int MAX_IMAGE_WIDTH = 1280;
-    /** JPEG 压缩质量 */
-    private static final float COMPRESS_QUALITY = 0.6f;
 
     // ================================================================
     // 主转换入口
@@ -98,7 +96,7 @@ public class TransportDeptConverter {
         dto.setMemo("");
         dto.setOperation(1);
         dto.setPhotos(buildPhotos(r, excludePhotoTypes, errors));
-
+        dto.setPosition("毛陈管理所");
         return dto;
     }
 
