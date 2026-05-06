@@ -1,8 +1,6 @@
 package com.lvtong.LvTongTransportDept.controller;
 
-import com.lvtong.LvTongTransportDept.config.StreamConfig;
 import com.lvtong.LvTongTransportDept.dto.ApiResponse;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,21 +13,17 @@ import java.util.stream.Collectors;
 @CrossOrigin
 public class StreamController {
 
-    @Autowired
-    private StreamConfig streamConfig;
-
     private static final Map<Integer, ChannelInfo> CHANNEL_MAP = new ConcurrentHashMap<>();
     static {
-        CHANNEL_MAP.put(1, new ChannelInfo(1, "通道1", "车头相机", "front"));
-        CHANNEL_MAP.put(2, new ChannelInfo(2, "通道2", "车尾相机", "rear"));
-        CHANNEL_MAP.put(3, new ChannelInfo(3, "通道3", "车道相机", "lane"));
-        CHANNEL_MAP.put(4, new ChannelInfo(4, "通道4", "预约机", "appointment"));
-        CHANNEL_MAP.put(5, new ChannelInfo(5, "通道5", "球机", "ptz360"));
+        CHANNEL_MAP.put(1, new ChannelInfo(1, "通道1", "车头相机", "front", "webrtc://127.0.0.1:8889/channel_1"));
+        CHANNEL_MAP.put(2, new ChannelInfo(2, "通道2", "车尾相机", "rear", "webrtc://127.0.0.1:8889/channel_2"));
+        CHANNEL_MAP.put(3, new ChannelInfo(3, "通道3", "车道相机", "lane", "webrtc://127.0.0.1:8889/channel_3"));
+        CHANNEL_MAP.put(4, new ChannelInfo(4, "通道4", "预约机", "appointment", "webrtc://127.0.0.1:8889/channel_4"));
+        CHANNEL_MAP.put(5, new ChannelInfo(5, "通道5", "球机", "ptz360", "webrtc://127.0.0.1:8889/channel_5"));
     }
 
     @GetMapping("/channels")
     public ApiResponse<List<ChannelInfo>> listChannels() {
-        // 按channel id顺序返回
         List<ChannelInfo> list = CHANNEL_MAP.keySet().stream()
             .sorted()
             .map(CHANNEL_MAP::get)
@@ -52,7 +46,7 @@ public class StreamController {
         url.setChannel(channel);
         url.setChannelName(channelInfo.getName());
         url.setDescription(channelInfo.getDescription());
-        url.setWebrtcUrl(streamConfig.generateWebrtcUrl(channel));
+        url.setWebrtcUrl(channelInfo.getUrl());
 
         return ApiResponse.success(url);
     }
@@ -63,13 +57,15 @@ public class StreamController {
         private String name;
         private String description;
         private String cameraType; // cameraType: front(车头), rear(车尾), lane(车道), appointment(预约机), ptz360(球机)
+        private String url; // 完整媒体服务器URL
 
         public ChannelInfo() {}
-        public ChannelInfo(Integer channel, String name, String description, String cameraType) {
+        public ChannelInfo(Integer channel, String name, String description, String cameraType, String url) {
             this.channel = channel;
             this.name = name;
             this.description = description;
             this.cameraType = cameraType;
+            this.url = url;
         }
 
         public Integer getChannel() { return channel; }
@@ -80,6 +76,8 @@ public class StreamController {
         public void setDescription(String description) { this.description = description; }
         public String getCameraType() { return cameraType; }
         public void setCameraType(String cameraType) { this.cameraType = cameraType; }
+        public String getUrl() { return url; }
+        public void setUrl(String url) { this.url = url; }
     }
 
     public static class StreamUrl {

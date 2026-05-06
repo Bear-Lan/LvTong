@@ -7,36 +7,31 @@
       playsinline
     ></video>
 
-    <!-- 左下角：通道标签 + 时间 -->
     <div class="video-label">
       <span class="channel-name">{{ channelName }}</span>
       <span class="timestamp">{{ formattedTime }}</span>
     </div>
 
-    <!-- 右下角：操作按钮 -->
     <div class="video-actions">
-      <button class="action-btn" @click.stop="$emit('fullscreen')" title="全屏">
+      <button class="action-btn" @click.stop="toggleFullscreen" title="全屏">
         <el-icon><FullScreen /></el-icon>
       </button>
-      <button class="action-btn" @click.stop="$emit('screenshot')" title="截图">
+      <button class="action-btn" @click.stop="handleScreenshot" title="截图">
         <el-icon><Camera /></el-icon>
       </button>
     </div>
 
-    <!-- 加载中动画 -->
     <div v-if="isLoading" class="video-loading">
       <div class="loading-spinner"></div>
       <p>正在连接视频...</p>
     </div>
 
-    <!-- 连接失败提示 -->
     <div v-else-if="hasError" class="video-error">
       <el-icon><VideoCamera /></el-icon>
       <p>视频连接失败</p>
       <button class="retry-btn" @click="retryConnect">重试</button>
     </div>
 
-    <!-- 空状态提示 -->
     <div v-else-if="!channelId" class="video-placeholder">
       <el-icon><VideoCamera /></el-icon>
       <p>{{ channelName }}</p>
@@ -45,9 +40,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch, nextTick, defineAsyncComponent } from 'vue'
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { FullScreen, Camera, VideoCamera } from '@element-plus/icons-vue'
-import { getStreamUrl } from '@/api/stream'
 
 const props = defineProps({
   channelKey: { type: String, required: true },
@@ -80,33 +74,6 @@ const updateTime = () => {
   const weekDay = weekDays[now.getDay()]
   formattedTime.value = `${year}-${month}-${day} ${hour}:${minute}:${second} ${weekDay}`
 }
-
-onMounted(() => {
-  updateTime()
-  timeInterval = setInterval(updateTime, 1000)
-
-  setTimeout(() => {
-    if (props.channelId && videoElement.value) {
-      startStream()
-    }
-  }, 100)
-})
-
-onUnmounted(() => {
-  stopStream()
-  if (timeInterval) clearInterval(timeInterval)
-})
-
-watch(() => props.channelId, async (newId, oldId) => {
-  if (newId && newId !== oldId) {
-    await nextTick()
-    setTimeout(() => {
-      if (newId) {
-        startStream()
-      }
-    }, 100)
-  }
-})
 
 const startStream = async () => {
   if (!props.channelId || !videoElement.value) return
@@ -190,7 +157,6 @@ const retryConnect = () => {
 
 const toggleFullscreen = () => {
   if (!videoElement.value) return
-
   if (document.fullscreenElement) {
     document.exitFullscreen()
   } else {
@@ -198,22 +164,48 @@ const toggleFullscreen = () => {
   }
 }
 
-const captureScreenshot = () => {
+const handleScreenshot = () => {
   if (!videoElement.value) return
-
   const canvas = document.createElement('canvas')
   canvas.width = videoElement.value.videoWidth
   canvas.height = videoElement.value.videoHeight
   const ctx = canvas.getContext('2d')
   ctx.drawImage(videoElement.value, 0, 0)
-
   const link = document.createElement('a')
   link.download = `${props.channelName}_${Date.now()}.png`
   link.href = canvas.toDataURL('image/png')
   link.click()
+  emit('screenshot')
 }
 
-defineExpose({ toggleFullscreen, captureScreenshot })
+watch(() => props.channelId, async (newId, oldId) => {
+  if (newId && newId !== oldId) {
+    await nextTick()
+    setTimeout(() => {
+      if (newId) {
+        startStream()
+      }
+    }, 100)
+  }
+})
+
+onMounted(() => {
+  updateTime()
+  timeInterval = setInterval(updateTime, 1000)
+
+  setTimeout(() => {
+    if (props.channelId && videoElement.value) {
+      startStream()
+    }
+  }, 100)
+})
+
+onUnmounted(() => {
+  stopStream()
+  if (timeInterval) clearInterval(timeInterval)
+})
+
+defineExpose({ toggleFullscreen, handleScreenshot })
 </script>
 
 <style scoped>
@@ -225,7 +217,6 @@ defineExpose({ toggleFullscreen, captureScreenshot })
   border: 1px solid rgba(80, 80, 80, 0.6);
   border-radius: 4px;
   overflow: hidden;
-  /* 细微浅色网格纹理 */
   background-image:
     linear-gradient(rgba(60, 60, 60, 0.3) 1px, transparent 1px),
     linear-gradient(90deg, rgba(60, 60, 60, 0.3) 1px, transparent 1px);
@@ -242,7 +233,6 @@ defineExpose({ toggleFullscreen, captureScreenshot })
   object-fit: contain;
 }
 
-/* 左下角标签 */
 .video-label {
   position: absolute;
   bottom: 8px;
@@ -263,7 +253,6 @@ defineExpose({ toggleFullscreen, captureScreenshot })
   color: #fff;
 }
 
-/* 右下角操作按钮 */
 .video-actions {
   position: absolute;
   bottom: 8px;
@@ -295,7 +284,6 @@ defineExpose({ toggleFullscreen, captureScreenshot })
   font-size: 16px;
 }
 
-/* 加载中 */
 .video-loading {
   position: absolute;
   top: 0;
@@ -330,7 +318,6 @@ defineExpose({ toggleFullscreen, captureScreenshot })
   margin: 0;
 }
 
-/* 连接失败 */
 .video-error {
   position: absolute;
   top: 0;
@@ -370,7 +357,6 @@ defineExpose({ toggleFullscreen, captureScreenshot })
   background: #66b1ff;
 }
 
-/* 空状态占位 */
 .video-placeholder {
   position: absolute;
   top: 0;
