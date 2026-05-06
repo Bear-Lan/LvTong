@@ -269,4 +269,17 @@ public interface VehicleInspectionMapper extends BaseMapper<VehicleInspection> {
             "LIMIT 1")
     List<Map<String, Object>> selectTopStationInHubei(@Param("startTime") LocalDateTime startTime,
                                                       @Param("endTime") LocalDateTime endTime);
+
+    /**
+     * 获取所有省份的通行数量统计（不限时间范围，用于大屏始发地展示）
+     */
+    @Select("SELECT " +
+            "si.province AS provinceCode, " +
+            "COUNT(*) AS count " +
+            "FROM vehicle_inspections vi " +
+            "INNER JOIN station_info si ON si.station_id = vi.passcode_en_station_id " +
+            "WHERE si.province IS NOT NULL AND si.province != '' " +
+            "GROUP BY si.province " +
+            "ORDER BY count DESC")
+    List<Map<String, Object>> selectProvinceStatsAll();
 }

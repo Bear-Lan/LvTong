@@ -58,7 +58,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { StatCard, SkyChart, RankList, ChinaAirline, Ciyun, LatestPassRecords } from '@/components/GreenChannel'
-import { getKpiData, getPassRecords, getCreditRanking, getGoodsTypeCloud } from '@/api/datascreen'
+import { getKpiData, getPassRecords, getCreditRanking, getGoodsTypeCloud, getProvinceStats } from '@/api/datascreen'
 import * as THREE from "three";
 import { ThreeViewer } from "@/utils/GreenChannelTool";
 
@@ -151,6 +151,22 @@ const fetchGoodsTypeCloud = async () => {
     }
 }
 
+// 获取省份通行数量统计（始发地）
+const fetchProvinceStats = async () => {
+    try {
+        const res = await getProvinceStats()
+        if (res.code === 200 && res.data) {
+            airlineData.value = res.data.map((item: any) => ({
+                name: item.name,
+                count: item.count
+            }))
+        }
+        console.log('省份通行统计数据:', airlineData.value)
+    } catch (error) {
+        console.error('获取省份通行统计失败:', error)
+    }
+}
+
 // 更新时间
 const updateTime = () => {
     const now = new Date()
@@ -168,6 +184,7 @@ const genRanking = ref<any>([])
 const goodsCount = ref<any>([])
 const lvtongStations = ref({ railingMachine: false, lightSource: false })
 const lvtongDetection = ref<any>({})
+const airlineData = ref<any[]>([])
 // 模拟 globalstate 方法
 const globalstate: any = {
   loading,
@@ -177,6 +194,7 @@ const globalstate: any = {
   typeShare,
   genRanking,
   goodsCount,
+  airlineData,
   setLoading: (v: boolean) => { loading.value = v },
   setMockData: (data: any) => {
     if (data.kpis) kpis.value = data.kpis
@@ -250,6 +268,10 @@ onMounted(async () => {
 
     // 获取大屏货物类型词云数据
     fetchGoodsTypeCloud()
+
+    // 获取省份通行数量统计（始发地）
+    fetchProvinceStats()
+    setInterval(fetchProvinceStats, 60000)  // 每分钟刷新一次
 
     viewer = await new ThreeViewer(threeContainer!);
     // 隐藏加载提示
@@ -504,43 +526,6 @@ onUnmounted(() => {
         viewer.dispose()
     }
 })
-
-const airlineData = ref([
-    { name: '北京', count: 120 },
-    { name: '西藏', count: 340 },
-    { name: '广州', count: 80 },
-    { name: '深圳', count: 200 },
-    { name: '重庆', count: 90 },
-    { name: '西安', count: 150 },
-    { name: '武汉', count: 150 },
-    { name: '吐鲁番', count: 150 },
-    { name: '乌鲁木齐', count: 150 },
-    { name: '沈阳', count: 150 },
-    { name: '哈尔滨', count: 150 },
-    { name: '昆明', count: 150 },
-    { name: '成都', count: 150 }
-])
-
-const ciyunData = ref([
-    { name: '大白菜', count: 8724 },
-
-
-    { name: '蟹类', count: 5984 },
-    { name: '海带', count: 7196 },
-    { name: '紫菜', count: 5473 },
-    { name: '海蜇', count: 3876 },
-    { name: '海参', count: 4589 },
-    { name: '仔猪', count: 8237 },
-    { name: '蜜蜂（转地放蜂）', count: 2984 },
-    { name: '新鲜的鸡蛋', count: 9568 },
-    { name: '新鲜的鸭蛋', count: 6742 },
-    { name: '新鲜的鹅蛋', count: 5289 },
-    { name: '新鲜的鹌鹑蛋', count: 4837 },
-    { name: '新鲜的鸽蛋', count: 4196 },
-    { name: '新鲜的家禽肉', count: 8765 },
-    { name: '新鲜的家畜肉', count: 9348 },
-    { name: '生鲜乳', count: 7823 }
-])
 
 const records = ref<VehicleInspection[]>([]);
 

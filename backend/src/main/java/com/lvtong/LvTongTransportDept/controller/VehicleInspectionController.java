@@ -461,6 +461,18 @@ public class VehicleInspectionController {
         return ApiResponse.success(goodsCloud);
     }
 
+    /**
+     * 获取所有省份通行数量统计（用于大屏始发地）
+     *
+     * @return 省份名称和通行数量列表
+     */
+    @GetMapping("/datascreen/province-stats")
+    @Operation(summary = "获取省份通行统计", description = "返回所有省份的通行数量，用于大屏始发地展示")
+    public ApiResponse<List<Map<String, Object>>> getProvinceStats() {
+        List<Map<String, Object>> stats = inspectionService.getProvinceStatsAll();
+        return ApiResponse.success(stats);
+    }
+
     // ================================================================
     // 【私有辅助方法】
     // ================================================================

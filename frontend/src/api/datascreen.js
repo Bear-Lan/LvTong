@@ -41,4 +41,12 @@ export function getGoodsTypeCloud() {
     return request.get('/inspection/datascreen/goods-cloud')
 }
 
+/**
+ * 获取省份通行数量统计（用于大屏始发地）
+ * @returns 省份名称和通行数量列表
+ */
+export function getProvinceStats() {
+    return request.get('/inspection/datascreen/province-stats')
+}
+
 

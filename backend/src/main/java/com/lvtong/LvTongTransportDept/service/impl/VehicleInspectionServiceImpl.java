@@ -529,6 +529,18 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
         return result;
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getProvinceStatsAll() {
+        List<Map<String, Object>> provinceList = mapper.selectProvinceStatsAll();
+        for (Map<String, Object> item : provinceList) {
+            String provinceCode = item.get("provinceCode") != null ? item.get("provinceCode").toString() : "";
+            String provinceName = provinceCacheService.getProvinceNameByCode(provinceCode);
+            item.put("name", provinceName);
+        }
+        return provinceList;
+    }
+
     private List<Map<String, Object>> fillHourlyProcessTime(List<Map<String, Object>> dbRows) {
         Map<Integer, Double> hourData = new HashMap<>();
         for (int i = 0; i < 24; i++) hourData.put(i, 0.0);

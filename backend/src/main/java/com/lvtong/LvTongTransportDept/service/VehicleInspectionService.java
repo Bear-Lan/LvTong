@@ -89,6 +89,9 @@ public interface VehicleInspectionService {
     /** 获取最大省份统计（省份代码、省份名称、最大省份内最大城市、数量） */
     Map<String, Object> getMostProvince(LocalDateTime startTime, LocalDateTime endTime);
 
+    /** 获取所有省份通行数量统计（用于大屏始发地） */
+    List<Map<String, Object>> getProvinceStatsAll();
+
     /** 导出查询（全量数据，不分页） */
     List<VehicleInspection> searchForExport(
             String plateNumber,

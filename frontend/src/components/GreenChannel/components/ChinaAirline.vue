@@ -18,24 +18,42 @@ const props = defineProps<{
 // ---- 武汉坐标 ----
 const wuhan = [114.305392, 30.593098]
 
-// ---- 全国城市坐标 ----
+// ---- 省份/城市坐标（省份名 → 省会坐标） ----
 const cityCoords: Record<string, number[]> = {
-    北京: [116.407526, 39.90403],
-    上海: [121.473701, 31.230416],
-    广州: [113.264385, 23.129112],
-    深圳: [114.057868, 22.543099],
-    成都: [104.066541, 30.572269],
-    西安: [108.93977, 34.341574],
-    重庆: [106.551556, 29.563009],
-    杭州: [120.15507, 30.274084],
-    南京: [118.796877, 32.060255],
-    沈阳: [123.431474, 41.805698],
-    哈尔滨: [126.642464, 45.756967],
-    昆明: [102.832891, 24.880095],
-    乌鲁木齐: [87.616848, 43.825592],
-    吐鲁番: [89.189651, 42.951301],
-    青海: [101.780199, 36.620901],
-    西藏: [91.140856, 29.645554]
+    北京市: [116.407526, 39.90403],
+    天津市: [117.201587, 39.084158],
+    河北省: [114.51486, 38.04228],
+    山西省: [112.549248, 37.857014],
+    内蒙古自治区: [111.765617, 40.817498],
+    辽宁省: [123.431474, 41.805698],
+    吉林省: [125.324636, 43.886841],
+    黑龙江省: [126.642464, 45.756967],
+    上海市: [121.473701, 31.230416],
+    江苏省: [118.796877, 32.060255],
+    浙江省: [120.15507, 30.274084],
+    安徽省: [117.284124, 31.86119],
+    福建省: [119.296472, 26.074507],
+    江西省: [115.858098, 28.682892],
+    山东省: [120.416612, 36.066407],
+    河南省: [113.274379, 34.445213],
+    湖北省: [114.305392, 30.593098],
+    湖南省: [112.98324, 28.112444],
+    广东省: [113.264385, 23.129112],
+    广西壮族自治区: [108.327546, 22.817532],
+    海南省: [110.19989, 20.044194],
+    重庆市: [106.551556, 29.563009],
+    四川省: [104.066541, 30.572269],
+    贵州省: [106.70739, 26.598194],
+    云南省: [102.832891, 24.880095],
+    西藏自治区: [91.140856, 29.645554],
+    陕西省: [108.93977, 34.341574],
+    甘肃省: [103.826308, 36.059539],
+    青海省: [101.780199, 36.620901],
+    宁夏回族自治区: [106.27839, 38.466372],
+    新疆维吾尔自治区: [87.616848, 43.825592],
+    台湾省: [121.50906, 25.044903],
+    香港特别行政区: [114.171126, 22.277526],
+    澳门特别行政区: [113.549708, 22.192921]
 }
 
 const topColors = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc']
@@ -58,8 +76,8 @@ const topColors = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba2
 
 // ---- 修正后的飞线数据（按数量排序并分配颜色） ----
 const linesData = computed(() => {
-    // 先按数量排序
-    const sortedData = [...props.data].filter(item => cityCoords[item.name]).sort((a, b) => b.count - a.count)
+    // 先按数量排序，排除湖北省（本市），取前5名
+    const sortedData = [...props.data].filter(item => cityCoords[item.name] && item.name !== '湖北省').sort((a, b) => b.count - a.count).slice(0, 5)
 
     return sortedData.map((item, index) => ({
         coords: [cityCoords[item.name], wuhan],
@@ -68,14 +86,14 @@ const linesData = computed(() => {
         value: item.count,
         lineStyle: {
             width: Math.max(1, item.count / 50),
-            color: index < 5 ? topColors[index] : topColors[5] // 前5名用不同颜色
+            color: topColors[index]
         }
     }))
 })
 
 // ---- 城市数据（用于显示城市名称） ----
 const cityData = computed(() => {
-    const sortedData = [...props.data].filter(item => cityCoords[item.name]).sort((a, b) => b.count - a.count)
+    const sortedData = [...props.data].filter(item => cityCoords[item.name] && item.name !== '湖北省').sort((a, b) => b.count - a.count).slice(0, 5)
 
     return sortedData.map((item, index) => ({
         name: item.name,
@@ -83,7 +101,7 @@ const cityData = computed(() => {
         count: item.count,
         symbolSize: Math.min(20, Math.max(8, item.count / 15)),
         itemStyle: {
-            color: index < 5 ? topColors[index] : topColors[5]
+            color: topColors[index]
         }
     }))
 })
@@ -145,10 +163,7 @@ const getOption = () => ({
                 opacity: 0.7,
                 curveness: 0.2,
                 color: function (params: any) {
-                    // 动态设置线条颜色
-                    const sortedData = [...props.data].filter(item => cityCoords[item.name]).sort((a, b) => b.count - a.count)
-                    const index = sortedData.findIndex(item => item.name === params.data.fromName)
-                    return index < 5 ? topColors[index] : topColors[5]
+                    return params.data.lineStyle.color
                 }
             },
             data: linesData.value
