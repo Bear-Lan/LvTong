@@ -96,7 +96,6 @@ public class TransportDeptConverter {
         dto.setMemo("");
         dto.setOperation(1);
         dto.setPhotos(buildPhotos(r, excludePhotoTypes, errors));
-        dto.setPosition("毛陈管理所");
         return dto;
     }
 
@@ -212,23 +211,21 @@ public class TransportDeptConverter {
         if (!excludeSet.contains("13")) {
             addPhoto(photos, r.getLicenseImagePath(), "13", errors);
         }
+        //车侧照
+        if(!excludeSet.contains("bodyImagePath")){
+            addPhoto(photos,r.getBodyImagePath(),"25", errors);
+        }
         //99-车顶照
         if (!excludeSet.contains("99")) {
             addPhoto(photos, r.getTopImagePath(), "99", errors);
         }
         //24-货物照，货物照支持多个，中英文逗号均可分隔，（通行凭证、透视影像、车身照、货物照）
-        //通行证
-        if(!excludeSet.contains("passcodeImagePath")){
-            addPhoto(photos,r.getPasscodeImagePath(),"24", errors);
-        }
+
         //透视影像
         if(!excludeSet.contains("transparentImagePath")){
             addPhoto(photos,r.getTransparentImagePath(),"24", errors);
         }
-        //车身照
-        if(!excludeSet.contains("bodyImagePath")){
-            addPhoto(photos,r.getBodyImagePath(),"24", errors);
-        }
+
         //货物照
         if (StringUtils.hasText(r.getGoodsImagePath())) {
             int goodsIdx = 0;
@@ -251,7 +248,7 @@ public class TransportDeptConverter {
                     // 检查该证据链照片是否被排除（下标格式：evidences_0, evidences_1, ...）
                     String excludeKey = "evidences_" + eviIdx;
                     if (!excludeSet.contains(excludeKey)) {
-                        addPhoto(photos, path.trim(), "24", errors);
+                        addPhoto(photos, path.trim(), "31", errors);
                     }
                     eviIdx++;
                 }
@@ -282,6 +279,7 @@ public class TransportDeptConverter {
         item.setTypeId(typeId);
         item.setContent(base64Content);
         item.setTime(timeResult[0]);
+        item.setPosition("毛陈管理所");
         photos.add(item);
     }
 
