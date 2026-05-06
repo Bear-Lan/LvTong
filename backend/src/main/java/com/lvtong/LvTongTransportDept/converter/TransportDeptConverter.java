@@ -225,7 +225,6 @@ public class TransportDeptConverter {
         if(!excludeSet.contains("transparentImagePath")){
             addPhoto(photos,r.getTransparentImagePath(),"24", errors);
         }
-
         //货物照
         if (StringUtils.hasText(r.getGoodsImagePath())) {
             int goodsIdx = 0;
