@@ -8,6 +8,7 @@
       <!-- 左侧：车道（占1/3宽度，全高） -->
       <div class="split-left">
         <VideoWindow
+          class="lane-video"
           channel-key="lane"
           channel-name="车道"
           :channel-id="laneChannelId"
@@ -121,6 +122,11 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   min-width: 0;
+}
+
+.lane-video {
+  flex: 1;
+  min-height: 0;
 }
 
 .split-right {

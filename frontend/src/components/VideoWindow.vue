@@ -1,12 +1,13 @@
 <template>
   <div class="video-window" :class="{ 'is-playing': isConnected }">
-    <video
-      ref="videoElement"
-      class="webrtc-video"
-      :class="{ 'is-rotated': isRotated }"
-      autoplay
-      playsinline
-    ></video>
+    <div class="video-wrapper" :class="{ 'is-rotated': isRotated }">
+      <video
+        ref="videoElement"
+        class="webrtc-video"
+        autoplay
+        playsinline
+      ></video>
+    </div>
 
     <div class="video-actions">
       <button
@@ -28,14 +29,9 @@
 
     <div v-if="isLoading" class="video-loading">
       <div class="loading-spinner"></div>
-      <p>正在连接视频...</p>
+      <p>正在连接 {{ channelName }}...</p>
     </div>
 
-    <div v-else-if="hasError" class="video-error">
-      <el-icon><VideoCamera /></el-icon>
-      <p>视频连接失败</p>
-      <button class="retry-btn" @click="retryConnect">重试</button>
-    </div>
 
     <div v-else-if="!channelId" class="video-placeholder">
       <el-icon><VideoCamera /></el-icon>
@@ -87,8 +83,13 @@ const startStream = async () => {
       isLoading.value = false
     } else if (peerConnection.iceConnectionState === 'disconnected' || peerConnection.iceConnectionState === 'failed') {
       isConnected.value = false
-      hasError.value = true
       isLoading.value = false
+      // 自动重试
+      setTimeout(() => {
+        if (props.channelId) {
+          retryConnect()
+        }
+      }, 3000)
     }
   }
 
@@ -198,6 +199,7 @@ defineExpose({ toggleFullscreen, handleScreenshot })
   position: relative;
   width: 100%;
   height: 100%;
+  min-height: 0;
   background: #1a1a1a;
   border: 1px solid rgba(80, 80, 80, 0.6);
   border-radius: 4px;
@@ -212,15 +214,23 @@ defineExpose({ toggleFullscreen, handleScreenshot })
   background-image: none;
 }
 
+.video-wrapper {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  height: 100%;
+}
+
+.video-wrapper.is-rotated {
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+
 .webrtc-video {
   width: 100%;
   height: 100%;
-  object-fit: fill;
-}
-
-.webrtc-video.is-rotated {
-  transform: rotate(90deg);
-  transform-origin: center center;
+  object-fit: cover;
 }
 
 .video-actions {
@@ -269,19 +279,26 @@ defineExpose({ toggleFullscreen, handleScreenshot })
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: #888;
-  background: rgba(0, 0, 0, 0.5);
+  color: #409eff;
+  background: rgba(0, 0, 0, 0.6);
   z-index: 20;
+  animation: pulse-bg 2s ease-in-out infinite;
+}
+
+@keyframes pulse-bg {
+  0%, 100% { background: rgba(0, 0, 0, 0.6); }
+  50% { background: rgba(0, 0, 0, 0.4); }
 }
 
 .loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid rgba(255, 255, 255, 0.1);
+  width: 48px;
+  height: 48px;
+  border: 3px solid rgba(64, 158, 255, 0.2);
   border-top-color: #409eff;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin 0.8s linear infinite;
   margin-bottom: 12px;
+  box-shadow: 0 0 20px rgba(64, 158, 255, 0.3);
 }
 
 @keyframes spin {
@@ -293,30 +310,6 @@ defineExpose({ toggleFullscreen, handleScreenshot })
   margin: 0;
 }
 
-.video-error {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: #f56c6c;
-  background: rgba(0, 0, 0, 0.6);
-  z-index: 20;
-}
-
-.video-error .el-icon {
-  font-size: 32px;
-  margin-bottom: 8px;
-}
-
-.video-error p {
-  font-size: 14px;
-  margin: 0;
-}
 
 .retry-btn {
   padding: 6px 16px;

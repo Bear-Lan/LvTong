@@ -1,6 +1,7 @@
 package com.lvtong.LvTongTransportDept.controller;
 
 import com.lvtong.LvTongTransportDept.dto.ApiResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -14,27 +15,38 @@ import java.util.stream.Collectors;
 public class StreamController {
 
     private static final Map<Integer, ChannelInfo> CHANNEL_MAP = new ConcurrentHashMap<>();
-    private static final String MEDIA_SERVER_URL = "http://127.0.0.1:8889";
+    private static final int MEDIA_SERVER_PORT = 8889;
 
     static {
-        CHANNEL_MAP.put(1, new ChannelInfo(1, "通道1", "车头相机", "front", MEDIA_SERVER_URL, "/channel_1"));
-        CHANNEL_MAP.put(2, new ChannelInfo(2, "通道2", "车尾相机", "rear", MEDIA_SERVER_URL, "/channel_2"));
-        CHANNEL_MAP.put(3, new ChannelInfo(3, "通道3", "车道相机", "lane", MEDIA_SERVER_URL, "/channel_3"));
-        CHANNEL_MAP.put(4, new ChannelInfo(4, "通道4", "预约机", "appointment", MEDIA_SERVER_URL, "/channel_4"));
-        CHANNEL_MAP.put(5, new ChannelInfo(5, "通道5", "球机", "ptz360", MEDIA_SERVER_URL, "/channel_5"));
+        CHANNEL_MAP.put(1, new ChannelInfo(1, "通道1", "车头相机", "front", "", "/channel_1"));
+        CHANNEL_MAP.put(2, new ChannelInfo(2, "通道2", "车尾相机", "rear", "", "/channel_2"));
+        CHANNEL_MAP.put(3, new ChannelInfo(3, "通道3", "车道相机", "lane", "", "/channel_3"));
+        CHANNEL_MAP.put(4, new ChannelInfo(4, "通道4", "预约机", "appointment", "", "/channel_4"));
+        CHANNEL_MAP.put(5, new ChannelInfo(5, "通道5", "球机", "ptz360", "", "/channel_5"));
+    }
+
+    private String getMediaServerUrl(HttpServletRequest request) {
+        // 媒体服务器使用 HTTP 协议
+        String host = request.getServerName();
+        return "http://" + host + ":" + MEDIA_SERVER_PORT;
     }
 
     @GetMapping("/channels")
-    public ApiResponse<List<ChannelInfo>> listChannels() {
+    public ApiResponse<List<ChannelInfo>> listChannels(HttpServletRequest request) {
+        String mediaServerUrl = getMediaServerUrl(request);
         List<ChannelInfo> list = CHANNEL_MAP.keySet().stream()
             .sorted()
-            .map(CHANNEL_MAP::get)
+            .map(k -> {
+                ChannelInfo info = CHANNEL_MAP.get(k);
+                return new ChannelInfo(info.getChannel(), info.getName(), info.getDescription(),
+                    info.getCameraType(), mediaServerUrl, info.getUrl());
+            })
             .collect(Collectors.toList());
         return ApiResponse.success(list);
     }
 
     @GetMapping("/url")
-    public ApiResponse<StreamUrl> getStreamUrl(@RequestParam Integer channel) {
+    public ApiResponse<StreamUrl> getStreamUrl(@RequestParam Integer channel, HttpServletRequest request) {
         if (channel == null || channel < 1 || channel > 5) {
             return ApiResponse.error("无效的通道号，范围1-5");
         }
@@ -44,11 +56,12 @@ public class StreamController {
             return ApiResponse.error("通道不存在: " + channel);
         }
 
+        String mediaServerUrl = getMediaServerUrl(request);
         StreamUrl url = new StreamUrl();
         url.setChannel(channel);
         url.setChannelName(channelInfo.getName());
         url.setDescription(channelInfo.getDescription());
-        url.setWebrtcUrl(channelInfo.getUrl());
+        url.setWebrtcUrl(mediaServerUrl + channelInfo.getUrl());
 
         return ApiResponse.success(url);
     }
@@ -58,9 +71,9 @@ public class StreamController {
         private Integer channel;
         private String name;
         private String description;
-        private String cameraType; // cameraType: front(车头), rear(车尾), lane(车道), appointment(预约机), ptz360(球机)
-        private String mediaServerUrl; // 媒体服务器基础URL
-        private String url; // 通道相对路径
+        private String cameraType;
+        private String mediaServerUrl;
+        private String url;
 
         public ChannelInfo() {}
         public ChannelInfo(Integer channel, String name, String description, String cameraType, String mediaServerUrl, String url) {
