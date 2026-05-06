@@ -20,29 +20,29 @@
       <div class="split-right">
         <div class="split-right-top">
           <VideoWindow
+            channel-key="ptz360"
+            channel-name="360球机"
+            :channel-id="ptz360ChannelId"
+            :media-server-url="mediaServerUrl"
+          />
+          <VideoWindow
             channel-key="appointment"
             channel-name="预约机"
             :channel-id="appointmentChannelId"
             :media-server-url="mediaServerUrl"
           />
+        </div>
+        <div class="split-right-bottom">
           <VideoWindow
             channel-key="front"
             channel-name="车头"
             :channel-id="frontChannelId"
             :media-server-url="mediaServerUrl"
           />
-        </div>
-        <div class="split-right-bottom">
           <VideoWindow
             channel-key="rear"
             channel-name="车尾"
             :channel-id="rearChannelId"
-            :media-server-url="mediaServerUrl"
-          />
-          <VideoWindow
-            channel-key="ptz360"
-            channel-name="360球机"
-            :channel-id="ptz360ChannelId"
             :media-server-url="mediaServerUrl"
           />
         </div>

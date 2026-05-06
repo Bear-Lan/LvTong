@@ -619,8 +619,8 @@ const handleUpload = async () => {
   }
 
   // 不合格记录禁止上传
-  if (selectedRow.resultStatus === 2) {
-    ElMessageBox.alert('不合格记录禁止上传，请仔细复核', '警告', {
+  if (selectedRow.resultStatus === 2&& selectedRow.manualReviewState !== 1) {
+    ElMessageBox.alert('不合格记录禁止上传，请仔细复核,并修改复核状态为审核通过', '警告', {
       confirmButtonText: '确定',
       type: 'warning'
     })
