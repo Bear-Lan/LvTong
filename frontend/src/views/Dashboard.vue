@@ -36,7 +36,7 @@
                       <div class="stat-value large">
                         {{ formatAcceptanceDuration(infoOverview.avgAcceptanceDuration) }}
                       </div>
-                      <div class="stat-label">平均检测时间</div>
+                      <div class="stat-label">平均查验时间</div>
                     </div>
                   </div>
                 </el-card>
@@ -468,13 +468,20 @@ const renderLineChart = () => {
 
   // 提示框文字
   const tooltipUnit = timeType.value === 'day' ? '辆' : '次'
+  const total = values.reduce((sum, v) => sum + v, 0)
 
   lineChart.setOption({
     tooltip: {
       trigger: 'axis',
       formatter: (params) => `${params[0].axisValue}<br/>查验量：<b>${params[0].data}</b> ${tooltipUnit}`
     },
-    grid: { left: 50, right: 20, top: 20, bottom: 30 },
+    title: {
+      text: `总查验：${total.toLocaleString()} 次`,
+      textStyle: { fontSize: 12, color: '#606266' },
+      left: 'right',
+      top: 5
+    },
+    grid: { left: 50, right: 60, top: 30, bottom: 30 },
     xAxis: {
       type: 'category',
       data: labels,
