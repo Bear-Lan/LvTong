@@ -47,7 +47,7 @@
                 <el-card class="stat-card" shadow="hover">
                   <div class="stat-inner">
                     <div class="stat-icon-wrap green">
-                      <el-icon size="28"><Money /></el-icon>
+                      <img src="@/assets/GreenChannel/png/金额.png" style="width:28px;height:28px;" />
                     </div>
                     <div class="stat-body">
                       <div class="stat-value-row">
@@ -101,7 +101,7 @@
                 <el-card class="stat-card" shadow="hover">
                   <div class="stat-inner">
                     <div class="stat-icon-wrap purple">
-                      <el-icon size="28"><Box /></el-icon>
+                      <el-icon size="28"><Cherry /></el-icon>
                     </div>
                     <div class="stat-body">
                       <div class="stat-value-row">
@@ -232,7 +232,7 @@
 import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  Money, DataLine, Histogram, PieChart, Timer, Box, Location
+  Money, DataLine, Histogram, PieChart, Timer, Box, Location, Wallet
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'

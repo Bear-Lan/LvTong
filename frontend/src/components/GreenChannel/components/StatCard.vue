@@ -1,8 +1,8 @@
 <template>
   <div class="kpi">
-    <!-- <div class="kpi-icon"><img style="width:100%;height:100%;padding:5px" :src="img" alt=""></div> -->
     <div class="kpi-icon">
-      <svg class="icon" aria-hidden="true">
+      <img v-if="img.startsWith('/') || img.startsWith('http')" :src="img" style="width:100%;height:100%;padding:5px;border-radius:50%;" />
+      <svg v-else class="icon" aria-hidden="true">
         <use :xlink:href="`#icon-${img}`"></use>
       </svg>
     </div>
