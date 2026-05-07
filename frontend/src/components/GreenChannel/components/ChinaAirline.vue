@@ -17,51 +17,63 @@ const props = defineProps<{
 const wuhan = [114.305392, 30.593098]
 
 const cityCoords: Record<string, number[]> = {
-    北京市: [116.407526, 39.90403],
-    天津市: [117.201587, 39.084158],
-    河北省: [114.51486, 38.04228],
-    山西省: [112.549248, 37.857014],
-    内蒙古自治区: [111.765617, 40.817498],
-    辽宁省: [123.431474, 41.805698],
-    吉林省: [125.324636, 43.886841],
-    黑龙江省: [126.642464, 45.756967],
-    上海市: [121.473701, 31.230416],
-    江苏省: [118.796877, 32.060255],
-    浙江省: [120.15507, 30.274084],
-    安徽省: [117.284124, 31.86119],
-    福建省: [119.296472, 26.074507],
-    江西省: [115.858098, 28.682892],
-    山东省: [120.416612, 36.066407],
-    河南省: [113.274379, 34.445213],
-    湖北省: [114.305392, 30.593098],
-    湖南省: [112.98324, 28.112444],
-    广东省: [113.264385, 23.129112],
-    广西壮族自治区: [108.327546, 22.817532],
-    海南省: [110.19989, 20.044194],
-    重庆市: [106.551556, 29.563009],
-    四川省: [104.066541, 30.572269],
-    贵州省: [106.70739, 26.598194],
-    云南省: [102.832891, 24.880095],
-    西藏自治区: [91.140856, 29.645554],
-    陕西省: [108.93977, 34.341574],
-    甘肃省: [103.826308, 36.059539],
-    青海省: [101.780199, 36.620901],
-    宁夏回族自治区: [106.27839, 38.466372],
-    新疆维吾尔自治区: [87.616848, 43.825592],
-    台湾省: [121.50906, 25.044903],
-    香港特别行政区: [114.171126, 22.277526],
-    澳门特别行政区: [113.549708, 22.192921]
+    北京: [116.407526, 39.90403],
+    天津: [117.201587, 39.084158],
+    河北: [114.51486, 38.04228],
+    山西: [112.549248, 37.857014],
+    内蒙古: [111.765617, 40.817498],
+    辽宁: [123.431474, 41.805698],
+    吉林: [125.324636, 43.886841],
+    黑龙江: [126.642464, 45.756967],
+    上海: [121.473701, 31.230416],
+    江苏: [118.796877, 32.060255],
+    浙江: [120.15507, 30.274084],
+    安徽: [117.284124, 31.86119],
+    福建: [119.296472, 26.074507],
+    江西: [115.858098, 28.682892],
+    山东: [120.416612, 36.066407],
+    河南: [113.274379, 34.445213],
+    湖北: [114.305392, 30.593098],
+    湖南: [112.98324, 28.112444],
+    广东: [113.264385, 23.129112],
+    广西: [108.327546, 22.817532],
+    海南: [110.19989, 20.044194],
+    重庆: [106.551556, 29.563009],
+    四川: [104.066541, 30.572269],
+    贵州: [106.70739, 26.598194],
+    云南: [102.832891, 24.880095],
+    西藏: [91.140856, 29.645554],
+    陕西: [108.93977, 34.341574],
+    甘肃: [103.826308, 36.059539],
+    青海: [101.780199, 36.620901],
+    宁夏: [106.27839, 38.466372],
+    新疆: [87.616848, 43.825592],
+    台湾: [121.50906, 25.044903],
+    香港: [114.171126, 22.277526],
+    澳门: [113.549708, 22.192921]
 }
 
 const topColors = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc']
 
-const linesData = computed(() => {
-    const sortedData = [...props.data].filter(item => cityCoords[item.name] && item.name !== '湖北省').sort((a, b) => b.count - a.count).slice(0, 5)
+// 根据后端省名模糊匹配前端坐标key
+const matchProvinceKey = (name: string): string | undefined => {
+    return Object.keys(cityCoords).find(key =>
+        name.includes(key) || key.includes(name) ||
+        name.replace(/省|市|自治区|回族|维吾尔|壮族|特别行政区/g, '') === key
+    )
+}
 
-    return sortedData.map((item, index) => ({
-        coords: [cityCoords[item.name], wuhan],
+const linesData = computed(() => {
+    const matchedData = [...props.data]
+        .map(item => ({ ...item, matchedKey: matchProvinceKey(item.name) }))
+        .filter(item => item.matchedKey && item.name !== '湖北省')
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5)
+
+    return matchedData.map((item, index) => ({
+        coords: [cityCoords[item.matchedKey!], wuhan],
         fromName: item.name,
-        toName: "武汉",
+        toName: "毛陈",
         value: item.count,
         lineStyle: {
             width: Math.max(1, item.count / 50),
@@ -71,11 +83,15 @@ const linesData = computed(() => {
 })
 
 const cityData = computed(() => {
-    const sortedData = [...props.data].filter(item => cityCoords[item.name] && item.name !== '湖北省').sort((a, b) => b.count - a.count).slice(0, 5)
+    const matchedData = [...props.data]
+        .map(item => ({ ...item, matchedKey: matchProvinceKey(item.name) }))
+        .filter(item => item.matchedKey && item.name !== '湖北省')
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5)
 
-    return sortedData.map((item, index) => ({
-        name: item.name,
-        value: cityCoords[item.name],
+    return matchedData.map((item, index) => ({
+        name: item.matchedKey,
+        value: cityCoords[item.matchedKey!],
         count: item.count,
         symbolSize: Math.min(20, Math.max(8, item.count / 15)),
         itemStyle: {
@@ -108,7 +124,9 @@ const getOption = () => {
             map: "china",
             roam: true,
             zoom: 1.2,
-            layoutSize: '110%',
+            layoutSize: '100%',
+            left: 0,
+            right: 80,
             itemStyle: { areaColor: "#184b70B3", borderColor: "#4ea3ff" },
             emphasis: { label: { color: "#ff0" }, itemStyle: { areaColor: "#0d2238B3" } }
         },
@@ -116,7 +134,7 @@ const getOption = () => {
             type: 'piecewise',
             show: true,
             orient: 'vertical',
-            right: 5,
+            right: 0,
             inverse: true,
             pieces: visualPieces,
             textStyle: { color: '#fff', align: 'right' },
