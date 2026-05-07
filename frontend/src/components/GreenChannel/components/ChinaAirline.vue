@@ -57,22 +57,6 @@ const cityCoords: Record<string, number[]> = {
 }
 
 const topColors = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc']
-// const topColors = [
-//     '#052e16', // 红色 - 第1名
-//     '#166534', // 橙色 - 第2名
-//     '#16a34a', // 黄色 - 第3名
-//     '#4ade80', // 紫色 - 第4名
-//     '#bbf7d0', // 蓝色 - 第5名
-//     '#f0fdf4'  // 绿色 - 其他
-// ]
-// const topColors = [
-//     '#ff0000', // 红色 - 第1名
-//     '#ff6b00', // 橙色 - 第2名
-//     '#ffd500', // 黄色 - 第3名
-//     '#a855f7', // 紫色 - 第4名
-//     '#3b82f6', // 蓝色 - 第5名
-//     '#4ade80'  // 绿色 - 其他
-// ]
 
 // ---- 修正后的飞线数据（按数量排序并分配颜色） ----
 const linesData = computed(() => {
@@ -141,7 +125,6 @@ const getOption = () => ({
             { min: 3, max: 3, label: '第3', color: topColors[2] },
             { min: 4, max: 4, label: '第4', color: topColors[3] },
             { min: 5, max: 5, label: '第5', color: topColors[4] },
-            { min: 6, label: '其他', color: topColors[5] }
         ],
         textStyle: { color: '#fff', align: 'right' },
         itemSymbol: 'roundRect',

@@ -13,7 +13,7 @@
         <div class="main">
             <!-- 左列 -->
             <div class="col col-left">
-                <div class="panel lfirst" v-show="!loading" style="height: 240px;">
+                <div class="panel lfirst" v-show="!loading" style="flex: 1;">
                     <h3>关键指标</h3>
                     <div class="kpi-grid">
                         <StatCard img="cheliangshuliang" label="今日通行车辆" :value="kpis.tadaytotal" />
@@ -25,7 +25,7 @@
                 <div class="panel lsecond" v-if="!loading" style="flex: 1;">
                     <SkyChart title="北斗卫星"></SkyChart>
                 </div>
-                <div class="panel lthree" v-if="!loading" style="height: 200px;">
+                <div class="panel lthree" v-if="!loading" style="flex: 1;">
                     <GoodsPieChart title="货物类型占比" :data="goodsCount" />
                 </div>
             </div>
@@ -264,7 +264,7 @@ onMounted(async () => {
 
     // 获取大屏最近通行记录
     fetchRecords()
-    setInterval(fetchRecords, 30000)  // 每10秒刷新一次
+    setInterval(fetchRecords, 30000)  // 每30秒刷新一次
 
     // 获取大屏信用记录排行
     fetchCreditRanking()
