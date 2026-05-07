@@ -16,10 +16,10 @@
                 <div class="panel lfirst" v-show="!loading" style="flex: 1;">
                     <h3>关键指标</h3>
                     <div class="kpi-grid">
-                        <StatCard img="@/assets/GreenChannel/png/lvtongcar.png" label="今日通行车辆" :value="kpis.tadaytotal" />
-                        <StatCard img="@/assets/GreenChannel/png/lvtongcar.png" label="总绿通车辆" :value="kpis.total" />
-                        <StatCard img="@/assets/GreenChannel/png/金额.png" label="总通行金额(元)" :value="kpis.discount" />
-                        <StatCard img="@/assets/GreenChannel/png/abnormalvehicle.png" label="伪绿通车辆" :value="kpis.abnormal" />
+                        <StatCard :img="lvtongcarImg" label="今日通行车辆" :value="kpis.tadaytotal" />
+                        <StatCard :img="lvtongcarImg" label="总绿通车辆" :value="kpis.total" />
+                        <StatCard :img="jineImg" label="总通行金额(元)" :value="kpis.discount" />
+                        <StatCard :img="abnormalImg" label="伪绿通车辆" :value="kpis.abnormal" />
                     </div>
                 </div>
                 <div class="panel lsecond" v-if="!loading" style="flex: 1;">
@@ -64,6 +64,9 @@ import { StatCard, SkyChart, RankList, ChinaAirline, Ciyun, LatestPassRecords, G
 import { getKpiData, getPassRecords, getCreditRanking, getGoodsTypeCloud, getGoodsTypePie, getProvinceStats } from '@/api/datascreen'
 import * as THREE from "three";
 import { ThreeViewer } from "@/utils/GreenChannelTool";
+import lvtongcarImg from '@/assets/GreenChannel/png/lvtongcar.png';
+import jineImg from '@/assets/GreenChannel/png/金额.png';
+import abnormalImg from '@/assets/GreenChannel/png/abnormalvehicle.png';
 
 // ============= 临时类型定义 =============
 interface StationType {

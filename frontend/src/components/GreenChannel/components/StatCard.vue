@@ -1,7 +1,7 @@
 <template>
   <div class="kpi">
     <div class="kpi-icon">
-      <img v-if="img.startsWith('/') || img.startsWith('http')" :src="img" style="width:100%;height:100%;padding:5px;border-radius:50%;" />
+      <img v-if="img.startsWith('/') || img.startsWith('http') || img.startsWith('@')" :src="img" style="width:100%;height:100%;padding:5px;border-radius:50%;" />
       <svg v-else class="icon" aria-hidden="true">
         <use :xlink:href="`#icon-${img}`"></use>
       </svg>
