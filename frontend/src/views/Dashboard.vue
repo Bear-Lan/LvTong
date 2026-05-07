@@ -76,7 +76,7 @@
                     <div class="stat-body">
                       <div class="stat-value-row">
                         <template v-if="infoOverview.mostProvince && infoOverview.mostProvince !== '暂无数据'">
-                          <span class="stat-value-item success">
+                          <span class="stat-value-item">
                             <span class="value">{{ infoOverview.mostProvince }}</span>
                             <span class="label">最大省({{ infoOverview.mostProvinceCount }}次)</span>
                           </span>
