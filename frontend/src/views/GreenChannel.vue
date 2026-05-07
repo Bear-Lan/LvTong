@@ -25,6 +25,9 @@
                 <div class="panel lsecond" v-if="!loading" style="flex: 1;">
                     <SkyChart title="北斗卫星"></SkyChart>
                 </div>
+                <div class="panel lthree" v-if="!loading" style="height: 200px;">
+                    <GoodsPieChart title="货物类型占比" :data="goodsCount" />
+                </div>
             </div>
             <!-- 中间列 - 在下半部分 -->
             <div class="col-middle">
@@ -57,7 +60,7 @@
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue'
-import { StatCard, SkyChart, RankList, ChinaAirline, Ciyun, LatestPassRecords } from '@/components/GreenChannel'
+import { StatCard, SkyChart, RankList, ChinaAirline, Ciyun, LatestPassRecords, GoodsPieChart } from '@/components/GreenChannel'
 import { getKpiData, getPassRecords, getCreditRanking, getGoodsTypeCloud, getProvinceStats } from '@/api/datascreen'
 import * as THREE from "three";
 import { ThreeViewer } from "@/utils/GreenChannelTool";

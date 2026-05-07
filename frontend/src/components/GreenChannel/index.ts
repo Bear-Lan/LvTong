@@ -4,5 +4,6 @@ import RankList from './components/RankList.vue'
 import ChinaAirline from './components/ChinaAirline.vue'
 import Ciyun from './components/Ciyun.vue'
 import LatestPassRecords from './components/LatestPassRecords.vue'
+import GoodsPieChart from './components/GoodsPieChart.vue'
 
-export { StatCard, SkyChart, RankList, ChinaAirline, Ciyun, LatestPassRecords }
+export { StatCard, SkyChart, RankList, ChinaAirline, Ciyun, LatestPassRecords, GoodsPieChart }

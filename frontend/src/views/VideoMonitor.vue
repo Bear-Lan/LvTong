@@ -34,17 +34,19 @@
         </div>
         <div class="split-right-bottom">
           <VideoWindow
-            channel-key="front"
-            channel-name="车头"
-            :channel-id="frontChannelId"
-            :media-server-url="mediaServerUrl"
-          />
-          <VideoWindow
             channel-key="rear"
             channel-name="车尾"
             :channel-id="rearChannelId"
             :media-server-url="mediaServerUrl"
           />
+          
+          <VideoWindow
+            channel-key="front"
+            channel-name="车头"
+            :channel-id="frontChannelId"
+            :media-server-url="mediaServerUrl"
+          />
+          
         </div>
       </div>
     </div>
