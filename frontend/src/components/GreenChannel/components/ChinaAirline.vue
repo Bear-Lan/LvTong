@@ -1,5 +1,5 @@
 <template>
-    <div class="panel">
+    <div class="container">
         <h3>{{ title }}</h3>
         <div ref="chartRef" class="chart"></div>
     </div>
@@ -257,4 +257,11 @@ onUnmounted(() => {
 })
 </script>
 
-<style scoped></style>
+<style scoped>
+.container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+</style>

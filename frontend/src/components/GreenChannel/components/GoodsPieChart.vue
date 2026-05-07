@@ -1,5 +1,5 @@
 <template>
-    <div class="panel">
+    <div class="container">
         <h3>{{ title }}</h3>
         <div ref="chartRef" class="chart"></div>
     </div>
@@ -28,14 +28,27 @@ const initChart = () => {
 }
 
 const getOption = () => {
-    const pieData = props.data.slice(0, 8).map((item, index) => ({
+    const pieData = props.data.map((item, index) => ({
         name: item.name,
         value: item.count,
-        itemStyle: { color: colors[index % colors.length] }
+        itemStyle: { color: colors[index % colors.length] },
+        label: {
+            show: index < 5,
+            position: 'outside',
+            formatter: '{b}',
+            fontSize: 10,
+            color: '#cfe'
+        },
+        labelLine: {
+            show: index < 5,
+            length: 8,
+            length2: 5,
+            lineStyle: { color: '#cfe', width: 1 }
+        }
     }))
 
     if (pieData.length === 0) {
-        pieData.push({ name: '暂无数据', value: 0, itemStyle: { color: '#666' } })
+        pieData.push({ name: '暂无数据', value: 0, itemStyle: { color: '#666' }, label: { show: false, position: 'outside', formatter: '{b}', fontSize: 10, color: '#cfe' }, labelLine: { show: false, length: 8, length2: 5, lineStyle: { color: '#cfe', width: 1 } } })
     }
 
     return {
@@ -47,7 +60,7 @@ const getOption = () => {
         legend: {
             type: 'scroll',
             orient: 'vertical',
-            right: 5,
+            right: 0,
             top: 10,
             bottom: 10,
             itemWidth: 12,
@@ -62,7 +75,7 @@ const getOption = () => {
         series: [{
             type: 'pie',
             radius: ['30%', '65%'],
-            center: ['35%', '50%'],
+            center: ['30%', '50%'],
             avoidLabelOverlap: false,
             itemStyle: { borderRadius: 4 },
             label: { show: false },
@@ -94,7 +107,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.panel {
+.container {
     width: 100%;
     height: 100%;
     display: flex;

@@ -1,5 +1,5 @@
 <template>
-    <div class="panel">
+    <div class="container">
         <h3>{{ title }}</h3>
         <div class="chart-container">
             <div class="skyplot-wrapper">
@@ -282,6 +282,12 @@ watch(satellites, () => {
 </script>
 
 <style scoped>
+.container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
 .chart-container {
     display: flex;
     justify-content: center;
@@ -301,7 +307,6 @@ watch(satellites, () => {
     width: 100%;
     height: 100%;
     border-radius: 50%;
-    box-shadow: 0 0 20px #4ade80;
     background: rgba(22, 101, 52, 0.3);
 }
 

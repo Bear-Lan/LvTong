@@ -1,5 +1,5 @@
 <template>
-  <div class="panel">
+  <div class="container">
     <h3>{{ title }}</h3>
     <table class="table">
       <thead>
@@ -76,6 +76,12 @@ function getPlateType(plate: string) {
 </script>
 
 <style scoped>
+.container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
 .plate {
   border-radius: 4px;
   padding: 6px 12px;
