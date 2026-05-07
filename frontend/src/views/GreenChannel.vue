@@ -16,10 +16,10 @@
                 <div class="panel lfirst" v-show="!loading" style="flex: 1;">
                     <h3>关键指标</h3>
                     <div class="kpi-grid">
-                        <StatCard img="/src/assets/GreenChannel/png/lvtongcar.png" label="今日通行车辆" :value="kpis.tadaytotal" />
-                        <StatCard img="/src/assets/GreenChannel/png/lvtongcar.png" label="总绿通车辆" :value="kpis.total" />
-                        <StatCard img="/src/assets/GreenChannel/png/金额.png" label="总通行金额(元)" :value="kpis.discount" />
-                        <StatCard img="/src/assets/GreenChannel/png/abnormalvehicle.png" label="伪绿通车辆" :value="kpis.abnormal" />
+                        <StatCard img="@/assets/GreenChannel/png/lvtongcar.png" label="今日通行车辆" :value="kpis.tadaytotal" />
+                        <StatCard img="@/assets/GreenChannel/png/lvtongcar.png" label="总绿通车辆" :value="kpis.total" />
+                        <StatCard img="@/assets/GreenChannel/png/金额.png" label="总通行金额(元)" :value="kpis.discount" />
+                        <StatCard img="@/assets/GreenChannel/png/abnormalvehicle.png" label="伪绿通车辆" :value="kpis.abnormal" />
                     </div>
                 </div>
                 <div class="panel lsecond" v-if="!loading" style="flex: 1;">
