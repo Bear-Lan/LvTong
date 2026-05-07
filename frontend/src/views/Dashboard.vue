@@ -36,7 +36,7 @@
                       <div class="stat-value large">
                         {{ formatAcceptanceDuration(infoOverview.avgAcceptanceDuration) }}
                       </div>
-                      <div class="stat-label">平均受理时间</div>
+                      <div class="stat-label">平均检测时间</div>
                     </div>
                   </div>
                 </el-card>
