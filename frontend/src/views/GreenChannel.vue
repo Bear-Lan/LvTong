@@ -16,10 +16,42 @@
                 <div class="panel lfirst" v-show="!loading" style="flex: 1;">
                     <h3>关键指标</h3>
                     <div class="kpi-grid">
-                        <StatCard :img="lvtongcarImg" label="今日通行车辆" :value="kpis.tadaytotal" />
-                        <StatCard :img="lvtongcarImg" label="总绿通车辆" :value="kpis.total" />
-                        <StatCard :img="jineImg" label="总通行金额(元)" :value="kpis.discount" />
-                        <StatCard :img="abnormalImg" label="伪绿通车辆" :value="kpis.abnormal" />
+                        <div class="kpi">
+                            <div class="kpi-icon">
+                                <img src="@/assets/GreenChannel/png/lvtongcar.png" style="width:100%;height:100%;padding:5px;border-radius:50%;" />
+                            </div>
+                            <div class="kpi-content">
+                                <div class="label">今日通行车辆</div>
+                                <div class="val">{{ kpis.tadaytotal }}</div>
+                            </div>
+                        </div>
+                        <div class="kpi">
+                            <div class="kpi-icon">
+                                <img src="@/assets/GreenChannel/png/lvtongcar.png" style="width:100%;height:100%;padding:5px;border-radius:50%;" />
+                            </div>
+                            <div class="kpi-content">
+                                <div class="label">总绿通车辆</div>
+                                <div class="val">{{ kpis.total }}</div>
+                            </div>
+                        </div>
+                        <div class="kpi">
+                            <div class="kpi-icon">
+                                <img src="@/assets/GreenChannel/png/金额.png" style="width:100%;height:100%;padding:5px;border-radius:50%;" />
+                            </div>
+                            <div class="kpi-content">
+                                <div class="label">总通行金额(元)</div>
+                                <div class="val">{{ kpis.discount }}</div>
+                            </div>
+                        </div>
+                        <div class="kpi">
+                            <div class="kpi-icon">
+                                <img src="@/assets/GreenChannel/png/abnormalvehicle.png" style="width:100%;height:100%;padding:5px;border-radius:50%;" />
+                            </div>
+                            <div class="kpi-content">
+                                <div class="label">伪绿通车辆</div>
+                                <div class="val">{{ kpis.abnormal }}</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="panel lsecond" v-if="!loading" style="flex: 1;">
@@ -60,13 +92,10 @@
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue'
-import { StatCard, SkyChart, RankList, ChinaAirline, Ciyun, LatestPassRecords, GoodsPieChart } from '@/components/GreenChannel'
+import { SkyChart, RankList, ChinaAirline, Ciyun, LatestPassRecords, GoodsPieChart } from '@/components/GreenChannel'
 import { getKpiData, getPassRecords, getCreditRanking, getGoodsTypeCloud, getGoodsTypePie, getProvinceStats } from '@/api/datascreen'
 import * as THREE from "three";
 import { ThreeViewer } from "@/utils/GreenChannelTool";
-import lvtongcarImg from '@/assets/GreenChannel/png/lvtongcar.png';
-import jineImg from '@/assets/GreenChannel/png/金额.png';
-import abnormalImg from '@/assets/GreenChannel/png/abnormalvehicle.png';
 
 // ============= 临时类型定义 =============
 interface StationType {

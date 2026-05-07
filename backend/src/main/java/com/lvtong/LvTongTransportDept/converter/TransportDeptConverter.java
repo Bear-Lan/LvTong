@@ -93,7 +93,7 @@ public class TransportDeptConverter {
         dto.setFee(parseFeeCent(r.getPasscodeFee()));
         dto.setPayFee(parseFeeCent(r.getPasscodePayFee()));
         dto.setProvinceCount(parseIntOr(r.getPasscodeProvinceCount(), 1));
-        dto.setMemo("");
+        dto.setMemo(r.getHistoryRecord());
         dto.setOperation(1);
         dto.setPhotos(buildPhotos(r, excludePhotoTypes, errors));
         return dto;

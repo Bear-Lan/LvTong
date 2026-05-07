@@ -9,16 +9,13 @@
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import * as echarts from 'echarts'
 
-// ---- props ----
 const props = defineProps<{
     title: string
     data: { name: string; count: number }[]
 }>()
 
-// ---- 武汉坐标 ----
 const wuhan = [114.305392, 30.593098]
 
-// ---- 省份/城市坐标（省份名 → 省会坐标） ----
 const cityCoords: Record<string, number[]> = {
     北京市: [116.407526, 39.90403],
     天津市: [117.201587, 39.084158],
@@ -58,9 +55,7 @@ const cityCoords: Record<string, number[]> = {
 
 const topColors = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc']
 
-// ---- 修正后的飞线数据（按数量排序并分配颜色） ----
 const linesData = computed(() => {
-    // 先按数量排序，排除湖北省（本市），取前5名
     const sortedData = [...props.data].filter(item => cityCoords[item.name] && item.name !== '湖北省').sort((a, b) => b.count - a.count).slice(0, 5)
 
     return sortedData.map((item, index) => ({
@@ -75,7 +70,6 @@ const linesData = computed(() => {
     }))
 })
 
-// ---- 城市数据（用于显示城市名称） ----
 const cityData = computed(() => {
     const sortedData = [...props.data].filter(item => cityCoords[item.name] && item.name !== '湖北省').sort((a, b) => b.count - a.count).slice(0, 5)
 
@@ -90,141 +84,137 @@ const cityData = computed(() => {
     }))
 })
 
-// ---- ECharts DOM 引用 ----
 const chartRef = ref<HTMLDivElement>()
 let chart: echarts.ECharts | null = null
 
-// ---- 初始化图表 ----
 const initChart = () => {
     if (!chartRef.value) return
     chart = echarts.init(chartRef.value)
     chart.setOption(getOption())
 }
 
-// ---- 动态 option ----
-const getOption = () => ({
-    backgroundColor: "transparent",
-    geo: {
-        map: "china",
-        roam: true,
-        zoom: 1.2,
-        layoutSize: '110%',
-        itemStyle: { areaColor: "#184b70B3", borderColor: "#4ea3ff" },
-        emphasis: { label: { color: "#ff0" }, itemStyle: { areaColor: "#0d2238B3" } }
-    },
-    visualMap: {
-        type: 'piecewise',
-        show: true,
-        orient: 'vertical',
-        right: 5,
-        // top: 'center',
-        inverse: true,
-        pieces: [
-            { min: 1, max: 1, label: '第1', color: topColors[0] },
-            { min: 2, max: 2, label: '第2', color: topColors[1] },
-            { min: 3, max: 3, label: '第3', color: topColors[2] },
-            { min: 4, max: 4, label: '第4', color: topColors[3] },
-            { min: 5, max: 5, label: '第5', color: topColors[4] },
-        ],
-        textStyle: { color: '#fff', align: 'right' },
-        itemSymbol: 'roundRect',
-        seriesIndex: 1 // 关联到城市系列
-    },
-    series: [
-        {
-            type: "lines",
-            coordinateSystem: "geo",
-            zlevel: 2,
-            effect: {
-                show: true,
-                period: 2 + Math.random() * 3,
-                trailLength: 0.15,
-                symbol: "arrow",
-                symbolSize: 7,
-            },
-            lineStyle: {
-                opacity: 0.7,
-                curveness: 0.2,
-                color: function (params: any) {
-                    return params.data.lineStyle.color
-                }
-            },
-            data: linesData.value
+const getOption = () => {
+    const top5Data = cityData.value
+    const visualPieces = top5Data.map((item: any, index: number) => ({
+        min: index + 1,
+        max: index + 1,
+        label: `第${index + 1}:${item.name}`,
+        textStyle: { color: topColors[index] }
+    }))
+
+    return {
+        backgroundColor: "transparent",
+        geo: {
+            map: "china",
+            roam: true,
+            zoom: 1.2,
+            layoutSize: '110%',
+            itemStyle: { areaColor: "#184b70B3", borderColor: "#4ea3ff" },
+            emphasis: { label: { color: "#ff0" }, itemStyle: { areaColor: "#0d2238B3" } }
         },
-        {
-            type: "effectScatter",
-            coordinateSystem: "geo",
-            data: cityData.value,
-            symbolSize: function (val: any) {
-                return val.symbolSize
+        visualMap: {
+            type: 'piecewise',
+            show: true,
+            orient: 'vertical',
+            right: 5,
+            inverse: true,
+            pieces: visualPieces,
+            textStyle: { color: '#fff', align: 'right' },
+            itemSymbol: 'roundRect',
+            seriesIndex: 1
+        },
+        series: [
+            {
+                type: "lines",
+                coordinateSystem: "geo",
+                zlevel: 2,
+                effect: {
+                    show: true,
+                    period: 2 + Math.random() * 3,
+                    trailLength: 0.15,
+                    symbol: "arrow",
+                    symbolSize: 7,
+                },
+                lineStyle: {
+                    opacity: 0.7,
+                    curveness: 0.2,
+                    color: function (params: any) {
+                        return params.data.lineStyle.color
+                    }
+                },
+                data: linesData.value
             },
-            rippleEffect: {
-                brushType: "stroke",
-                scale: 2.5
-            },
-            label: {
-                show: true,
-                position: 'right',
-                formatter: '{b}',
-                color: '#fff', // 白色文字
-                fontSize: 12,
-                fontWeight: 'bold',
-                backgroundColor: 'rgba(0, 0, 0, 0.6)', // 半透明黑色背景
-                padding: [2, 6],
-                borderRadius: 3,
-                borderColor: 'rgba(255, 255, 255, 0.3)',
-                borderWidth: 1
-            },
-            itemStyle: {
-                color: function (params: any) {
-                    return params.data.itemStyle.color
-                }
-            },
-            emphasis: {
+            {
+                type: "effectScatter",
+                coordinateSystem: "geo",
+                data: cityData.value,
+                symbolSize: function (val: any) {
+                    return val.symbolSize
+                },
+                rippleEffect: {
+                    brushType: "stroke",
+                    scale: 2.5
+                },
                 label: {
                     show: true,
-                    fontSize: 14,
-                    // backgroundColor: 'rgba(0, 0, 0, 0.8)'
+                    position: 'right',
+                    formatter: '{b}',
+                    color: '#fff',
+                    fontSize: 12,
+                    fontWeight: 'bold',
+                    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                    padding: [2, 6],
+                    borderRadius: 3,
+                    borderColor: 'rgba(255, 255, 255, 0.3)',
+                    borderWidth: 1
                 },
-                scale: true
+                itemStyle: {
+                    color: function (params: any) {
+                        return params.data.itemStyle.color
+                    }
+                },
+                emphasis: {
+                    label: {
+                        show: true,
+                        fontSize: 14,
+                        scale: true
+                    }
+                }
+            },
+            {
+                type: "effectScatter",
+                coordinateSystem: "geo",
+                data: [{ name: "毛陈", value: wuhan }],
+                symbolSize: 18,
+                rippleEffect: {
+                    brushType: "stroke",
+                    scale: 3
+                },
+                label: {
+                    show: true,
+                    position: 'right',
+                    formatter: '毛陈',
+                    color: '#fff',
+                    fontSize: 14,
+                    fontWeight: 'bold',
+                    backgroundColor: 'rgba(220, 38, 38, 0.8)',
+                    padding: [4, 8],
+                    borderRadius: 4
+                },
+                itemStyle: { color: "#ff0000" }
             }
-        },
-        {
-            type: "effectScatter",
-            coordinateSystem: "geo",
-            data: [{ name: "武汉", value: wuhan }],
-            symbolSize: 18,
-            rippleEffect: {
-                brushType: "stroke",
-                scale: 3
-            },
-            label: {
-                show: true,
-                position: 'right',
-                formatter: '武汉',
-                color: '#fff',
-                fontSize: 14,
-                fontWeight: 'bold',
-                backgroundColor: 'rgba(220, 38, 38, 0.8)',
-                padding: [4, 8],
-                borderRadius: 4
-            },
-            itemStyle: { color: "#ff0000" }
-        }
-    ]
-})
+        ]
+    }
+}
 
-// ---- 监听 props 数据变化 ----
 watch(
     () => props.data,
     () => { chart?.setOption(getOption(), true) },
     { deep: true }
 )
 
-// ---- 窗口自适应 ----
 const resizeChart = () => chart?.resize()
 
-// ---- onMounted ----
 onMounted(() => {
     fetch('/GreenChannel/data/china.json').then(res => res.json()).then(chinaGeoJson => {
         echarts.registerMap('china', chinaGeoJson)
@@ -233,7 +223,6 @@ onMounted(() => {
     })
 })
 
-// ---- onUnmounted ----
 onUnmounted(() => {
     window.removeEventListener("resize", resizeChart)
     chart?.dispose()
