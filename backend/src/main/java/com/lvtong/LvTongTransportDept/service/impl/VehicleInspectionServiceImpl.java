@@ -322,6 +322,12 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<Map<String, Object>> getGoodsTypeStatsByVariety(LocalDateTime startTime, LocalDateTime endTime) {
+        return mapper.selectGoodsTypeStatsByVariety(startTime, endTime);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<Map<String, Object>> getGoodsTypeStatsAll() {
         return mapper.selectGoodsTypeStatsAll();
     }
@@ -330,6 +336,12 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getGoodsTypeStatsForCloud() {
         return mapper.selectGoodsTypeStatsForCloud();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getGoodsTypeStatsByCategory() {
+        return mapper.selectGoodsTypeStatsByCategory();
     }
 
     @Override

@@ -42,6 +42,14 @@ export function getGoodsTypeCloud() {
 }
 
 /**
+ * 获取大屏货物类型饼图数据（按货物大类）
+ * @returns 货物大类名称和出现次数
+ */
+export function getGoodsTypePie() {
+    return request.get('/inspection/datascreen/goods-pie')
+}
+
+/**
  * 获取省份通行数量统计（用于大屏始发地）
  * @returns 省份名称和通行数量列表
  */

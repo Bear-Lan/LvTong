@@ -26,7 +26,7 @@
                     <SkyChart title="北斗卫星"></SkyChart>
                 </div>
                 <div class="panel lthree" v-if="!loading" style="flex: 1;">
-                    <GoodsPieChart title="货物类型占比" :data="goodsCount" />
+                    <GoodsPieChart title="货物类型占比" :data="goodsPieData" />
                 </div>
             </div>
             <!-- 中间列 - 在下半部分 -->
@@ -61,7 +61,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { StatCard, SkyChart, RankList, ChinaAirline, Ciyun, LatestPassRecords, GoodsPieChart } from '@/components/GreenChannel'
-import { getKpiData, getPassRecords, getCreditRanking, getGoodsTypeCloud, getProvinceStats } from '@/api/datascreen'
+import { getKpiData, getPassRecords, getCreditRanking, getGoodsTypeCloud, getGoodsTypePie, getProvinceStats } from '@/api/datascreen'
 import * as THREE from "three";
 import { ThreeViewer } from "@/utils/GreenChannelTool";
 
@@ -154,6 +154,21 @@ const fetchGoodsTypeCloud = async () => {
     }
 }
 
+// 获取大屏货物类型饼图数据（按货物大类）
+const fetchGoodsTypePie = async () => {
+    try {
+        const res = await getGoodsTypePie()
+        if (res.code === 200 && res.data) {
+            goodsPieData.value = res.data.map((item: any) => ({
+                name: item.name,
+                count: item.count
+            }))
+        }
+    } catch (error) {
+        console.error('获取货物类型饼图失败:', error)
+    }
+}
+
 // 获取省份通行数量统计（始发地）
 const fetchProvinceStats = async () => {
     try {
@@ -185,6 +200,7 @@ const kpis = ref<any>({ total: 0, tadaytotal: 0, discount: 0, abnormal: 0 })
 const typeShare = ref<any>([])
 const genRanking = ref<any>([])
 const goodsCount = ref<any>([])
+const goodsPieData = ref<any>([])
 const lvtongStations = ref({ railingMachine: false, lightSource: false })
 const lvtongDetection = ref<any>({})
 const airlineData = ref<any[]>([])
@@ -271,6 +287,9 @@ onMounted(async () => {
 
     // 获取大屏货物类型词云数据
     fetchGoodsTypeCloud()
+
+    // 获取大屏货物类型饼图数据（按货物大类）
+    fetchGoodsTypePie()
 
     // 获取省份通行数量统计（始发地）
     fetchProvinceStats()

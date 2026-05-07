@@ -53,11 +53,17 @@ public interface VehicleInspectionService {
     /** 获取货物类别统计（默认当日） */
     List<Map<String, Object>> getGoodsTypeStats(LocalDateTime startTime, LocalDateTime endTime);
 
+    /** 按货物小类（品种名）统计 */
+    List<Map<String, Object>> getGoodsTypeStatsByVariety(LocalDateTime startTime, LocalDateTime endTime);
+
     /** 获取货物类别统计（所有数据） */
     List<Map<String, Object>> getGoodsTypeStatsAll();
 
     /** 获取货物类型统计（用于词云图） */
     List<Map<String, Object>> getGoodsTypeStatsForCloud();
+
+    /** 按货物大类统计（用于大屏饼图） */
+    List<Map<String, Object>> getGoodsTypeStatsByCategory();
 
     /** 获取最近查验记录 */
     List<VehicleInspection> getRecentRecords(int limit);

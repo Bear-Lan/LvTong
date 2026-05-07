@@ -680,7 +680,7 @@ const renderPieChart = () => {
 
   const data = goodsTypeStats.value
   const pieData = data.map(item => ({
-    name: item.goodsTypeName || item.name || '未知',
+    name: item.productType || '未知',
     value: item.count || 0
   }))
 

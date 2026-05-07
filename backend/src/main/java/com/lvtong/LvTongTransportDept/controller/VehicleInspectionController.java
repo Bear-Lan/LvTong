@@ -365,9 +365,11 @@ public class VehicleInspectionController {
         // 绿通减免 + 追逃费用（从 DB 查询）
         Map<String, Object> feeStats = inspectionService.getInfoOverview(startTime, endTime);
 
-        // 货物类别（饼状图用，同时取前3个作为 TOP3）
+        // 货物类别（饼状图用，按大类统计）
         List<Map<String, Object>> goodsTypeStats = inspectionService.getGoodsTypeStats(startTime, endTime);
-        List<Map<String, Object>> goodsTypeTop = goodsTypeStats.stream().limit(3).toList();
+
+        // 货物小类TOP（信息卡片用，按品种名统计）
+        List<Map<String, Object>> goodsTypeTop = inspectionService.getGoodsTypeStatsByVariety(startTime, endTime).stream().limit(3).toList();
 
         // 平均处理时长（总时长/总次数）
         Map<String, Object> avgProcessTime = inspectionService.getAvgProcessTime(startTime, endTime);
@@ -459,6 +461,17 @@ public class VehicleInspectionController {
     public ApiResponse<List<Map<String, Object>>> getGoodsTypeCloud() {
         List<Map<String, Object>> goodsCloud = inspectionService.getGoodsTypeStatsForCloud();
         return ApiResponse.success(goodsCloud);
+    }
+
+    /**
+     * 获取大屏货物类型饼图数据
+     * @return 货物大类名称和出现次数
+     */
+    @GetMapping("/datascreen/goods-pie")
+    @Operation(summary = "获取大屏货物类型饼图", description = "返回货物大类出现次数用于饼图")
+    public ApiResponse<List<Map<String, Object>>> getGoodsTypePie() {
+        List<Map<String, Object>> goodsPie = inspectionService.getGoodsTypeStatsByCategory();
+        return ApiResponse.success(goodsPie);
     }
 
     /**
