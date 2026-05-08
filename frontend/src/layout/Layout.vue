@@ -29,11 +29,11 @@
           <el-icon><Van /></el-icon>
           <template #title>车辆查验</template>
         </el-menu-item>
-        <el-menu-item index="#" @click="openDatascreen" v-if="userStore.userInfo.role === 0">
+        <el-menu-item index="/#datascreen" @click="openDatascreen" v-if="userStore.userInfo.role === 0">
           <el-icon><Monitor /></el-icon>
           <template #title>智慧大屏</template>
         </el-menu-item>
-        <el-menu-item index="#" @click="openVideoMonitor">
+        <el-menu-item index="/#videomonitor" @click="openVideoMonitor">
           <el-icon><VideoCamera /></el-icon>
           <template #title>视频监控</template>
         </el-menu-item>
