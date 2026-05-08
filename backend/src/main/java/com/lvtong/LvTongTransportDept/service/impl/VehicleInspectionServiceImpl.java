@@ -401,16 +401,26 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
     /** 补充完整的24小时数据 */
     private List<Map<String, Object>> fillHourlyData(List<Map<String, Object>> dbRows) {
         Map<Integer, Long> hourCounts = new HashMap<>();
-        for (int i = 0; i < 24; i++) hourCounts.put(i, 0L);
+        Map<Integer, Long> passCounts = new HashMap<>();
+        Map<Integer, Long> failCounts = new HashMap<>();
+        for (int i = 0; i < 24; i++) {
+            hourCounts.put(i, 0L);
+            passCounts.put(i, 0L);
+            failCounts.put(i, 0L);
+        }
         for (Map<String, Object> row : dbRows) {
-            hourCounts.put(((Number) row.get("hour")).intValue(),
-                      ((Number) row.get("count")).longValue());
+            int h = ((Number) row.get("hour")).intValue();
+            hourCounts.put(h, ((Number) row.get("count")).longValue());
+            passCounts.put(h, row.get("passCount") != null ? ((Number) row.get("passCount")).longValue() : 0L);
+            failCounts.put(h, row.get("failCount") != null ? ((Number) row.get("failCount")).longValue() : 0L);
         }
         List<Map<String, Object>> result = new ArrayList<>();
         for (int h = 0; h < 24; h++) {
             Map<String, Object> item = new HashMap<>();
             item.put("hour", h);
             item.put("count", hourCounts.get(h));
+            item.put("passCount", passCounts.get(h));
+            item.put("failCount", failCounts.get(h));
             item.put("label", String.format("%02d:00", h));
             result.add(item);
         }
@@ -420,10 +430,14 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
     /** 补充完整的天数据 */
     private List<Map<String, Object>> fillDailyData(List<Map<String, Object>> dbRows, LocalDate startDate, LocalDate endDate) {
         Map<LocalDate, Long> dayCounts = new LinkedHashMap<>();
+        Map<LocalDate, Long> passCounts = new LinkedHashMap<>();
+        Map<LocalDate, Long> failCounts = new LinkedHashMap<>();
         // 遍历日期范围
         LocalDate current = startDate;
         while (current.isBefore(endDate)) {
             dayCounts.put(current, 0L);
+            passCounts.put(current, 0L);
+            failCounts.put(current, 0L);
             current = current.plusDays(1);
         }
         // 填充数据库结果
@@ -432,15 +446,19 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
             if (labelObj != null) {
                 LocalDate date = LocalDate.parse(labelObj.toString());
                 dayCounts.put(date, ((Number) row.get("count")).longValue());
+                passCounts.put(date, row.get("passCount") != null ? ((Number) row.get("passCount")).longValue() : 0L);
+                failCounts.put(date, row.get("failCount") != null ? ((Number) row.get("failCount")).longValue() : 0L);
             }
         }
         // 按日期顺序返回
         List<Map<String, Object>> result = new ArrayList<>();
         for (Map.Entry<LocalDate, Long> entry : dayCounts.entrySet()) {
-            Map<String, Object> item = new HashMap<>();
             LocalDate date = entry.getKey();
+            Map<String, Object> item = new HashMap<>();
             item.put("label", String.format("%d月%d日", date.getMonthValue(), date.getDayOfMonth()));
             item.put("count", entry.getValue());
+            item.put("passCount", passCounts.get(date));
+            item.put("failCount", failCounts.get(date));
             result.add(item);
         }
         return result;
@@ -450,26 +468,35 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
     private List<Map<String, Object>> fillMonthlyData(List<Map<String, Object>> dbRows) {
         // 使用LinkedHashMap保持插入顺序
         Map<String, Long> monthCounts = new LinkedHashMap<>();
+        Map<String, Long> passCounts = new LinkedHashMap<>();
+        Map<String, Long> failCounts = new LinkedHashMap<>();
         LocalDate now = LocalDate.now();
         // 填充最近12月的空数据（从最早到最近）
         for (int i = 11; i >= 0; i--) {
             LocalDate monthDate = now.minusMonths(i);
             String label = String.format("%s-%02d", monthDate.getYear(), monthDate.getMonthValue());
             monthCounts.put(label, 0L);
+            passCounts.put(label, 0L);
+            failCounts.put(label, 0L);
         }
         // 填充数据库结果
         for (Map<String, Object> row : dbRows) {
             String label = row.get("label") != null ? row.get("label").toString() : null;
             if (label != null) {
                 monthCounts.put(label, ((Number) row.get("count")).longValue());
+                passCounts.put(label, row.get("passCount") != null ? ((Number) row.get("passCount")).longValue() : 0L);
+                failCounts.put(label, row.get("failCount") != null ? ((Number) row.get("failCount")).longValue() : 0L);
             }
         }
         // 按顺序返回
         List<Map<String, Object>> result = new ArrayList<>();
         for (Map.Entry<String, Long> entry : monthCounts.entrySet()) {
+            String label = entry.getKey();
             Map<String, Object> item = new HashMap<>();
-            item.put("label", entry.getKey());
+            item.put("label", label);
             item.put("count", entry.getValue());
+            item.put("passCount", passCounts.get(label));
+            item.put("failCount", failCounts.get(label));
             result.add(item);
         }
         return result;

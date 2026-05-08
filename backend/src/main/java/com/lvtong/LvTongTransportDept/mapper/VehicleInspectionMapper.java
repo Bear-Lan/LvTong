@@ -35,7 +35,10 @@ public interface VehicleInspectionMapper extends BaseMapper<VehicleInspection> {
      * GROUP BY HOUR() 在数据库层聚合，只返回 24 行结果，
      * 而非 SELECT * 全表拉取后再 Java 分组。
      */
-    @Select("SELECT HOUR(inspection_time) AS hour, COUNT(*) AS count " +
+    @Select("SELECT HOUR(inspection_time) AS hour, " +
+            "COUNT(*) AS count, " +
+            "SUM(CASE WHEN result_status = 1 THEN 1 ELSE 0 END) AS passCount, " +
+            "SUM(CASE WHEN result_status = 2 THEN 1 ELSE 0 END) AS failCount " +
             "FROM vehicle_inspections " +
             "WHERE inspection_time >= #{startTime} AND inspection_time < #{endTime} " +
             "GROUP BY HOUR(inspection_time) ORDER BY hour")
@@ -183,7 +186,9 @@ public interface VehicleInspectionMapper extends BaseMapper<VehicleInspection> {
     /**
      * 按天统计查验数量（用于 Dashboard 时段分析）
      */
-    @Select("SELECT DATE(inspection_time) AS label, COUNT(*) AS count " +
+    @Select("SELECT DATE(inspection_time) AS label, COUNT(*) AS count, " +
+            "SUM(CASE WHEN result_status = 1 THEN 1 ELSE 0 END) AS passCount, " +
+            "SUM(CASE WHEN result_status = 2 THEN 1 ELSE 0 END) AS failCount " +
             "FROM vehicle_inspections " +
             "WHERE inspection_time >= #{startTime} AND inspection_time < #{endTime} " +
             "GROUP BY DATE(inspection_time) ORDER BY label")
@@ -193,7 +198,9 @@ public interface VehicleInspectionMapper extends BaseMapper<VehicleInspection> {
     /**
      * 按月统计查验数量（用于 Dashboard 年视图时段分析）
      */
-    @Select("SELECT DATE_FORMAT(inspection_time, '%Y-%m') AS label, COUNT(*) AS count " +
+    @Select("SELECT DATE_FORMAT(inspection_time, '%Y-%m') AS label, COUNT(*) AS count, " +
+            "SUM(CASE WHEN result_status = 1 THEN 1 ELSE 0 END) AS passCount, " +
+            "SUM(CASE WHEN result_status = 2 THEN 1 ELSE 0 END) AS failCount " +
             "FROM vehicle_inspections " +
             "WHERE inspection_time >= #{startTime} AND inspection_time < #{endTime} " +
             "GROUP BY DATE_FORMAT(inspection_time, '%Y-%m') ORDER BY label")

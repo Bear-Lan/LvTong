@@ -469,15 +469,27 @@ const renderLineChart = () => {
   // 提示框文字
   const tooltipUnit = timeType.value === 'day' ? '辆' : '次'
   const total = values.reduce((sum, v) => sum + v, 0)
+  const totalPass = data.reduce((sum, d) => sum + (d.passCount || 0), 0)
+  const totalFail = data.reduce((sum, d) => sum + (d.failCount || 0), 0)
 
   lineChart.setOption({
     tooltip: {
       trigger: 'axis',
-      formatter: (params) => `${params[0].axisValue}<br/>查验量：<b>${params[0].data}</b> ${tooltipUnit}`
+      formatter: (params) => {
+        const d = data[params[0].dataIndex]
+        return `${params[0].axisValue}<br/>总查验：<b>${params[0].data}</b> ${tooltipUnit}<br/><span style="color:#67c23a">合格：<b>${d?.passCount || 0}</b> ${tooltipUnit}</span><br/><span style="color:#f56c6c">不合格：<b>${d?.failCount || 0}</b> ${tooltipUnit}</span>`
+      }
     },
     title: {
-      text: `总查验：${total.toLocaleString()} 次`,
-      textStyle: { fontSize: 12, color: '#606266' },
+      text: `总查验：${total.toLocaleString()}次（{pass|合格：${totalPass.toLocaleString()} 次} | {fail|不合格：${totalFail.toLocaleString()} 次}）`,
+      textStyle: {
+        fontSize: 12,
+        color: '#606266',
+        rich: {
+          pass: { color: '#67c23a' },
+          fail: { color: '#f56c6c' }
+        }
+      },
       left: 'right',
       top: 5
     },
