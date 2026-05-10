@@ -376,6 +376,11 @@ public class VehicleInspectionController {
         double avgSeconds = avgProcessTime != null && avgProcessTime.get("avgSeconds") != null
                 ? ((Number) avgProcessTime.get("avgSeconds")).doubleValue() : 0;
 
+        // 平均检测时长（opengate_time → inspection_time）
+        Map<String, Object> avgDetectionTime = inspectionService.getAvgDetectionTime(startTime, endTime);
+        double avgDetectionSeconds = avgDetectionTime != null && avgDetectionTime.get("avgSeconds") != null
+                ? ((Number) avgDetectionTime.get("avgSeconds")).doubleValue() : 0;
+
         // 最大省份
         Map<String, Object> mostProvince = inspectionService.getMostProvince(startTime, endTime);
 
@@ -384,6 +389,7 @@ public class VehicleInspectionController {
         infoOverview.put("exemptFee", feeStats.get("exemptFee"));
         infoOverview.put("chaseFee", feeStats.get("chaseFee"));
         infoOverview.put("avgAcceptanceDuration", avgSeconds);
+        infoOverview.put("avgDetectionDuration", avgDetectionSeconds);
         infoOverview.put("goodsTypeTop", goodsTypeTop);
         infoOverview.put("mostProvince", mostProvince.get("provinceName"));
         infoOverview.put("mostProvinceCount", mostProvince.get("count"));

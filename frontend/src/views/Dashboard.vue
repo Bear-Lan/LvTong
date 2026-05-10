@@ -33,10 +33,17 @@
                       <el-icon size="28"><Timer /></el-icon>
                     </div>
                     <div class="stat-body">
-                      <div class="stat-value large">
-                        {{ formatAcceptanceDuration(infoOverview.avgAcceptanceDuration) }}
+                      <div class="stat-value-row">
+                        <span class="stat-value-item blue">
+                          <span class="value">{{ formatAcceptanceDuration(infoOverview.avgAcceptanceDuration) }}</span>
+                          <span class="label">平均查验时间</span>
+                        </span>
+                        <span class="stat-divider">|</span>
+                        <span class="stat-value-item purple">
+                          <span class="value">{{ formatDetectionDuration(infoOverview.avgDetectionDuration) }}</span>
+                          <span class="label">平均检测时间</span>
+                        </span>
                       </div>
-                      <div class="stat-label">平均查验时间</div>
                     </div>
                   </div>
                 </el-card>
@@ -265,6 +272,7 @@ const infoOverview = reactive({
   exemptFee: 0,
   chaseFee: 0,
   avgAcceptanceDuration: 0,
+  avgDetectionDuration: 0,
   goodsTypeTop: [],
   mostProvince: '暂无数据',
   mostProvinceCount: 0,
@@ -338,6 +346,7 @@ const loadData = async () => {
       infoOverview.exemptFee = overview.exemptFee || 0
       infoOverview.chaseFee = overview.chaseFee || 0
       infoOverview.avgAcceptanceDuration = overview.avgAcceptanceDuration || 0
+      infoOverview.avgDetectionDuration = overview.avgDetectionDuration || 0
       infoOverview.goodsTypeTop = overview.goodsTypeTop || []
       infoOverview.mostProvince = overview.mostProvince || '暂无数据'
       infoOverview.mostProvinceCount = overview.mostProvinceCount || 0
@@ -397,6 +406,14 @@ const formatMoney = (value) => {
 
 /** 格式化平均受理时间（秒转 X分Y秒）*/
 const formatAcceptanceDuration = (seconds) => {
+  if (!seconds || seconds === 0) return '0秒'
+  const mins = Math.floor(seconds / 60)
+  const secs = Math.round(seconds % 60)
+  if (mins === 0) return `${secs}秒`
+  return `${mins}分${secs}秒`
+}
+
+const formatDetectionDuration = (seconds) => {
   if (!seconds || seconds === 0) return '0秒'
   const mins = Math.floor(seconds / 60)
   const secs = Math.round(seconds % 60)
@@ -910,6 +927,8 @@ const handleResize = () => {
 }
 .stat-value-item.success .value { color: #67c23a; }
 .stat-value-item.danger .value { color: #f56c6c; }
+.stat-value-item.blue .value { color: #409eff; }
+.stat-value-item.purple .value { color: #9b59b6; }
 
 .stat-divider {
   color: #dcdfe6;

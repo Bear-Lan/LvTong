@@ -531,6 +531,12 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
 
     @Override
     @Transactional(readOnly = true)
+    public Map<String, Object> getAvgDetectionTime(LocalDateTime startTime, LocalDateTime endTime) {
+        return mapper.selectAvgDetectionTime(startTime, endTime);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Map<String, Object> getMostProvince(LocalDateTime startTime, LocalDateTime endTime) {
         List<Map<String, Object>> provinceList = mapper.selectProvinceStats(startTime, endTime);
         if (provinceList == null || provinceList.isEmpty()) {
