@@ -76,6 +76,7 @@ onMounted(async () => {
     rearChannelId.value = channels.find(c => c.cameraType === 'rear')?.channel
     ptz360ChannelId.value = channels.find(c => c.cameraType === 'ptz360')?.channel
     mediaServerUrl.value = channels[0]?.mediaServerUrl || mediaServerUrl.value
+    document.title = '绿通视频监控'
   }
 })
 </script>
