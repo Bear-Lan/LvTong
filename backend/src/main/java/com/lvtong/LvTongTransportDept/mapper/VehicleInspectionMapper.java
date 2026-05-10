@@ -289,7 +289,7 @@ public interface VehicleInspectionMapper extends BaseMapper<VehicleInspection> {
             "FROM vehicle_inspections vi " +
             "INNER JOIN station_info si ON si.station_id = vi.passcode_en_station_id " +
             "WHERE vi.inspection_time >= #{startTime} AND vi.inspection_time < #{endTime} " +
-            "AND si.province IS NOT NULL AND si.province != '' " +
+            "AND si.province IS NOT NULL AND si.province != '' AND si.province != '42' " +
             "GROUP BY si.province " +
             "ORDER BY count DESC")
     List<Map<String, Object>> selectProvinceStats(@Param("startTime") LocalDateTime startTime,

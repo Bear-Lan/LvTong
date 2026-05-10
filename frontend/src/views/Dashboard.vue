@@ -78,7 +78,7 @@
                         <template v-if="infoOverview.mostProvince && infoOverview.mostProvince !== '暂无数据'">
                           <span class="stat-value-item">
                             <span class="value">{{ infoOverview.mostProvince }}</span>
-                            <span class="label">最大省({{ infoOverview.mostProvinceCount }}次)</span>
+                            <span class="label">最大来源省({{ infoOverview.mostProvinceCount }}次)</span>
                           </span>
                           <template v-if="infoOverview.mostProvinceTopStation">
                             <span class="stat-divider">|</span>
@@ -90,7 +90,7 @@
                         </template>
                         <span v-else class="stat-value-item">暂无数据</span>
                       </div>
-                      <div class="stat-sub">最大省|省内最大市</div>
+                      <div class="stat-sub">最大来源省|省内最大站点</div>
                     </div>
                   </div>
                 </el-card>
