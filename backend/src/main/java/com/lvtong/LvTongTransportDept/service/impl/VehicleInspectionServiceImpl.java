@@ -684,7 +684,7 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
             wrapper.eq(VehicleInspection::getToTransportdeptState, toTransportdeptState);
         }
 
-        wrapper.orderByDesc(VehicleInspection::getInspectionTime);
+        wrapper.orderByAsc(VehicleInspection::getAcceptanceTime);
         return mapper.selectList(wrapper);
     }
 }

@@ -282,24 +282,69 @@ const loadData = async () => {
       console.log('查验记录列表：', res.data)
       // 处理图表数据
       chartData.value = (res.data || []).map((item, index) => {
-        // 计算查验时长 = inspectionTime - acceptanceTime
-        let duration = 0
-        if (item.acceptanceTime && item.inspectionTime) {
-          const start = new Date(item.acceptanceTime)
-          const end = new Date(item.inspectionTime)
-          if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-            const diffMs = end.getTime() - start.getTime()
-            if (diffMs > 0) {
-              duration = Math.floor(diffMs / 1000)
+        // 时间字段列表（按顺序）
+        const timeFields = [
+          { key: 'btnPrebookTime', label: '司机预约' },
+          { key: 'acceptanceTime', label: '受理' },
+          { key: 'opengateTime', label: '抬杆放行' },
+          { key: 'openlightscreenTime', label: '光闸打开' },
+          { key: 'closelightscreenTime', label: '光闸关闭' },
+          { key: 'cdPhotoTime', label: 'CD拍照' },
+          { key: 'inspectionTime', label: '检测结束' }
+        ]
+
+        // 判断是否为新格式（7个时间字段都有值）
+        const isNewFormat = timeFields.every(f => item[f.key])
+
+        let totalDuration = 0
+        const segments = []
+
+        if (!isNewFormat) {
+          // 旧格式：用 acceptanceTime → inspectionTime，整体显示为紫色
+          const start = item.acceptanceTime ? new Date(item.acceptanceTime) : null
+          const end = item.inspectionTime ? new Date(item.inspectionTime) : null
+          if (start && end && !isNaN(start.getTime()) && !isNaN(end.getTime())) {
+            const diff = end.getTime() - start.getTime()
+            if (diff > 0) {
+              totalDuration = Math.floor(diff / 1000)
             }
           }
+          segments.push({ duration: totalDuration, label: '查验总时长', color: '#9b59b6' })
+        } else {
+          // 新格式：计算每段的时长
+          const colors = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452']
+          for (let i = 0; i < timeFields.length - 1; i++) {
+            const start = new Date(item[timeFields[i].key])
+            const end = new Date(item[timeFields[i + 1].key])
+            const diff = end.getTime() - start.getTime()
+            const duration = diff > 0 ? Math.floor(diff / 1000) : 0
+            totalDuration += duration
+            segments.push({
+              duration,
+              color: colors[i],
+              label: `${timeFields[i].label} → ${timeFields[i + 1].label}`
+            })
+          }
         }
+
         return {
           index: index + 1,
           plateNumber: item.plateNumber || '-',
-          duration
+          acceptanceTime: item.acceptanceTime || '',
+          totalDuration,
+          segments,
+          isOldFormat: !isNewFormat
         }
       })
+
+      // 按 acceptanceTime 排序并重新编号
+      chartData.value.sort((a, b) => {
+        if (!a.acceptanceTime && !b.acceptanceTime) return 0
+        if (!a.acceptanceTime) return 1
+        if (!b.acceptanceTime) return -1
+        return new Date(a.acceptanceTime) - new Date(b.acceptanceTime)
+      })
+      chartData.value.forEach((item, idx) => { item.index = idx + 1 })
 
       // 渲染图表
       await nextTick()
@@ -307,7 +352,8 @@ const loadData = async () => {
     } else {
       ElMessage.error(res.message || '加载数据失败')
     }
-  } catch {
+  } catch (e) {
+    console.error('加载数据失败', e)
     ElMessage.error('加载数据失败')
   } finally {
     loading.value = false
@@ -355,19 +401,45 @@ const renderBarChart = () => {
   if (!barChart) barChart = echarts.init(barChartRef.value)
 
   const data = chartData.value
+  if (data.length === 0) return
 
-  // 格式化时长为分:秒
   const formatDuration = (seconds) => {
     if (!seconds || seconds === 0) return '0秒'
     const mins = Math.floor(seconds / 60)
     const secs = Math.floor(seconds % 60)
-    if (mins === 0) return `${secs}秒`
-    return `${mins}分${secs}秒`
+    return mins === 0 ? `${secs}秒` : `${mins}分${secs}秒`
   }
 
-  // 横坐标标签（使用序号或车牌号简写）
-  const labels = data.map(d => `#${d.index}`)
-  const values = data.map(d => d.duration)
+  const labels = data.map(d => d.acceptanceTime ? d.acceptanceTime.replace('T', ' ').slice(0, 16) : '#' + d.index)
+
+  let series = []
+  // 统一用堆叠图，新格式分段，旧格式只有第一段有值（=总时长），其余为0
+  const segmentCount = 6
+  const colors = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272']
+  const defaultLabels = ['司机预约→受理', '受理→抬杆放行', '抬杆放行→光幕打开', '光幕打开→光幕关闭', '光幕关闭→CD拍照', 'CD拍照→检测结束']
+
+  const stackData = []
+  for (let i = 0; i < segmentCount; i++) {
+    stackData.push({
+      name: defaultLabels[i],
+      color: colors[i],
+      data: data.map(item => {
+        const seg = item.segments[i]
+        return seg ? { value: seg.duration, itemStyle: { color: seg.color || colors[i] } } : { value: 0, itemStyle: { color: colors[i] } }
+      })
+    })
+  }
+  series = stackData.map((s, i) => ({
+    name: s.name,
+    type: 'bar',
+    stack: 'total',
+    data: s.data,
+    barWidth: 24,
+    itemStyle: {
+      color: s.color,
+      borderRadius: i === stackData.length - 1 ? [4, 4, 0, 0] : 0
+    }
+  }))
 
   barChart.setOption({
     tooltip: {
@@ -376,55 +448,40 @@ const renderBarChart = () => {
       formatter: (params) => {
         const idx = params[0].dataIndex
         const item = data[idx]
-        return `记录 #${item.index}<br/>车牌：${item.plateNumber}<br/>时长：<b>${formatDuration(item.duration)}</b>`
+        const timeStr = item.acceptanceTime ? item.acceptanceTime.replace('T', ' ').slice(0, 19) : '-'
+        let tip = `时间：${timeStr}<br/>车牌：${item.plateNumber}<br/>总时长：<b>${formatDuration(item.totalDuration)}</b><br/><br/>`
+        if (item.isOldFormat) {
+          tip += `<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#9b59b6;margin-right:5px;"></span>查验总时长：${formatDuration(item.segments[0]?.duration)}`
+        } else {
+          tip += `<div style="line-height:18px;">`
+          item.segments.forEach(seg => {
+            if (seg.duration > 0) {
+              tip += `<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${seg.color};margin-right:5px;"></span>${seg.label}：${formatDuration(seg.duration)}<br/>`
+            }
+          })
+          tip += `</div>`
+        }
+        return tip
       }
     },
-    grid: {
-      left: 80,
-      right: 40,
-      top: 30,
-      bottom: 60
-    },
+    legend: { top: 10, data: series.map(s => s.name) },
+    grid: { left: 80, right: 40, top: 50, bottom: 60 },
     xAxis: {
       type: 'category',
       data: labels,
-      axisLabel: {
-        fontSize: 10,
-        color: '#909399',
-        rotate: 30,
-        interval: Math.floor(data.length / 10) // 超过10个标签时每隔一定数量显示一个
-      },
+      axisLabel: { fontSize: 10, color: '#909399', rotate: 30 },
       axisLine: { lineStyle: { color: '#e4e7ed' } }
     },
     yAxis: {
       type: 'value',
       name: '查验时长',
       nameTextStyle: { fontSize: 12, color: '#606266' },
-      axisLabel: {
-        fontSize: 11,
-        color: '#909399',
-        formatter: (val) => formatDuration(val)
-      },
+      axisLabel: { fontSize: 11, color: '#909399', formatter: v => formatDuration(v) },
       splitLine: { lineStyle: { color: '#f0f0f0' } },
       axisLine: { show: true, lineStyle: { color: '#e4e7ed' } }
     },
-    series: [{
-      type: 'bar',
-      data: values,
-      barWidth: 20,
-      itemStyle: {
-        borderRadius: [4, 4, 0, 0],
-        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-          { offset: 0, color: '#409eff' },
-          { offset: 1, color: '#66b1ff' }
-        ])
-      }
-    }],
-    dataZoom: [{
-      type: 'inside',
-      start: 0,
-      end: 100
-    }]
+    series,
+    dataZoom: [{ type: 'inside', start: 0, end: 100 }]
   })
 }
 

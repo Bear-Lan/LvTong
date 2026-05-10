@@ -171,11 +171,31 @@ public class VehicleInspection {
     @TableField("operator_name")
     private String operatorName;
 
+    /** 司机按键预约时间 */
+    @TableField("btn_prebook_time")
+    private LocalDateTime btnPrebookTime;
+
     /** 受理时间 */
     @TableField("acceptance_time")
     private LocalDateTime acceptanceTime;
 
-    /** 放行时间 */
+    /** 抬杆放行时间 */
+    @TableField("opengate_time")
+    private LocalDateTime opengateTime;
+
+    /** 光幕打开时间 */
+    @TableField("openlightscreen_time")
+    private LocalDateTime openlightscreenTime;
+
+    /** 光幕关闭时间 */
+    @TableField("closelightscreen_time")
+    private LocalDateTime closelightscreenTime;
+
+    /** CD拍照时间 */
+    @TableField("cd_photo_time")
+    private LocalDateTime cdPhotoTime;
+
+    /** 放行时间（检测结束） */
     @TableField("inspection_time")
     private LocalDateTime inspectionTime;
 
@@ -357,8 +377,23 @@ public class VehicleInspection {
     public String getOperatorName() { return operatorName; }
     public void setOperatorName(String operatorName) { this.operatorName = operatorName; }
 
+    public LocalDateTime getBtnPrebookTime() { return btnPrebookTime; }
+    public void setBtnPrebookTime(LocalDateTime btnPrebookTime) { this.btnPrebookTime = btnPrebookTime; }
+
     public LocalDateTime getAcceptanceTime() { return acceptanceTime; }
     public void setAcceptanceTime(LocalDateTime acceptanceTime) { this.acceptanceTime = acceptanceTime; }
+
+    public LocalDateTime getOpengateTime() { return opengateTime; }
+    public void setOpengateTime(LocalDateTime opengateTime) { this.opengateTime = opengateTime; }
+
+    public LocalDateTime getOpenlightscreenTime() { return openlightscreenTime; }
+    public void setOpenlightscreenTime(LocalDateTime openlightscreenTime) { this.openlightscreenTime = openlightscreenTime; }
+
+    public LocalDateTime getCloselightscreenTime() { return closelightscreenTime; }
+    public void setCloselightscreenTime(LocalDateTime closelightscreenTime) { this.closelightscreenTime = closelightscreenTime; }
+
+    public LocalDateTime getCdPhotoTime() { return cdPhotoTime; }
+    public void setCdPhotoTime(LocalDateTime cdPhotoTime) { this.cdPhotoTime = cdPhotoTime; }
 
     public LocalDateTime getInspectionTime() { return inspectionTime; }
     public void setInspectionTime(LocalDateTime inspectionTime) { this.inspectionTime = inspectionTime; }

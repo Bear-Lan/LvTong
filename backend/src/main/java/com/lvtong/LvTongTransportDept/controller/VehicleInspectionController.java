@@ -560,7 +560,13 @@ public class VehicleInspectionController {
 
         // 查验业务信息
         map.put("operatorName", v.getOperatorName());
+        // 各环节时间字段（用于查验时长分析）
+        map.put("btnPrebookTime", v.getBtnPrebookTime());
         map.put("acceptanceTime", v.getAcceptanceTime());
+        map.put("opengateTime", v.getOpengateTime());
+        map.put("openlightscreenTime", v.getOpenlightscreenTime());
+        map.put("closelightscreenTime", v.getCloselightscreenTime());
+        map.put("cdPhotoTime", v.getCdPhotoTime());
         map.put("inspectionTime", v.getInspectionTime());
         map.put("createdTime", v.getCreatedTime());
         map.put("updatedTime", v.getUpdatedTime());
