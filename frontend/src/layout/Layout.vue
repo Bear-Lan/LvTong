@@ -17,10 +17,16 @@
         text-color="#e0f7f6"
         active-text-color="#ffffff"
       >
-        <el-menu-item index="/dashboard">
-          <el-icon><HomeFilled /></el-icon>
-          <template #title>首页概览</template>
-        </el-menu-item>
+        <el-sub-menu index="dashboard-sub">
+          <template #title>
+            <span class="sub-menu-title">
+              <el-icon><HomeFilled /></el-icon>
+              首页概览
+            </span>
+          </template>
+          <el-menu-item index="/dashboard">数据看板</el-menu-item>
+          <el-menu-item index="/inspection-duration-analysis">查验时长分析</el-menu-item>
+        </el-sub-menu>
         <el-menu-item index="/users">
           <el-icon><User /></el-icon>
           <template #title>用户管理</template>
@@ -351,5 +357,12 @@ const openVideoMonitor = () => {
 .content {
   flex: 1;
   padding: 0;
+}
+
+/* 子菜单样式 */
+.sub-menu-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 </style>

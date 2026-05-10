@@ -46,6 +46,12 @@ const routes = [
         name: 'VehicleInspection',
         meta: { title: '历史记录' },
         component: () => import('@/views/HistoricalRecords.vue')
+      },
+      {
+        path: 'inspection-duration-analysis',
+        name: 'InspectionDurationAnalysis',
+        meta: { title: '查验时长分析' },
+        component: () => import('@/views/InspectionDurationAnalysis.vue')
       }
     ]
   }

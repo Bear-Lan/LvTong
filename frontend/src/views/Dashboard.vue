@@ -47,7 +47,7 @@
                 <el-card class="stat-card" shadow="hover">
                   <div class="stat-inner">
                     <div class="stat-icon-wrap green">
-                      <img src="@/assets/GreenChannel/png/金额.png" style="width:28px;height:28px;" />
+                      <img src="@/assets/GreenChannel/png/money.png" style="width:28px;height:28px;" />
                     </div>
                     <div class="stat-body">
                       <div class="stat-value-row">
@@ -574,6 +574,7 @@ const renderProcessTimeChart = () => {
   processTimeChart.setOption({
     tooltip: {
       trigger: 'axis',
+      axisPointer: { type: 'shadow' },
       formatter: (params) => {
         const val = params[0].data
         return `${params[0].axisValue}<br/>平均时长：<b>${formatDuration(val)}</b>`
@@ -593,24 +594,21 @@ const renderProcessTimeChart = () => {
     },
     yAxis: {
       type: 'value',
-      name: '受理时长(分钟)',
+      name: '受理时长(秒)',
       nameTextStyle: { fontSize: 10, color: '#909399' },
       axisLabel: { fontSize: 10, color: '#909399' },
       splitLine: { lineStyle: { color: '#f0f0f0' } },
       axisLine: { show: true, lineStyle: { color: '#e4e7ed' } }
     },
     series: [{
-      type: 'line',
+      type: 'bar',
       data: values,
-      smooth: true,
-      symbol: 'circle',
-      symbolSize: 6,
-      lineStyle: { color: '#9b59b6', width: 2 },
-      itemStyle: { color: '#9b59b6' },
-      areaStyle: {
+      barWidth: 16,
+      itemStyle: {
+        borderRadius: [4, 4, 0, 0],
         color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-          { offset: 0, color: 'rgba(155,89,182,0.3)' },
-          { offset: 1, color: 'rgba(155,89,182,0.05)' }
+          { offset: 0, color: '#9b59b6' },
+          { offset: 1, color: '#c39bd3' }
         ])
       }
     }]

@@ -36,7 +36,7 @@
                         </div>
                         <div class="kpi">
                             <div class="kpi-icon">
-                                <img src="@/assets/GreenChannel/png/金额.png" style="width:100%;height:100%;padding:5px;border-radius:50%;" />
+                                <img src="@/assets/GreenChannel/png/money.png" style="width:100%;height:100%;padding:5px;border-radius:50%;" />
                             </div>
                             <div class="kpi-content">
                                 <div class="label">总通行金额(元)</div>
