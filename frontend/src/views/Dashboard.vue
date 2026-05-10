@@ -244,7 +244,7 @@ import InspectionDetail from '@/components/InspectionDetail.vue'
 // ================================================================
 
 /** 时间类型：day=日, month=月, year=年 */
-const timeType = ref('month')
+const timeType = ref('day')
 const router = useRouter()
 
 /** 跳转到车辆查验页面 */
