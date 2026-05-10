@@ -230,6 +230,19 @@ const openVideoMonitor = () => {
   background-color: #5BA6A2 !important;
 }
 
+</style>
+<style>
+.el-sub-menu .el-menu {
+  background-color: #26b0ac !important;
+}
+.el-sub-menu .el-menu-item {
+  background-color: #26b0ac !important;
+  color: #e0f7f6 !important;
+}
+.el-sub-menu .el-menu-item:hover {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+}
+
 .sidebar-waves {
   position: absolute;
   bottom: 0;
