@@ -284,23 +284,23 @@ const loadData = async () => {
       chartData.value = (res.data || []).map((item, index) => {
         // 时间字段列表（按顺序）
         const timeFields = [
-          { key: 'btnPrebookTime', label: '司机预约' },
+          { key: 'btnPrebookTime', label: '预约' },
           { key: 'acceptanceTime', label: '受理' },
-          { key: 'opengateTime', label: '抬杆放行' },
-          { key: 'openlightscreenTime', label: '光闸打开' },
-          { key: 'closelightscreenTime', label: '光闸关闭' },
-          { key: 'cdPhotoTime', label: 'CD拍照' },
-          { key: 'inspectionTime', label: '检测结束' }
+          { key: 'opengateTime', label: '放行' },
+          { key: 'openlightscreenTime', label: '射线开' },
+          { key: 'closelightscreenTime', label: '射线关' },
+          { key: 'cdPhotoTime', label: '收费岗亭' },
+          { key: 'inspectionTime', label: '查验结束' }
         ]
 
-        // 判断是否为新格式（7个时间字段都有值）
+        // 判断是否7个时间字段都有值
         const isNewFormat = timeFields.every(f => item[f.key])
 
         let totalDuration = 0
         const segments = []
-
+        //如果有空值
         if (!isNewFormat) {
-          // 旧格式：用 acceptanceTime → inspectionTime，整体显示为紫色
+          // 用 acceptanceTime → inspectionTime，整体显示为紫色
           const start = item.acceptanceTime ? new Date(item.acceptanceTime) : null
           const end = item.inspectionTime ? new Date(item.inspectionTime) : null
           if (start && end && !isNaN(start.getTime()) && !isNaN(end.getTime())) {
@@ -311,7 +311,7 @@ const loadData = async () => {
           }
           segments.push({ duration: totalDuration, label: '查验总时长', color: '#9b59b6' })
         } else {
-          // 新格式：计算每段的时长
+          // 都有值：计算每段的时长
           const colors = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452']
           for (let i = 0; i < timeFields.length - 1; i++) {
             const start = new Date(item[timeFields[i].key])
@@ -336,15 +336,6 @@ const loadData = async () => {
           isOldFormat: !isNewFormat
         }
       })
-
-      // 按 acceptanceTime 排序并重新编号
-      chartData.value.sort((a, b) => {
-        if (!a.acceptanceTime && !b.acceptanceTime) return 0
-        if (!a.acceptanceTime) return 1
-        if (!b.acceptanceTime) return -1
-        return new Date(a.acceptanceTime) - new Date(b.acceptanceTime)
-      })
-      chartData.value.forEach((item, idx) => { item.index = idx + 1 })
 
       // 渲染图表
       await nextTick()
@@ -401,7 +392,23 @@ const renderBarChart = () => {
   if (!barChart) barChart = echarts.init(barChartRef.value)
 
   const data = chartData.value
-  if (data.length === 0) return
+  barChart.clear()
+  if (data.length === 0) {
+    barChart.clear()
+    barChart.setOption({
+      graphic: {
+        type: 'text',
+        left: 'center',
+        top: 'center',
+        style: {
+          text: '暂无数据',
+          fill: '#909399',
+          fontSize: 14
+        }
+      }
+    })
+    return
+  }
 
   const formatDuration = (seconds) => {
     if (!seconds || seconds === 0) return '0秒'
@@ -416,7 +423,7 @@ const renderBarChart = () => {
   // 统一用堆叠图，新格式分段，旧格式只有第一段有值（=总时长），其余为0
   const segmentCount = 6
   const colors = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272']
-  const defaultLabels = ['司机预约→受理', '受理→抬杆放行', '抬杆放行→光幕打开', '光幕打开→光幕关闭', '光幕关闭→CD拍照', 'CD拍照→检测结束']
+  const defaultLabels = ['预约→受理', '受理→放行', '放行→射线开', '射线开→射线关', '射线关→收费岗亭', '收费岗亭→查验结束']
 
   const stackData = []
   for (let i = 0; i < segmentCount; i++) {

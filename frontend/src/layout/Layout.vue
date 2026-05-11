@@ -5,7 +5,7 @@
       <div class="sidebar-header">
         <img src="/favicon.png" alt="logo" class="logo" />
         <div v-if="!isCollapsed" class="brand-wrapper">
-          <span class="brand">绿通快检系统</span>
+          <span class="brand">绿通快检</span>
         </div>
       </div>
 

@@ -36,12 +36,12 @@
                       <div class="stat-value-row">
                         <span class="stat-value-item blue">
                           <span class="value">{{ formatAcceptanceDuration(infoOverview.avgAcceptanceDuration) }}</span>
-                          <span class="label">平均查验时间</span>
+                          <span class="label">绿通查验时间</span>
                         </span>
                         <span class="stat-divider">|</span>
                         <span class="stat-value-item purple">
                           <span class="value">{{ formatDetectionDuration(infoOverview.avgDetectionDuration) }}</span>
-                          <span class="label">平均检测时间</span>
+                          <span class="label">绿通快检时间</span>
                         </span>
                       </div>
                     </div>
@@ -152,16 +152,16 @@
                 </el-card>
               </el-col>
 
-              <!-- 受理时长曲线图 -->
+              <!-- 查验时长曲线图 -->
               <el-col :span="12">
                 <el-card class="chart-card" shadow="never">
                   <template #header>
                     <div class="panel-header">
                       <span class="panel-title">
                         <el-icon color="#9b59b6"><Timer /></el-icon>
-                        受理时长
+                        查验时长分析
                       </span>
-                      <span class="panel-sub">平均处理时长</span>
+                      <span class="panel-sub">平均查验时长</span>
                     </div>
                   </template>
                   <div ref="processTimeChartRef" class="chart-container-line"></div>

@@ -268,7 +268,7 @@ public interface VehicleInspectionMapper extends BaseMapper<VehicleInspection> {
                                                         @Param("endTime") LocalDateTime endTime);
 
     /**
-     * 聚合统计平均处理时长（总时长 / 总次数）
+     * 聚合统计绿通查验时长（btn_prebook_time → inspection_time）
      */
     @Select("SELECT " +
             "COUNT(*) AS totalCount, " +
@@ -280,15 +280,15 @@ public interface VehicleInspectionMapper extends BaseMapper<VehicleInspection> {
                                              @Param("endTime") LocalDateTime endTime);
 
     /**
-     * 聚合统计平均检测时长（opengate_time → inspection_time）
+     * 聚合统计绿通快检时长（acceptance_time → cd_photo_time）
      */
     @Select("SELECT " +
-            "AVG(TIMESTAMPDIFF(SECOND, opengate_time, inspection_time)) AS avgSeconds " +
+            "AVG(TIMESTAMPDIFF(SECOND, acceptance_time, cd_photo_time)) AS avgSeconds " +
             "FROM vehicle_inspections " +
-            "WHERE opengate_time IS NOT NULL AND inspection_time IS NOT NULL " +
+            "WHERE acceptance_time IS NOT NULL AND cd_photo_time IS NOT NULL " +
             "AND inspection_time >= #{startTime} AND inspection_time < #{endTime}")
     Map<String, Object> selectAvgDetectionTime(@Param("startTime") LocalDateTime startTime,
-                                                 @Param("endTime") LocalDateTime endTime);
+                                                @Param("endTime") LocalDateTime endTime);
 
     /**
      * 按省份统计查验数量（通过 passcode_en_station_id 关联 station_info 获取省份）
