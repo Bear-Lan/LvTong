@@ -26,6 +26,9 @@
       <button class="action-btn" @click.stop="handleScreenshot" title="截图">
         <el-icon><Camera /></el-icon>
       </button>
+      <button class="action-btn" @click.stop="toggleMute" :title="isMuted ? '取消静音' : '静音'">
+        <el-icon><Mute v-if="isMuted" /><Microphone v-else /></el-icon>
+      </button>
     </div>
 
     <div v-if="isLoading" class="video-loading">
@@ -43,7 +46,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { FullScreen, Camera, VideoCamera, RefreshRight } from '@element-plus/icons-vue'
+import { FullScreen, Camera, VideoCamera, RefreshRight, Microphone, Mute } from '@element-plus/icons-vue'
 
 const props = defineProps({
   channelKey: { type: String, required: true },
@@ -61,6 +64,7 @@ const videoWrapper = ref(null)
 const isConnected = ref(false)
 const isLoading = ref(false)
 const hasError = ref(false)
+const isMuted = ref(false)
 let peerConnection = null
 
 // 旋转90度后拉伸铺满（不裁切、不溢出）
@@ -189,6 +193,12 @@ const handleScreenshot = () => {
   link.href = canvas.toDataURL('image/png')
   link.click()
   emit('screenshot')
+}
+
+const toggleMute = () => {
+  if (!videoElement.value) return
+  isMuted.value = !isMuted.value
+  videoElement.value.muted = isMuted.value
 }
 
 watch(() => props.channelId, async (newId, oldId) => {
