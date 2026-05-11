@@ -64,7 +64,7 @@ const videoWrapper = ref(null)
 const isConnected = ref(false)
 const isLoading = ref(false)
 const hasError = ref(false)
-const isMuted = ref(false)
+const isMuted = ref(true)
 let peerConnection = null
 
 // 旋转90度后拉伸铺满（不裁切、不溢出）
@@ -96,6 +96,7 @@ const startStream = async () => {
   peerConnection.ontrack = (event) => {
     if (videoElement.value && event.streams[0]) {
       videoElement.value.srcObject = event.streams[0]
+      videoElement.value.muted = isMuted.value
       isConnected.value = true
       isLoading.value = false
       videoElement.value.onloadedmetadata = () => {
