@@ -251,11 +251,11 @@
           <div class="data-col">
             <div class="data-row">
               <span class="data-label">入口站名称</span>
-              <span class="data-value">{{ row.passcodeEnStationId || '-' }}</span>
+              <span class="data-value">{{ row.passcodeEnStationName || '-' }}</span>
             </div>
             <div class="data-row">
               <span class="data-label">出口站名称</span>
-              <span class="data-value">{{ row.passcodeExStationId || '-' }}</span>
+              <span class="data-value">{{ row.passcodeExStationName || '-' }}</span>
             </div>
             <div class="data-row">
               <span class="data-label">出口交易时间</span>

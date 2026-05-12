@@ -43,6 +43,9 @@ public class VehicleInspectionController {
     @Autowired
     private AgriculturalProductMapper agriculturalProductMapper;
 
+    @Autowired
+    private ProvinceCacheService provinceCacheService;
+
     // ================================================================
     // 【查询接口】
     // ================================================================
@@ -549,6 +552,8 @@ public class VehicleInspectionController {
         map.put("passcodeVehicleColorText", VehicleConstants.getVehicleColorText(v.getPasscodeVehicleColorName()));
         map.put("passcodeEnStationId", v.getPasscodeEnStationId());
         map.put("passcodeExStationId", v.getPasscodeExStationId());
+        map.put("passcodeEnStationName", provinceCacheService.getStationNameByStationId(v.getPasscodeEnStationId()));
+        map.put("passcodeExStationName", provinceCacheService.getStationNameByStationId(v.getPasscodeExStationId()));
         map.put("passcodeEnWeight", v.getPasscodeEnWeight());
         map.put("passcodeExWeight", v.getPasscodeExWeight());
         map.put("passcodeMediaType", v.getPasscodeMediaType());

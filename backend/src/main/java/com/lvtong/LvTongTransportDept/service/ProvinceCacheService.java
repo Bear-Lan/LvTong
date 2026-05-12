@@ -27,6 +27,9 @@ public class ProvinceCacheService {
     /** station_id → 省份中文名称 */
     private Map<String, String> stationToProvinceName = new HashMap<>();
 
+    /** station_id → 站点名称 */
+    private Map<String, String> stationToName = new HashMap<>();
+
     /** province 代码 → 省份中文名称 */
     private Map<String, String> provinceCodeToName = new HashMap<>();
 
@@ -81,15 +84,20 @@ public class ProvinceCacheService {
         provinceCodeToName.putAll(PROVINCE_CODE_MAP);
 
         List<StationInfo> stations = stationInfoMapper.selectList(
-                new LambdaQueryWrapper<StationInfo>().select(StationInfo::getStationId, StationInfo::getProvince)
+                new LambdaQueryWrapper<StationInfo>().select(StationInfo::getStationId, StationInfo::getProvince, StationInfo::getStationName)
         );
 
         for (StationInfo s : stations) {
-            if (s.getStationId() == null || s.getProvince() == null) continue;
-            stationToProvince.put(s.getStationId(), s.getProvince());
-            // station_id → 省份中文名
-            String provinceName = provinceCodeToName.getOrDefault(s.getProvince(), s.getProvince());
-            stationToProvinceName.put(s.getStationId(), provinceName);
+            if (s.getStationId() == null) continue;
+            if (s.getProvince() != null) {
+                stationToProvince.put(s.getStationId(), s.getProvince());
+                // station_id → 省份中文名
+                String provinceName = provinceCodeToName.getOrDefault(s.getProvince(), s.getProvince());
+                stationToProvinceName.put(s.getStationId(), provinceName);
+            }
+            if (s.getStationName() != null) {
+                stationToName.put(s.getStationId(), s.getStationName());
+            }
         }
     }
 
@@ -115,5 +123,13 @@ public class ProvinceCacheService {
     public String getProvinceNameByCode(String code) {
         if (code == null) return null;
         return provinceCodeToName.getOrDefault(code, code);
+    }
+
+    /**
+     * 根据站点 ID 获取站点名称
+     */
+    public String getStationNameByStationId(String stationId) {
+        if (stationId == null) return null;
+        return stationToName.get(stationId);
     }
 }
