@@ -8,6 +8,7 @@ import com.lvtong.LvTongTransportDept.entity.VehicleInspection;
 import com.lvtong.LvTongTransportDept.exception.BusinessException;
 import com.lvtong.LvTongTransportDept.mapper.AgriculturalProductMapper;
 import com.lvtong.LvTongTransportDept.service.VehicleInspectionService;
+import com.lvtong.LvTongTransportDept.service.ProvinceCacheService;
 import com.lvtong.LvTongTransportDept.utils.ImageWatermarkUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
