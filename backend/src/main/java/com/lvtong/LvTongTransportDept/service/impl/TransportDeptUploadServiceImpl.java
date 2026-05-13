@@ -188,9 +188,11 @@ public class TransportDeptUploadServiceImpl implements TransportDeptUploadServic
             msg = response;
             log.warn("响应无法解析为 JSON: {}", response);
         }
-        updateUploadState(id, code == 200 ? 1 : 2, msg);
+        // 重复上传也视为成功
+        boolean isSuccess = code == 200 || (msg != null && msg.contains("查验信息已存在,请勿重复上传"));
+        updateUploadState(id, isSuccess ? 1 : 2, msg);
         Map<String, Object> result = new HashMap<>();
-        result.put("success", code == 200);
+        result.put("success", isSuccess);
         result.put("code", code);
         result.put("msg", msg);
         return result;
