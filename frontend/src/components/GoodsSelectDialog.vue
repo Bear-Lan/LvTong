@@ -132,7 +132,8 @@ import { ElMessage } from 'element-plus'
 
 const props = defineProps({
   modelValue: Boolean,
-  selected: { type: Array, default: () => [] }
+  selected: { type: Array, default: () => [] },
+  singleSelect: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['update:modelValue', 'confirm'])
@@ -236,11 +237,16 @@ const getAliasesText = (aliasesJson) => {
 // ================================================================
 
 const toggleTemp = (code) => {
-  const idx = tempSelected.value.indexOf(code)
-  if (idx >= 0) {
-    tempSelected.value.splice(idx, 1)
+  if (props.singleSelect) {
+    // 单选模式：直接设置选中的品种
+    tempSelected.value = [code]
   } else {
-    tempSelected.value.push(code)
+    const idx = tempSelected.value.indexOf(code)
+    if (idx >= 0) {
+      tempSelected.value.splice(idx, 1)
+    } else {
+      tempSelected.value.push(code)
+    }
   }
 }
 
@@ -249,7 +255,11 @@ const removeTemp = (code) => {
 }
 
 const confirmSelection = () => {
-  emit('confirm', [...tempSelected.value])
+  if (props.singleSelect) {
+    emit('confirm', tempSelected.value[0] || null)
+  } else {
+    emit('confirm', [...tempSelected.value])
+  }
   visible.value = false
 }
 
@@ -269,7 +279,14 @@ const loadProducts = async () => {
 // 监听 visible 变为 true 时，同步已选中数据到临时选中
 watch(visible, (val) => {
   if (val) {
-    tempSelected.value = [...props.selected]
+    // 单选模式：selected 可能是字符串，转为数组；多选模式直接展开
+    if (props.singleSelect && props.selected) {
+      tempSelected.value = [props.selected]
+    } else if (props.singleSelect) {
+      tempSelected.value = []
+    } else {
+      tempSelected.value = Array.isArray(props.selected) ? [...props.selected] : []
+    }
     filterProductType.value = ''
     filterCategory.value = ''
     filterVarietyName.value = ''

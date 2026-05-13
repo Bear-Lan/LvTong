@@ -83,16 +83,7 @@
           <el-col :span="5">
             <el-form-item label="货物名称">
               <div class="goods-select-trigger" @click="openGoodsDialog">
-                <div class="selected-tags" v-if="selectedGoodsProducts.length > 0">
-                  <el-tag
-                    v-for="code in selectedGoodsProducts.slice(0, 2)"
-                    :key="code"
-                    size="small"
-                    closable
-                    @close.stop="removeGoodsProduct(code)"
-                  >{{ getGoodsVarietyName(code) }}</el-tag>
-                  <el-tag v-if="selectedGoodsProducts.length > 2" size="small">+{{ selectedGoodsProducts.length - 2 }}</el-tag>
-                </div>
+                <span v-if="selectedGoodsProduct" class="selected-goods-name">{{ getGoodsVarietyName(selectedGoodsProduct) }}</span>
                 <span v-else class="placeholder-text">点击选择货物</span>
                 <el-icon><ArrowDown /></el-icon>
               </div>
@@ -385,7 +376,8 @@
     <!-- 货物选择弹窗 -->
     <GoodsSelectDialog
       v-model="goodsDialogVisible"
-      v-model:selected="selectedGoodsProducts"
+      v-model:selected="selectedGoodsProduct"
+      single-select
       @confirm="handleGoodsConfirm"
     />
   </div>
@@ -456,7 +448,7 @@ const imageEditVisible = ref(false)
 const goodsDialogVisible = ref(false)
 
 /** 搜索区已选货物品种编码数组 */
-const selectedGoodsProducts = ref([])
+const selectedGoodsProduct = ref(null)
 
 /** 开始日期 */
 const dateRangeStart = ref('')
@@ -554,12 +546,12 @@ const openGoodsDialog = () => {
 
 /** 确认货物选择 */
 const handleGoodsConfirm = (selected) => {
-  selectedGoodsProducts.value = selected
+  selectedGoodsProduct.value = selected || ''
 }
 
 /** 移除已选货物 */
-const removeGoodsProduct = (code) => {
-  selectedGoodsProducts.value = selectedGoodsProducts.value.filter(c => c !== code)
+const removeGoodsProduct = () => {
+  selectedGoodsProduct.value = ''
 }
 
 /** 根据品种编码获取品种名称 */
@@ -627,8 +619,8 @@ const loadData = async () => {
     // 注意：toTransportdeptState 有值时要用 !== null 判断
     if (searchForm.toTransportdeptState !== null) params.toTransportdeptState = searchForm.toTransportdeptState
     // 货物类型（多个品种用 | 分隔）
-    if (selectedGoodsProducts.value && selectedGoodsProducts.value.length > 0) {
-      params.goodsType = selectedGoodsProducts.value.join('|')
+    if (selectedGoodsProduct.value) {
+      params.goodsType = selectedGoodsProduct.value
     }
 
     const res = await getInspectionList(params)
@@ -670,7 +662,7 @@ const handleReset = () => {
   searchForm.resultStatus   = null
   searchForm.manualReviewState = null
   searchForm.toTransportdeptState = null
-  selectedGoodsProducts.value = []
+  selectedGoodsProduct.value = null
   initDateRange()
   pagination.page = 1
   loadData()
@@ -731,8 +723,8 @@ const handleExport = async () => {
     }
     if (searchForm.manualReviewState !== null) params.manualReviewState = searchForm.manualReviewState
     if (searchForm.toTransportdeptState !== null) params.toTransportdeptState = searchForm.toTransportdeptState
-    if (selectedGoodsProducts.value && selectedGoodsProducts.value.length > 0) {
-      params.goodsType = selectedGoodsProducts.value.join('|')
+    if (selectedGoodsProduct.value) {
+      params.goodsType = selectedGoodsProduct.value
     }
 
     // 调用全量导出API
