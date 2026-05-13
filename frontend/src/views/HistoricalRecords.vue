@@ -21,7 +21,7 @@
         <el-row :gutter="20">
 
           <!-- 车牌号 -->
-          <el-col :span="6">
+          <el-col :span="5">
             <el-form-item label="车牌">
               <el-input
                 v-model="searchForm.plateNumber"
@@ -33,7 +33,7 @@
           </el-col>
 
           <!-- 司机电话 -->
-          <el-col :span="6">
+          <el-col :span="5">
             <el-form-item label="电话">
               <el-input
                 v-model="searchForm.driverPhone"
@@ -45,7 +45,7 @@
           </el-col>
 
           <!-- 复核员 -->
-          <el-col :span="6">
+          <el-col :span="4">
             <el-form-item label="复核员">
               <el-select
                 v-model="searchForm.reviewerPhone"
@@ -65,7 +65,7 @@
           </el-col>
 
           <!-- 查验结果 -->
-          <el-col :span="6">
+          <el-col :span="5">
             <el-form-item label="查验结果">
               <el-select
                 v-model="searchForm.resultStatus"
@@ -76,6 +76,26 @@
                 <el-option label="合格" :value="1" />
                 <el-option label="不合格" :value="2" />
               </el-select>
+            </el-form-item>
+          </el-col>
+
+          <!-- 货物选择 -->
+          <el-col :span="5">
+            <el-form-item label="货物名称">
+              <div class="goods-select-trigger" @click="openGoodsDialog">
+                <div class="selected-tags" v-if="selectedGoodsProducts.length > 0">
+                  <el-tag
+                    v-for="code in selectedGoodsProducts.slice(0, 2)"
+                    :key="code"
+                    size="small"
+                    closable
+                    @close.stop="removeGoodsProduct(code)"
+                  >{{ getGoodsVarietyName(code) }}</el-tag>
+                  <el-tag v-if="selectedGoodsProducts.length > 2" size="small">+{{ selectedGoodsProducts.length - 2 }}</el-tag>
+                </div>
+                <span v-else class="placeholder-text">点击选择货物</span>
+                <el-icon><ArrowDown /></el-icon>
+              </div>
             </el-form-item>
           </el-col>
 
@@ -361,6 +381,13 @@
       :row="currentRow"
       @success="loadData"
     />
+
+    <!-- 货物选择弹窗 -->
+    <GoodsSelectDialog
+      v-model="goodsDialogVisible"
+      v-model:selected="selectedGoodsProducts"
+      @confirm="handleGoodsConfirm"
+    />
   </div>
 </template>
 
@@ -386,12 +413,13 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import * as XLSX from 'xlsx'
 import { useRoute } from 'vue-router'
-import {Search, RefreshLeft, Van, View, Edit, Upload} from '@element-plus/icons-vue'
+import {Search, RefreshLeft, Van, View, Edit, Upload, ArrowDown} from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getInspectionList, getInspectionExport } from '@/api/vehicleInspection'
+import { getInspectionList, getInspectionExport, getProductList } from '@/api/vehicleInspection'
 import { getUserPhoneList } from '@/api/user'
 import InspectionDetail from '@/components/InspectionDetail.vue'
 import ImageEditDialog from '@/components/ImageEditDialog.vue'
+import GoodsSelectDialog from '@/components/GoodsSelectDialog.vue'
 
 // ================================================================
 // 状态定义
@@ -423,6 +451,12 @@ const detailVisible = ref(false)
 
 /** 图片编辑弹窗显示状态 */
 const imageEditVisible = ref(false)
+
+/** 货物选择弹窗显示状态 */
+const goodsDialogVisible = ref(false)
+
+/** 搜索区已选货物品种编码数组 */
+const selectedGoodsProducts = ref([])
 
 /** 开始日期 */
 const dateRangeStart = ref('')
@@ -456,7 +490,8 @@ const searchForm = reactive({
   reviewerPhone: null,
   resultStatus: null,
   manualReviewState: null,
-  toTransportdeptState: null
+  toTransportdeptState: null,
+  goodsType: null
 })
 
 /** 核验员下拉选项（所有用户电话） */
@@ -502,6 +537,46 @@ const loadUserPhones = async () => {
     }
   } catch {
     // 加载失败不影响主流程
+  }
+}
+
+// ================================================================
+// 货物选择相关
+// ================================================================
+
+/** 品种数据缓存（用于搜索区显示品种名称） */
+let allVarieties = []
+
+/** 打开货物选择弹窗 */
+const openGoodsDialog = () => {
+  goodsDialogVisible.value = true
+}
+
+/** 确认货物选择 */
+const handleGoodsConfirm = (selected) => {
+  selectedGoodsProducts.value = selected
+}
+
+/** 移除已选货物 */
+const removeGoodsProduct = (code) => {
+  selectedGoodsProducts.value = selectedGoodsProducts.value.filter(c => c !== code)
+}
+
+/** 根据品种编码获取品种名称 */
+const getGoodsVarietyName = (code) => {
+  const v = allVarieties.find(v => v.productCode === code)
+  return v ? v.varietyName : code
+}
+
+/** 加载品种数据 */
+const loadVarieties = async () => {
+  try {
+    const res = await getProductList()
+    if (res.code === 200) {
+      allVarieties = res.data.varieties || []
+    }
+  } catch {
+    // 品种加载失败不影响主流程
   }
 }
 
@@ -551,6 +626,10 @@ const loadData = async () => {
     if (searchForm.manualReviewState !== null) params.manualReviewState = searchForm.manualReviewState
     // 注意：toTransportdeptState 有值时要用 !== null 判断
     if (searchForm.toTransportdeptState !== null) params.toTransportdeptState = searchForm.toTransportdeptState
+    // 货物类型（多个品种用 | 分隔）
+    if (selectedGoodsProducts.value && selectedGoodsProducts.value.length > 0) {
+      params.goodsType = selectedGoodsProducts.value.join('|')
+    }
 
     const res = await getInspectionList(params)
 
@@ -591,6 +670,7 @@ const handleReset = () => {
   searchForm.resultStatus   = null
   searchForm.manualReviewState = null
   searchForm.toTransportdeptState = null
+  selectedGoodsProducts.value = []
   initDateRange()
   pagination.page = 1
   loadData()
@@ -651,6 +731,9 @@ const handleExport = async () => {
     }
     if (searchForm.manualReviewState !== null) params.manualReviewState = searchForm.manualReviewState
     if (searchForm.toTransportdeptState !== null) params.toTransportdeptState = searchForm.toTransportdeptState
+    if (selectedGoodsProducts.value && selectedGoodsProducts.value.length > 0) {
+      params.goodsType = selectedGoodsProducts.value.join('|')
+    }
 
     // 调用全量导出API
     const res = await getInspectionExport(params)
@@ -915,7 +998,7 @@ const getLoadRateClass = (loadRate) => {
 onMounted(async () => {
   initDateRange()
   await loadUserPhones()
-  // 读取 URL 查询参数并应用搜索条件
+  await loadVarieties()
   applyQueryParams()
   loadData()
 })
@@ -1200,5 +1283,39 @@ watch(() => route.query, () => {
 .pagination-wrapper :deep(.el-pagination__total) {
   font-size: 13px;
   color: #909399;
+}
+
+/* ========== 货物选择触发器 ========== */
+.goods-select-trigger {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 0 8px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  cursor: pointer;
+  background: #fff;
+  transition: border-color 0.2s;
+}
+
+.goods-select-trigger:hover {
+  border-color: #409eff;
+}
+
+.goods-select-trigger .selected-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  flex: 1;
+}
+
+.goods-select-trigger .placeholder-text {
+  flex: 1;
+  font-size: 12px;
+  color: #c0c4cc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>

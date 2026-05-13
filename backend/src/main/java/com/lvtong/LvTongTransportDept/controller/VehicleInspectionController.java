@@ -95,6 +95,9 @@ public class VehicleInspectionController {
             @Parameter(description = "上传状态: 0=未上传, 1=成功, -1=失败")
             @RequestParam(required = false) Integer toTransportdeptState,
 
+            @Parameter(description = "货物类型（多个品种编码用 | 分隔，精确匹配任一编码）")
+            @RequestParam(required = false) String goodsType,
+
             @Parameter(description = "页码（从1开始）")
             @RequestParam(defaultValue = "1") int page,
 
@@ -105,7 +108,7 @@ public class VehicleInspectionController {
         IPage<VehicleInspection> result = inspectionService.searchWithConditions(
                 plateNumber, driverPhone, operatorName, reviewerPhone,
                 startTime, endTime, resultStatus, manualReviewState, toTransportdeptState,
-                page, pageSize);
+                goodsType, page, pageSize);
 
         // 转换为前端所需格式（含转换后的文本字段）
         List<Map<String, Object>> data = result.getRecords().stream()
@@ -156,11 +159,15 @@ public class VehicleInspectionController {
             @RequestParam(required = false) Integer manualReviewState,
 
             @Parameter(description = "上传状态: 0=未上传, 1=成功, -1=失败")
-            @RequestParam(required = false) Integer toTransportdeptState) {
+            @RequestParam(required = false) Integer toTransportdeptState,
+
+            @Parameter(description = "货物类型（多个品种编码用 | 分隔）")
+            @RequestParam(required = false) String goodsType) {
 
         List<VehicleInspection> list = inspectionService.searchForExport(
                 plateNumber, driverPhone, reviewerPhone,
-                startTime, endTime, resultStatus, manualReviewState, toTransportdeptState);
+                startTime, endTime, resultStatus, manualReviewState, toTransportdeptState,
+                goodsType);
 
         // 转换为Map格式
         List<Map<String, Object>> data = list.stream().map(this::convertToMap).toList();

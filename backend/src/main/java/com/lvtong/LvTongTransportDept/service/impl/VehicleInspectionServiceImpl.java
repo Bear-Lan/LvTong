@@ -178,6 +178,7 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
             Integer resultStatus,
             Integer manualReviewState,
             Integer toTransportdeptState,
+            String goodsType,
             int page,
             int pageSize) {
 
@@ -210,6 +211,19 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
         }
         if (toTransportdeptState != null) {
             wrapper.eq(VehicleInspection::getToTransportdeptState, toTransportdeptState);
+        }
+        // goodsType 支持多编码（用 | 分隔），逐个匹配任一编码
+        if (StringUtils.hasText(goodsType)) {
+            String[] codes = goodsType.split("\\|");
+            wrapper.and(w -> {
+                for (int i = 0; i < codes.length; i++) {
+                    if (i == 0) {
+                        w.like(VehicleInspection::getGoodsType, codes[i].trim());
+                    } else {
+                        w.or().like(VehicleInspection::getGoodsType, codes[i].trim());
+                    }
+                }
+            });
         }
 
         wrapper.orderByDesc(VehicleInspection::getInspectionTime);
@@ -660,7 +674,8 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
             LocalDateTime endTime,
             Integer resultStatus,
             Integer manualReviewState,
-            Integer toTransportdeptState) {
+            Integer toTransportdeptState,
+            String goodsType) {
 
         LambdaQueryWrapper<VehicleInspection> wrapper = new LambdaQueryWrapper<>();
 
@@ -688,6 +703,18 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
         }
         if (toTransportdeptState != null) {
             wrapper.eq(VehicleInspection::getToTransportdeptState, toTransportdeptState);
+        }
+        if (StringUtils.hasText(goodsType)) {
+            String[] codes = goodsType.split("\\|");
+            wrapper.and(w -> {
+                for (int i = 0; i < codes.length; i++) {
+                    if (i == 0) {
+                        w.like(VehicleInspection::getGoodsType, codes[i].trim());
+                    } else {
+                        w.or().like(VehicleInspection::getGoodsType, codes[i].trim());
+                    }
+                }
+            });
         }
 
         wrapper.orderByAsc(VehicleInspection::getAcceptanceTime);

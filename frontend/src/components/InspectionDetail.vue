@@ -19,112 +19,104 @@
              第一行：车头照、车尾照、行驶证、顶部照、通行码（5列）
              第二行：透视影像+车身照（占50%）、货物照（占50%） -->
         <div class="detail-section evidence-section">
-          <!-- 第一行：5列等宽网格 -->
+          <!-- 第一行：左侧50%（前4列图片），右侧50%（货物名称/复核员/查验结果） -->
           <div class="evidence-grid-row-1">
-            <!-- 车头照（type-tag=11） -->
-            <div class="evidence-item">
-              <div class="evidence-img-box" v-if="row.headImagePath">
-                <el-image
-                  :src="formatImageUrl(row.headImagePath)"
-                  fit="fill"
-                  :preview-src-list="[formatImageUrl(row.headImagePath)]"
-                  class="evidence-img"
-                  :initial-index="0"
-                />
-              </div>
-              <div class="evidence-placeholder" v-else>
-                <el-icon><Picture /></el-icon>
-              </div>
-              <div class="evidence-label">
-                <span class="type-tag">11</span>车头照
-              </div>
-            </div>
-
-            <!-- 车尾照（type-tag=12） -->
-            <div class="evidence-item">
-              <div class="evidence-img-box" v-if="row.tailImagePath">
-                <el-image
-                  :src="formatImageUrl(row.tailImagePath)"
-                  fit="fill"
-                  :preview-src-list="[formatImageUrl(row.tailImagePath)]"
-                  class="evidence-img"
-                  :initial-index="1"
-                />
-              </div>
-              <div class="evidence-placeholder" v-else>
-                <el-icon><Picture /></el-icon>
-              </div>
-              <div class="evidence-label">
-                <span class="type-tag">12</span>车尾照
-              </div>
-            </div>
-
-            <!-- 行驶证（type-tag=13） -->
-            <div class="evidence-item">
-              <div class="evidence-img-box" v-if="row.licenseImagePath">
-                <el-image
-                  :src="formatImageUrl(row.licenseImagePath)"
-                  fit="fill"
-                  :preview-src-list="[formatImageUrl(row.licenseImagePath)]"
-                  class="evidence-img"
-                  :initial-index="2"
-                />
-              </div>
-              <div class="evidence-placeholder" v-else>
-                <el-icon><Picture /></el-icon>
-              </div>
-              <div class="evidence-label">
-                <span class="type-tag">13</span>行驶证
-              </div>
-            </div>
-
-            <!-- 顶部照 -->
-            <div class="evidence-item">
-              <div class="evidence-img-box" v-if="row.topImagePath">
-                <el-image
-                  :src="formatImageUrl(row.topImagePath)"
-                  fit="fill"
-                  :preview-src-list="[formatImageUrl(row.topImagePath)]"
-                  class="evidence-img"
-                  :initial-index="3"
-                />
-              </div>
-              <div class="evidence-placeholder" v-else>
-                <el-icon><Picture /></el-icon>
-              </div>
-              <div class="evidence-label">
-                <span class="type-tag">26</span>顶部照
-              </div>
-            </div>
-
-            <!-- 证据链照片 -->
-            <div class="evidence-item evidence-col-right">
-              <div
-                class="goods-img-container"
-                :class="{ 'scroll-mode': useEvidenceScrollMode }"
-                v-if="evidencesImages.length > 0"
-                :style="useEvidenceScrollMode ? {} : { gridTemplateColumns: `repeat(${evidencesPerRow}, ${evidencesColWidth})` }"
-              >
-                <div
-                  v-for="(img, idx) in evidencesImages"
-                  :key="idx"
-                  class="goods-img-wrapper"
-                >
+            <!-- 左侧50%：车头照、车尾照、行驶证、顶部照（4列等宽） -->
+            <div class="evidence-row-1-left">
+              <!-- 车头照（type-tag=11） -->
+              <div class="evidence-item">
+                <div class="evidence-img-box" v-if="row.headImagePath">
                   <el-image
-                    :src="formatImageUrl(img)"
+                    :src="formatImageUrl(row.headImagePath)"
                     fit="fill"
-                    :preview-src-list="evidencesImages.map(p => formatImageUrl(p))"
-                    :initial-index="idx"
+                    :preview-src-list="[formatImageUrl(row.headImagePath)]"
                     class="evidence-img"
+                    :initial-index="0"
                   />
                 </div>
+                <div class="evidence-placeholder" v-else>
+                  <el-icon><Picture /></el-icon>
+                </div>
+                <div class="evidence-label">
+                  <span class="type-tag">11</span>车头照
+                </div>
               </div>
-              <div class="evidence-placeholder" v-else>
-                <el-icon><Picture /></el-icon>
+
+              <!-- 车尾照（type-tag=12） -->
+              <div class="evidence-item">
+                <div class="evidence-img-box" v-if="row.tailImagePath">
+                  <el-image
+                    :src="formatImageUrl(row.tailImagePath)"
+                    fit="fill"
+                    :preview-src-list="[formatImageUrl(row.tailImagePath)]"
+                    class="evidence-img"
+                    :initial-index="1"
+                  />
+                </div>
+                <div class="evidence-placeholder" v-else>
+                  <el-icon><Picture /></el-icon>
+                </div>
+                <div class="evidence-label">
+                  <span class="type-tag">12</span>车尾照
+                </div>
               </div>
-              <div class="evidence-label">
-                <span class="type-tag">证据链</span>证据链照
-                <span v-if="evidencesImages.length > 0" class="goods-count">({{ evidencesImages.length }}张)</span>
+
+              <!-- 行驶证（type-tag=13） -->
+              <div class="evidence-item">
+                <div class="evidence-img-box" v-if="row.licenseImagePath">
+                  <el-image
+                    :src="formatImageUrl(row.licenseImagePath)"
+                    fit="fill"
+                    :preview-src-list="[formatImageUrl(row.licenseImagePath)]"
+                    class="evidence-img"
+                    :initial-index="2"
+                  />
+                </div>
+                <div class="evidence-placeholder" v-else>
+                  <el-icon><Picture /></el-icon>
+                </div>
+                <div class="evidence-label">
+                  <span class="type-tag">13</span>行驶证
+                </div>
+              </div>
+
+              <!-- 顶部照 -->
+              <div class="evidence-item">
+                <div class="evidence-img-box" v-if="row.topImagePath">
+                  <el-image
+                    :src="formatImageUrl(row.topImagePath)"
+                    fit="fill"
+                    :preview-src-list="[formatImageUrl(row.topImagePath)]"
+                    class="evidence-img"
+                    :initial-index="3"
+                  />
+                </div>
+                <div class="evidence-placeholder" v-else>
+                  <el-icon><Picture /></el-icon>
+                </div>
+                <div class="evidence-label">
+                  <span class="type-tag">26</span>顶部照
+                </div>
+              </div>
+            </div>
+
+            <!-- 右侧50%：货物名称、复核员、查验结果（三列平分） -->
+            <div class="evidence-row-1-right">
+              <div class="quick-info-col">
+                <div class="quick-info-item">
+                  <span class="quick-info-label">货物名称</span>
+                  <span class="quick-info-value">{{ row.goodsTypeName || '-' }}</span>
+                </div>
+                <div class="quick-info-item">
+                  <span class="quick-info-label">复核员</span>
+                  <span class="quick-info-value">{{ row.reviewerPhone || '-' }}</span>
+                </div>
+                <div class="quick-info-item">
+                  <span class="quick-info-label">查验结果</span>
+                  <el-tag :type="getResultTagType(row.resultStatus)" size="small" effect="dark">
+                    {{ row.resultStatusText || '-' }}
+                  </el-tag>
+                </div>
               </div>
             </div>
           </div>
@@ -481,104 +473,12 @@
 
     </div><!-- /detail-body -->
 
-    <!-- 货物类型选择弹窗 -->
-    <el-dialog
+    <!-- 货物类型选择弹窗（复用组件） -->
+    <GoodsSelectDialog
       v-model="goodsDialogVisible"
-      title="选择货物类型"
-      width="1000px"
-      destroy-on-close
-      class="goods-dialog"
-      append-to-body
-    >
-      <div class="goods-dialog-toolbar">
-        <el-select
-          v-model="filterProductType"
-          placeholder="按产品大类筛选"
-          clearable
-          size="default"
-          style="width: 180px;"
-        >
-          <el-option
-            v-for="pt in productTypeOptions"
-            :key="pt"
-            :label="pt"
-            :value="pt"
-          />
-        </el-select>
-        <el-select
-          v-model="filterCategory"
-          placeholder="按类别筛选"
-          clearable
-          size="default"
-          style="width: 180px;"
-          :disabled="!filterProductType"
-        >
-          <el-option
-            v-for="cat in categoryOptions"
-            :key="cat"
-            :label="cat"
-            :value="cat"
-          />
-        </el-select>
-        <el-input
-          v-model="filterVarietyName"
-          placeholder="搜索品种名称"
-          clearable
-          size="default"
-          style="flex: 1; min-width: 160px;"
-        />
-      </div>
-
-      <div v-if="tempSelected.length > 0" class="temp-selected">
-        <span class="temp-label">已选：</span>
-        <el-tag
-          v-for="code in tempSelected"
-          :key="code"
-          closable
-          type="success"
-          size="small"
-          @close="removeTemp(code)"
-        >{{ getVarietyName(code) }}</el-tag>
-      </div>
-
-      <div class="variety-card-grid">
-        <div
-          v-for="v in displayedVarieties"
-          :key="v.productCode"
-          class="variety-card"
-          :class="{ selected: tempSelected.includes(v.productCode) }"
-          @click="toggleTemp(v.productCode)"
-        >
-          <div class="card-left">
-            <div class="card-type">{{ v.productType }}</div>
-            <div class="card-name">{{ v.varietyName }}</div>
-            <div v-if="getAliasesText(v.aliases)" class="card-aliases">{{ getAliasesText(v.aliases) }}</div>
-          </div>
-          <div class="card-icon-wrapper">
-            <img
-              v-if="getVarietyImage(v.varietyName)"
-              :src="getVarietyImage(v.varietyName)"
-              :alt="v.varietyName"
-              class="variety-img"
-            />
-            <el-icon v-else size="20" color="#c0c4cc"><Picture /></el-icon>
-          </div>
-        </div>
-        <div v-if="displayedVarieties.length === 0" class="no-data">
-          暂无匹配的品种
-        </div>
-      </div>
-
-      <template #footer>
-        <div class="dialog-footer-inner">
-          <span class="selected-count">已选 {{ tempSelected.length }} 个品种</span>
-          <div style="display: flex; gap: 10px;">
-            <el-button @click="goodsDialogVisible = false">取消</el-button>
-            <el-button type="primary" @click="confirmGoodsDialog">确定</el-button>
-          </div>
-        </div>
-      </template>
-    </el-dialog>
+      v-model:selected="selectedProducts"
+      @confirm="confirmGoodsDialog"
+    />
 
     <!-- 货车长宽高弹窗 -->
     <el-dialog
@@ -637,6 +537,7 @@ import { ElMessage } from 'element-plus'
 import { Plus, Picture, Edit } from '@element-plus/icons-vue'
 import { getProductList, getNopassTypeOptions, updateInspection } from '@/api/vehicleInspection'
 import { getUserPhoneList } from '@/api/user'
+import GoodsSelectDialog from './GoodsSelectDialog.vue'
 
 // ================================================================
 // Props & Emits
@@ -820,10 +721,6 @@ const confirmVehicleSize = () => {
 /** 货物类型选中值（数组） */
 const selectedProducts = ref([])
 const goodsDialogVisible = ref(false)
-const tempSelected = ref([])
-const filterProductType = ref('')
-const filterCategory = ref('')
-const filterVarietyName = ref('')
 
 /** 不合格类型选项 */
 const nopassTypeOptions = ref([])
@@ -887,80 +784,12 @@ const form = reactive({
   driverPhone: ''
 })
 
-/** 品种数据缓存 */
+/** 品种数据缓存（用于 getVarietyName 显示品种名称） */
 let allVarieties = []
-const productTypeOptions = ref([])
-const allCategories = ref([])
-
-// 品种图片
-const varietyImages = import.meta.glob('@/assets/variety_img/*.png', { eager: true })
-
-const getVarietyImage = (varietyName) => {
-  if (!varietyName) return null
-  let imagePath = varietyImages[`/src/assets/variety_img/${varietyName}.png`]?.default
-  if (imagePath) return imagePath
-  for (const path in varietyImages) {
-    const fileName = path.split('/').pop().replace('.png', '')
-    if (fileName.includes(varietyName) || varietyName.includes(fileName)) {
-      return varietyImages[path].default
-    }
-  }
-  return null
-}
-
-const categoryOptions = computed(() => {
-  if (!filterProductType.value) return allCategories.value
-  return [...new Set(
-    allVarieties
-      .filter(v => v.productType === filterProductType.value)
-      .map(v => v.category)
-      .filter(c => c)
-  )].sort()
-})
-
-const displayedVarieties = computed(() => {
-  let list = allVarieties
-  if (filterProductType.value) {
-    list = list.filter(v => v.productType === filterProductType.value)
-  }
-  if (filterCategory.value) {
-    list = list.filter(v => v.category === filterCategory.value)
-  }
-  if (filterVarietyName.value.trim()) {
-    const kw = filterVarietyName.value.trim().toLowerCase()
-    list = list.filter(v => {
-      // 品种名称模糊匹配
-      if (v.varietyName.toLowerCase().includes(kw)) return true
-      // 拼音首字母模糊匹配
-      if (v.varietyNamePinyin && v.varietyNamePinyin.toLowerCase().includes(kw)) return true
-      // 别名拼音模糊匹配
-      if (v.aliasesPinyin) {
-        try {
-          const aliasesPinyinArr = JSON.parse(v.aliasesPinyin)
-          if (Array.isArray(aliasesPinyinArr) && aliasesPinyinArr.some(a => a.toLowerCase().includes(kw))) {
-            return true
-          }
-        } catch {}
-      }
-      return false
-    })
-  }
-  return list
-})
 
 const getVarietyName = (code) => {
   const v = allVarieties.find(v => v.productCode === code)
   return v ? v.varietyName : code
-}
-
-const getAliasesText = (aliasesJson) => {
-  if (!aliasesJson) return ''
-  try {
-    const arr = JSON.parse(aliasesJson)
-    return Array.isArray(arr) ? arr.join('、') : ''
-  } catch {
-    return ''
-  }
 }
 
 const loadProducts = async () => {
@@ -968,12 +797,22 @@ const loadProducts = async () => {
     const res = await getProductList()
     if (res.code === 200) {
       allVarieties = res.data.varieties || []
-      productTypeOptions.value = res.data.productTypes || []
-      allCategories.value = res.data.categories || []
     }
   } catch {
-    ElMessage.error('货物类型加载失败')
+    // 品种加载失败不影响查验记录操作
   }
+}
+
+const openGoodsDialog = () => {
+  goodsDialogVisible.value = true
+}
+
+const confirmGoodsDialog = (selected) => {
+  selectedProducts.value = selected
+}
+
+const removeProduct = (code) => {
+  selectedProducts.value = selectedProducts.value.filter(c => c !== code)
 }
 
 const loadNopassTypes = async () => {
@@ -1011,36 +850,6 @@ const handleReviewerChange = (phone) => {
       break
     }
   }
-}
-
-const openGoodsDialog = () => {
-  tempSelected.value = [...selectedProducts.value]
-  filterProductType.value = ''
-  filterCategory.value = ''
-  filterVarietyName.value = ''
-  goodsDialogVisible.value = true
-}
-
-const toggleTemp = (code) => {
-  const idx = tempSelected.value.indexOf(code)
-  if (idx >= 0) {
-    tempSelected.value.splice(idx, 1)
-  } else {
-    tempSelected.value.push(code)
-  }
-}
-
-const removeTemp = (code) => {
-  tempSelected.value = tempSelected.value.filter(c => c !== code)
-}
-
-const confirmGoodsDialog = () => {
-  selectedProducts.value = [...tempSelected.value]
-  goodsDialogVisible.value = false
-}
-
-const removeProduct = (code) => {
-  selectedProducts.value = selectedProducts.value.filter(c => c !== code)
 }
 
 const handleSubmit = async () => {
@@ -1177,13 +986,62 @@ onMounted(() => {
 /* 第一行：5列等宽网格 */
 .evidence-grid-row-1 {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
   width: 100%;
   margin-bottom: 8px;
 }
 
-/* 第二行：左侧50%（透视+车身2列），右侧50%（货物照） */
+/* 左侧50%：4列图片（车头照+车尾照+行驶证+顶部照） */
+.evidence-row-1-left {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  width: 100%;
+}
+
+/* 右侧50%：货物名称/复核员/查验结果三列平分 */
+.evidence-row-1-right {
+  width: 50%;
+  flex-shrink: 0;
+}
+
+.quick-info-col {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.quick-info-item {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  min-height: 0;
+}
+
+.quick-info-item:last-child {
+  border-bottom: none;
+}
+
+.quick-info-label {
+  font-size: 11px;
+  color: #909399;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.quick-info-value {
+  font-size: 13px;
+  color: #303133;
+  font-weight: 600;
+}
+
 .evidence-grid-row-2 {
   display: grid;
   grid-template-columns: 3fr 2fr;
@@ -1205,7 +1063,6 @@ onMounted(() => {
   min-height: 160px;
   height: 160px;
   min-width: 0;
-  /* 10张及以上时横向滚动 */
   overflow-x: auto;
   overflow-y: hidden;
 }
