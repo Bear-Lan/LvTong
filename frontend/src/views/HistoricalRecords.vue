@@ -82,78 +82,70 @@
 
         </div>
 
-        <el-row :gutter="8" style="margin-top: 12px;">
+        <div class="search-row" style="margin-top: 12px;">
 
-          <!-- 时间范围 -->
-          <el-col :span="10">
-            <el-form-item label="时间">
-              <div class="date-range-split">
-                <el-date-picker
-                  v-model="dateRangeStart"
-                  type="date"
-                  placeholder="开始"
-                  format="YYYY-MM-DD"
-                  value-format="YYYY-MM-DD"
-                  style="width: 48%;"
-                />
-                <span class="date-separator">至</span>
-                <el-date-picker
-                  v-model="dateRangeEnd"
-                  type="date"
-                  placeholder="结束"
-                  format="YYYY-MM-DD"
-                  value-format="YYYY-MM-DD"
-                  style="width: 48%;"
-                />
-              </div>
-            </el-form-item>
-          </el-col>
+          <!-- 时间范围：跨2列，对齐车牌+货物 -->
+          <el-form-item label="时间" class="span-2">
+            <div class="date-range-split">
+              <el-date-picker
+                v-model="dateRangeStart"
+                type="date"
+                placeholder="开始"
+                format="YYYY-MM-DD"
+                value-format="YYYY-MM-DD"
+                style="width: 48%;"
+              />
+              <span class="date-separator">至</span>
+              <el-date-picker
+                v-model="dateRangeEnd"
+                type="date"
+                placeholder="结束"
+                format="YYYY-MM-DD"
+                value-format="YYYY-MM-DD"
+                style="width: 48%;"
+              />
+            </div>
+          </el-form-item>
 
-          <!-- 复核状态 -->
-          <el-col :span="4">
-            <el-form-item label="复核结果">
-              <el-select
-                v-model="searchForm.manualReviewState"
-                placeholder="请选择"
-                clearable
-                style="width: 100%;"
-              >
-                <el-option label="待审核" :value="0" />
-                <el-option label="审核通过" :value="1" />
-                <el-option label="审核未通过" :value="2" />
-              </el-select>
-            </el-form-item>
-          </el-col>
+          <!-- 复核结果：对齐司机电话 -->
+          <el-form-item label="复核结果">
+            <el-select
+              v-model="searchForm.manualReviewState"
+              placeholder="请选择"
+              clearable
+              style="width: 100%;"
+            >
+              <el-option label="待审核" :value="0" />
+              <el-option label="审核通过" :value="1" />
+              <el-option label="审核未通过" :value="2" />
+            </el-select>
+          </el-form-item>
 
-          <!-- 上传状态 -->
-          <el-col :span="4">
-            <el-form-item label="上传状态">
-              <el-select
-                v-model="searchForm.toTransportdeptState"
-                placeholder="请选择"
-                clearable
-                style="width: 100%;"
-              >
-                <el-option label="成功" :value="1" />
-                <el-option label="失败" :value="2" />
-                <el-option label="未上传" :value="0" />
-              </el-select>
-            </el-form-item>
-          </el-col>
+          <!-- 上传状态：对齐查验结果 -->
+          <el-form-item label="上传状态">
+            <el-select
+              v-model="searchForm.toTransportdeptState"
+              placeholder="请选择"
+              clearable
+              style="width: 100%;"
+            >
+              <el-option label="成功" :value="1" />
+              <el-option label="失败" :value="2" />
+              <el-option label="未上传" :value="0" />
+            </el-select>
+          </el-form-item>
 
-          <!-- 按钮组 -->
-          <el-col :span="6">
-            <el-form-item label=" ">
-              <div class="btn-group-right">
-                <el-button type="primary" @click="handleQuery" :loading="loading">查询</el-button>
-                <el-button @click="handleReset">重置</el-button>
-                <el-button type="success" :loading="uploadLoading" @click="handleUpload">上报</el-button>
-                <el-button type="warning" :loading="exportLoading" @click="handleExport">导出</el-button>
-              </div>
-            </el-form-item>
-          </el-col>
+          <!-- 按钮组：对齐查验人员 -->
+          <el-form-item label=" ">
+            <div class="btn-group-right">
+              <el-button type="primary" @click="handleQuery" :loading="loading">查询</el-button>
+              <el-button @click="handleReset">重置</el-button>
+              <el-button type="success" :loading="uploadLoading" @click="handleUpload">上报</el-button>
+              <el-button type="warning" :loading="exportLoading" @click="handleExport">导出</el-button>
+            </div>
+          </el-form-item>
 
-        </el-row>
+        </div>
       </el-form>
     </el-card>
 
@@ -1285,6 +1277,14 @@ watch(() => route.query, () => {
 .search-row :deep(.el-select__wrapper) {
   border-radius: 6px;
   height: 32px;
+}
+
+.search-row :deep(.span-2) {
+  flex: 2;
+}
+
+.search-row :deep(.span-2 .el-date-picker) {
+  width: 100%;
 }
 
 /* ========== 货物选择触发器 ========== */
