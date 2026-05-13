@@ -172,7 +172,7 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
             String plateNumber,
             String driverPhone,
             String operatorName,
-            String reviewerPhone,
+            String inspectorPhone,
             LocalDateTime startTime,
             LocalDateTime endTime,
             Integer resultStatus,
@@ -193,8 +193,8 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
         if (StringUtils.hasText(operatorName)) {
             wrapper.eq(VehicleInspection::getOperatorName, operatorName);
         }
-        if (StringUtils.hasText(reviewerPhone)) {
-            wrapper.eq(VehicleInspection::getReviewerPhone, reviewerPhone);
+        if (StringUtils.hasText(inspectorPhone)) {
+            wrapper.eq(VehicleInspection::getInspectorPhone, inspectorPhone);
         }
         if (startTime != null && endTime != null) {
             wrapper.between(VehicleInspection::getInspectionTime, startTime, endTime);
@@ -669,7 +669,7 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
     public List<VehicleInspection> searchForExport(
             String plateNumber,
             String driverPhone,
-            String reviewerPhone,
+            String inspectorPhone,
             LocalDateTime startTime,
             LocalDateTime endTime,
             Integer resultStatus,
@@ -685,8 +685,8 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
         if (StringUtils.hasText(driverPhone)) {
             wrapper.like(VehicleInspection::getDriverPhone, driverPhone);
         }
-        if (StringUtils.hasText(reviewerPhone)) {
-            wrapper.eq(VehicleInspection::getReviewerPhone, reviewerPhone);
+        if (StringUtils.hasText(inspectorPhone)) {
+            wrapper.eq(VehicleInspection::getInspectorPhone, inspectorPhone);
         }
         if (startTime != null && endTime != null) {
             wrapper.between(VehicleInspection::getInspectionTime, startTime, endTime);

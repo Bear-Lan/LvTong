@@ -26,7 +26,7 @@ public interface VehicleInspectionService {
             String plateNumber,
             String driverPhone,
             String operatorName,
-            String reviewerPhone,
+            String inspectorPhone,
             LocalDateTime startTime,
             LocalDateTime endTime,
             Integer resultStatus,
@@ -106,7 +106,7 @@ public interface VehicleInspectionService {
     List<VehicleInspection> searchForExport(
             String plateNumber,
             String driverPhone,
-            String reviewerPhone,
+            String inspectorPhone,
             LocalDateTime startTime,
             LocalDateTime endTime,
             Integer resultStatus,

@@ -75,8 +75,8 @@ public class VehicleInspectionController {
             @Parameter(description = "操作员（精确查询）")
             @RequestParam(required = false) String operatorName,
 
-            @Parameter(description = "核验员电话（精确查询）")
-            @RequestParam(required = false) String reviewerPhone,
+            @Parameter(description = "查验员电话（精确查询）")
+            @RequestParam(required = false) String inspectorPhone,
 
             @Parameter(description = "开始时间（格式：yyyy-MM-dd HH:mm:ss）")
             @RequestParam(required = false)
@@ -106,7 +106,7 @@ public class VehicleInspectionController {
 
         // 调用 Service 层执行多条件查询（MP 页码从 1 开始，无需减 1）
         IPage<VehicleInspection> result = inspectionService.searchWithConditions(
-                plateNumber, driverPhone, operatorName, reviewerPhone,
+                plateNumber, driverPhone, operatorName, inspectorPhone,
                 startTime, endTime, resultStatus, manualReviewState, toTransportdeptState,
                 goodsType, page, pageSize);
 
@@ -141,8 +141,8 @@ public class VehicleInspectionController {
             @Parameter(description = "司机电话（精确查询）")
             @RequestParam(required = false) String driverPhone,
 
-            @Parameter(description = "核验员电话（精确查询）")
-            @RequestParam(required = false) String reviewerPhone,
+            @Parameter(description = "查验员电话（精确查询）")
+            @RequestParam(required = false) String inspectorPhone,
 
             @Parameter(description = "开始时间（格式：yyyy-MM-dd HH:mm:ss）")
             @RequestParam(required = false)
@@ -165,7 +165,7 @@ public class VehicleInspectionController {
             @RequestParam(required = false) String goodsType) {
 
         List<VehicleInspection> list = inspectionService.searchForExport(
-                plateNumber, driverPhone, reviewerPhone,
+                plateNumber, driverPhone, inspectorPhone,
                 startTime, endTime, resultStatus, manualReviewState, toTransportdeptState,
                 goodsType);
 

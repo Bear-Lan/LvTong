@@ -18,79 +18,69 @@
         </h2>
       </div>
       <el-form :model="searchForm" label-position="left" class="search-form">
-        <el-row :gutter="20">
+        <div class="search-row">
 
-          <!-- 车牌号 -->
-          <el-col :span="5">
-            <el-form-item label="车牌">
-              <el-input
-                v-model="searchForm.plateNumber"
-                placeholder="车牌号"
-                clearable
-                style="width: 100%;"
-              />
-            </el-form-item>
-          </el-col>
+          <!-- 车牌号码 -->
+          <el-form-item label="车牌号码">
+            <el-input
+              v-model="searchForm.plateNumber"
+              placeholder="车牌号"
+              clearable
+              style="width: 100%;"
+            />
+          </el-form-item>
+
+          <!-- 货物类型 -->
+          <el-form-item label="货物类型">
+            <div class="goods-select-trigger" @click="openGoodsDialog">
+              <span v-if="selectedGoodsProduct" class="selected-goods-name">{{ getGoodsVarietyName(selectedGoodsProduct) }}</span>
+              <span v-else class="placeholder-text">点击选择货物</span>
+              <el-icon><ArrowDown /></el-icon>
+            </div>
+          </el-form-item>
 
           <!-- 司机电话 -->
-          <el-col :span="5">
-            <el-form-item label="电话">
-              <el-input
-                v-model="searchForm.driverPhone"
-                placeholder="电话"
-                clearable
-                style="width: 100%;"
-              />
-            </el-form-item>
-          </el-col>
-
-          <!-- 复核员 -->
-          <el-col :span="4">
-            <el-form-item label="复核员">
-              <el-select
-                v-model="searchForm.reviewerPhone"
-                placeholder="请选择"
-                clearable
-                filterable
-                style="width: 100%;"
-              >
-                <el-option
-                  v-for="r in reviewerPhones"
-                  :key="r.phone"
-                  :label="r.realName + ' ' + r.phone"
-                  :value="r.phone"
-                />
-              </el-select>
-            </el-form-item>
-          </el-col>
+          <el-form-item label="司机电话">
+            <el-input
+              v-model="searchForm.driverPhone"
+              placeholder="电话"
+              clearable
+              style="width: 100%;"
+            />
+          </el-form-item>
 
           <!-- 查验结果 -->
-          <el-col :span="5">
-            <el-form-item label="查验结果">
-              <el-select
-                v-model="searchForm.resultStatus"
-                placeholder="请选择"
-                clearable
-                style="width: 100%;"
-              >
-                <el-option label="合格" :value="1" />
-                <el-option label="不合格" :value="2" />
-              </el-select>
-            </el-form-item>
-          </el-col>
+          <el-form-item label="查验结果">
+            <el-select
+              v-model="searchForm.resultStatus"
+              placeholder="请选择"
+              clearable
+              style="width: 100%;"
+            >
+              <el-option label="合格" :value="1" />
+              <el-option label="不合格" :value="2" />
+            </el-select>
+          </el-form-item>
 
-          <!-- 货物选择 -->
-          <el-col :span="5">
-            <el-form-item label="货物名称">
-              <div class="goods-select-trigger" @click="openGoodsDialog">
-                <span v-if="selectedGoodsProduct" class="selected-goods-name">{{ getGoodsVarietyName(selectedGoodsProduct) }}</span>
-                <span v-else class="placeholder-text">点击选择货物</span>
-                <el-icon><ArrowDown /></el-icon>
-              </div>
-            </el-form-item>
-          </el-col>
+          <!-- 查验人员 -->
+          <el-form-item label="查验人员">
+            <el-select
+              v-model="searchForm.inspectorPhone"
+              placeholder="请选择"
+              clearable
+              filterable
+              style="width: 100%;"
+            >
+              <el-option
+                v-for="r in inspectorPhones"
+                :key="r.phone"
+                :label="r.realName + ' ' + r.phone"
+                :value="r.phone"
+              />
+            </el-select>
+          </el-form-item>
 
-        </el-row>
+        </div>
 
         <el-row :gutter="8" style="margin-top: 12px;">
 
@@ -479,7 +469,7 @@ watch([dateRangeStart, dateRangeEnd], ([start, end]) => {
 const searchForm = reactive({
   plateNumber: '',
   driverPhone: '',
-  reviewerPhone: null,
+  inspectorPhone: null,
   resultStatus: null,
   manualReviewState: null,
   toTransportdeptState: null,
@@ -487,7 +477,7 @@ const searchForm = reactive({
 })
 
 /** 核验员下拉选项（所有用户电话） */
-const reviewerPhones = ref([])
+const inspectorPhones = ref([])
 
 // ================================================================
 // 分页状态
@@ -525,7 +515,7 @@ const loadUserPhones = async () => {
   try {
     const res = await getUserPhoneList()
     if (res.code === 200) {
-      reviewerPhones.value = res.data || []
+      inspectorPhones.value = res.data || []
     }
   } catch {
     // 加载失败不影响主流程
@@ -583,7 +573,7 @@ const loadVarieties = async () => {
  * 只有非空字段才加入请求参数：
  * - plateNumber：模糊查询，可空
  * - driverPhone：精确查询，可空
- * - reviewerPhone：精确查询，可空（对应 reviewer_phone）
+ * - inspectorPhone：精确查询，可空（对应 reviewer_phone）
  * - resultStatus：精确查询，可空（注意用 !== null 判断，而非 !resultStatus）
  * - startTime/endTime：时间范围，dateRange 为空数组时不传
  *
@@ -606,7 +596,7 @@ const loadData = async () => {
     // 仅添加有值的搜索条件
     if (searchForm.plateNumber)   params.plateNumber   = searchForm.plateNumber
     if (searchForm.driverPhone)    params.driverPhone   = searchForm.driverPhone
-    if (searchForm.reviewerPhone) params.reviewerPhone = searchForm.reviewerPhone
+    if (searchForm.inspectorPhone) params.inspectorPhone = searchForm.inspectorPhone
     // 注意：resultStatus=0 时也是有意义的值，要用 !== null 判断
     if (searchForm.resultStatus !== null) params.resultStatus = searchForm.resultStatus
     // 时间范围：有值且长度为2时才加入
@@ -658,7 +648,7 @@ const handleQuery = () => {
 const handleReset = () => {
   searchForm.plateNumber   = ''
   searchForm.driverPhone    = ''
-  searchForm.reviewerPhone  = null
+  searchForm.inspectorPhone  = null
   searchForm.resultStatus   = null
   searchForm.manualReviewState = null
   searchForm.toTransportdeptState = null
@@ -715,7 +705,7 @@ const handleExport = async () => {
     const params = {}
     if (searchForm.plateNumber) params.plateNumber = searchForm.plateNumber
     if (searchForm.driverPhone) params.driverPhone = searchForm.driverPhone
-    if (searchForm.reviewerPhone) params.reviewerPhone = searchForm.reviewerPhone
+    if (searchForm.inspectorPhone) params.inspectorPhone = searchForm.inspectorPhone
     if (searchForm.resultStatus !== null) params.resultStatus = searchForm.resultStatus
     if (dateRange.value && dateRange.value.length === 2) {
       params.startTime = dateRange.value[0] + ' 00:00:00'
@@ -1063,19 +1053,12 @@ watch(() => route.query, () => {
   width: 100%;
 }
 
-.search-form :deep(.el-form-item__label) {
-  font-size: 13px;
-  font-weight: 500;
-  color: #606266;
-  padding-bottom: 6px !important;
-}
-
 .search-form :deep(.el-input__wrapper),
 .search-form :deep(.el-select__wrapper) {
   border-radius: 6px;
+  height: 32px;
 }
 
-/* 按钮组列：保持与查询条件对齐 */
 .btn-group-col {
   display: flex;
   align-items: flex-start;
@@ -1277,37 +1260,70 @@ watch(() => route.query, () => {
   color: #909399;
 }
 
+/* ========== 搜索表单样式 ========== */
+.search-row {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  width: 100%;
+  align-items: flex-start;
+}
+
+.search-row :deep(.el-form-item) {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.search-row :deep(.el-form-item__label) {
+  font-size: 13px;
+  font-weight: 500;
+  color: #606266;
+  padding-bottom: 6px !important;
+}
+
+.search-row :deep(.el-input__wrapper),
+.search-row :deep(.el-select__wrapper) {
+  border-radius: 6px;
+  height: 32px;
+}
+
 /* ========== 货物选择触发器 ========== */
 .goods-select-trigger {
   display: flex;
   align-items: center;
-  gap: 4px;
-  min-height: 32px;
-  padding: 0 8px;
+  overflow: hidden;
+  width: 100%;
+  height: 32px;
+  padding: 0 11px;
   border: 1px solid #dcdfe6;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   background: #fff;
   transition: border-color 0.2s;
+  box-sizing: border-box;
+  line-height: normal;
 }
 
 .goods-select-trigger:hover {
   border-color: #409eff;
 }
 
-.goods-select-trigger .selected-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
+.goods-select-trigger .placeholder-text,
+.goods-select-trigger .selected-goods-name {
   flex: 1;
-}
-
-.goods-select-trigger .placeholder-text {
-  flex: 1;
-  font-size: 12px;
-  color: #c0c4cc;
+  font-size: 13px;
+  color: #606266;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.goods-select-trigger .placeholder-text {
+  color: #909399;
+}
+
+.goods-select-trigger .el-icon {
+  flex-shrink: 0;
+  color: #909399;
 }
 </style>
