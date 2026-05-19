@@ -1,9 +1,9 @@
 package com.lvtong.LvTongTransportDept.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.lvtong.LvTongTransportDept.config.StationDataSourceProvider;
 import com.lvtong.LvTongTransportDept.entity.StationInfo;
 import com.lvtong.LvTongTransportDept.mapper.StationInfoMapper;
+import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,9 +44,6 @@ public class DynamicTableService {
 
     @Autowired
     private StationInfoMapper stationInfoMapper;
-
-    @Autowired
-    private StationDataSourceProvider dataSourceProvider;
 
     /**
      * 缓存已创建的表，避免重复检查

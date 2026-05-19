@@ -172,7 +172,7 @@ public class PlatformReceiveController {
         record.inspectionTime = getTimestamp(data, "inspectionTime", "inspection_time");
         record.resultStatus = getInt(data, "resultStatus", "result_status");
         record.nopassType = getInt(data, "nopassType", "nopass_type");
-        record.status = getInt(data, "status");
+        record.status = getInt(data, "status", "status");
         record.groupId = getString(data, "groupId", "group_id");
         record.inspectorPhone = getString(data, "inspectorPhone", "inspector_phone");
         record.reviewerPhone = getString(data, "reviewerPhone", "reviewer_phone");
