@@ -41,11 +41,8 @@ public class PlatformReceiveController {
                 return ApiResponse.error("缺少出口站ID (passcodeExStationId / passcode_ex_station_id)");
             }
 
-            // 根据出口站ID获取站点名称（表名）
-            String tableName = dynamicTableService.getStationNameByCode(exStationId);
-            if (tableName == null || tableName.isEmpty()) {
-                return ApiResponse.error("站点信息不存在: station_id=" + exStationId);
-            }
+            // 直接使用 station_id 作为表名
+            String tableName = exStationId;
 
             // 构建记录数据
             DynamicTableService.RecordData record = convertToRecordData(data);
@@ -80,10 +77,8 @@ public class PlatformReceiveController {
                         continue;
                     }
 
-                    String tableName = dynamicTableService.getStationNameByCode(exStationId);
-                    if (tableName == null || tableName.isEmpty()) {
-                        tableName = "station_" + exStationId;
-                    }
+                    // 直接使用 station_id 作为表名
+                    String tableName = exStationId;
 
                     DynamicTableService.RecordData record = convertToRecordData(data);
                     dynamicTableService.insertRecord(tableName, record);

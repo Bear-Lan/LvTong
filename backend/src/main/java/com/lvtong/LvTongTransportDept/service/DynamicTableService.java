@@ -55,13 +55,13 @@ public class DynamicTableService {
     private final ConcurrentHashMap<String, Boolean> createdTables = new ConcurrentHashMap<>();
 
     /**
-     * 根据 stationCode 获取 stationName（表名）
+     * 根据 stationId 获取表名（直接使用 stationId 作为表名）
      */
-    public String getStationNameByCode(String stationCode) {
-        if (stationCode == null || stationCode.isEmpty()) {
+    public String getTableNameByStationId(String stationId) {
+        if (stationId == null || stationId.isEmpty()) {
             return null;
         }
-        return provinceCacheService.getStationNameByStationId(stationCode);
+        return stationId;
     }
 
     /**
