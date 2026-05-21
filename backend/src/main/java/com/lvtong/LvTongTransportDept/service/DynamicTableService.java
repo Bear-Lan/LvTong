@@ -4,16 +4,23 @@ import com.lvtong.LvTongTransportDept.constant.VehicleConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Base64;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -37,6 +44,12 @@ public class DynamicTableService {
     private ProvinceCacheService provinceCacheService;
 
     /**
+     * 图片存储基础路径
+     */
+    @Value("${three-level-platform.local-dir:D:/three_platform}")
+    private String imageBasePath;
+
+    /**
      * 缓存已创建的表，避免重复检查
      */
     private final ConcurrentHashMap<String, Boolean> createdTables = new ConcurrentHashMap<>();
@@ -49,6 +62,124 @@ public class DynamicTableService {
             return null;
         }
         return provinceCacheService.getStationNameByStationId(stationCode);
+    }
+
+    /**
+     * 保存Base64图片到本地磁盘
+     * 路径结构: basePath/inspectionDate/fieldName/
+     * 文件名: driverPhone_inspectionTime.extension
+     * @param base64Data Base64编码的图片数据
+     * @param driverPhone 司机电话（用于文件名）
+     * @param inspectionTime 查验时间（用于文件夹和文件名）
+     * @param fieldName 字段名（用于子目录）
+     * @param index 多图片时的序号（单图片传0）
+     * @return 保存后的文件路径
+     */
+    public String saveImage(String base64Data, String driverPhone, String inspectionTime, String fieldName, int index) {
+        if (base64Data == null || base64Data.isEmpty()) {
+            return null;
+        }
+        try {
+            // 去掉Base64前缀（如果有）
+            String pureBase64 = base64Data;
+            if (base64Data.contains(",")) {
+                pureBase64 = base64Data.substring(base64Data.indexOf(",") + 1);
+            }
+
+            // 解码
+            byte[] imageBytes = Base64.getDecoder().decode(pureBase64);
+
+            // 确定文件扩展名（默认jpg）
+            String extension = "jpg";
+            if (base64Data.contains("image/png")) {
+                extension = "png";
+            } else if (base64Data.contains("image/gif")) {
+                extension = "gif";
+            }
+
+            // 格式化时间：yyyy-MM-dd HH:mm:ss -> yyyyMMddHHmmss
+            String timeStr = inspectionTime.replace("-", "").replace(" ", "").replace(":", "").substring(0, 14);
+            // 清理司机电话中的非数字字符
+            String phone = driverPhone != null ? driverPhone.replaceAll("[^0-9]", "") : "UNKNOWN";
+            // 生成文件名
+            String fileName;
+            if (index > 0) {
+                fileName = phone + "_" + timeStr + "_" + index + "." + extension;
+            } else {
+                fileName = phone + "_" + timeStr + "." + extension;
+            }
+
+            // 创建目录: basePath/inspectionDate/fieldName/
+            String dateStr = inspectionTime.substring(0, 10); // yyyy-MM-dd
+            Path imageDir = Paths.get(imageBasePath, dateStr, fieldName);
+            if (!Files.exists(imageDir)) {
+                Files.createDirectories(imageDir);
+            }
+
+            // 保存文件
+            Path filePath = imageDir.resolve(fileName);
+            Files.write(filePath, imageBytes);
+
+            log.info("图片保存成功: {}", filePath);
+            return filePath.toString().replace("\\", "/");
+
+        } catch (IOException e) {
+            log.error("保存图片失败: {}", e.getMessage());
+            throw new IllegalArgumentException("保存图片失败: " + e.getMessage());
+        } catch (IllegalArgumentException e) {
+            log.error("Base64解码失败: {}", e.getMessage());
+            throw new IllegalArgumentException("Base64图片格式错误: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 处理图片字段：如果值是Base64格式则保存到本地，否则直接返回路径
+     */
+    private String processImageField(String imageData, String tableName, String prefix, String driverPhone, String inspectionTime) {
+        if (imageData == null || imageData.isEmpty()) {
+            return null;
+        }
+        // 判断是否是Base64格式（以data:image开头或有base64标志）
+        if (imageData.startsWith("data:image") || (imageData.length() > 100 && !imageData.contains("/") && !imageData.contains("\\"))) {
+            return saveImage(imageData, driverPhone, inspectionTime, prefix, 0);
+        }
+        // 否则直接返回（可能是已有路径）
+        return imageData;
+    }
+
+    /**
+     * 处理多图片字段（List格式）
+     * @param imageList 图片Base64列表
+     */
+    private List<String> processMultiImageField(List<String> imageList, String tableName, String prefix, String driverPhone, String inspectionTime) {
+        if (imageList == null || imageList.isEmpty()) {
+            return null;
+        }
+        List<String> result = new java.util.ArrayList<>();
+        int imgIndex = 1;
+        for (String imageData : imageList) {
+            if (imageData == null || imageData.isEmpty()) continue;
+            try {
+                String savedPath = saveImage(imageData, driverPhone, inspectionTime, prefix, imgIndex);
+                if (savedPath != null) {
+                    result.add(savedPath);
+                    imgIndex++;
+                }
+            } catch (Exception e) {
+                log.warn("解析第{}张图片失败，跳过: {}", imgIndex, e.getMessage());
+            }
+        }
+        return result.isEmpty() ? null : result;
+    }
+
+    /**
+     * 将图片List转为逗号分隔的字符串
+     */
+    private String listToString(List<String> list) {
+        if (list == null || list.isEmpty()) {
+            return null;
+        }
+        return String.join(",", list);
     }
 
     /**
@@ -117,6 +248,21 @@ public class DynamicTableService {
         if (record.checkId == null || record.checkId.isEmpty()) {
             record.checkId = generateCheckId(record.driverPhone, record.inspectionTime);
         }
+
+        // 保存Base64图片（如果字段值是Base64格式）
+        // 文件名: driverPhone_inspectionTime.extension
+        // 路径: basePath/inspectionDate/fieldName/
+        String driverPhone = record.driverPhone != null ? record.driverPhone : "";
+        String inspectionTime = record.inspectionTime != null ? record.inspectionTime : "";
+        record.bodyImagePath = processImageField(record.bodyImagePath, tableName, "body", driverPhone, inspectionTime);
+        record.transparentImagePath = processImageField(record.transparentImagePath, tableName, "transparent", driverPhone, inspectionTime);
+        record.headImagePath = processImageField(record.headImagePath, tableName, "head", driverPhone, inspectionTime);
+        record.tailImagePath = processImageField(record.tailImagePath, tableName, "tail", driverPhone, inspectionTime);
+        record.topImagePath = processImageField(record.topImagePath, tableName, "top", driverPhone, inspectionTime);
+        record.goodsImagePath = processMultiImageField(record.goodsImagePath, tableName, "goods", driverPhone, inspectionTime);
+        record.evidencesImagePath = processMultiImageField(record.evidencesImagePath, tableName, "evidences", driverPhone, inspectionTime);
+        record.licenseImagePath = processImageField(record.licenseImagePath, tableName, "license", driverPhone, inspectionTime);
+        record.passcodeImagePath = processImageField(record.passcodeImagePath, tableName, "passcode", driverPhone, inspectionTime);
 
         // 检查是否重复上传
         if (isRecordExists(tableName, record.checkId)) {
@@ -389,8 +535,8 @@ public class DynamicTableService {
         ps.setString(idx++, record.headImagePath);
         ps.setString(idx++, record.tailImagePath);
         ps.setString(idx++, record.topImagePath);
-        ps.setString(idx++, record.goodsImagePath);
-        ps.setString(idx++, record.evidencesImagePath);
+        ps.setString(idx++, listToString(record.goodsImagePath));
+        ps.setString(idx++, listToString(record.evidencesImagePath));
         ps.setString(idx++, record.licenseImagePath);
         ps.setString(idx++, record.passcodeImagePath);
         ps.setString(idx++, record.passcodeVehicleId);
@@ -450,8 +596,8 @@ public class DynamicTableService {
         public String headImagePath;
         public String tailImagePath;
         public String topImagePath;
-        public String goodsImagePath;
-        public String evidencesImagePath;
+        public List<String> goodsImagePath;
+        public List<String> evidencesImagePath;
         public String licenseImagePath;
         public String passcodeImagePath;
         public String passcodeVehicleId;

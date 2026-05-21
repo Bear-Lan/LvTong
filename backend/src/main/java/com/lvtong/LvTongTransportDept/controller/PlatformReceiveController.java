@@ -139,8 +139,8 @@ public class PlatformReceiveController {
         record.headImagePath = getString(data, "headImagePath", "head_image_path");
         record.tailImagePath = getString(data, "tailImagePath", "tail_image_path");
         record.topImagePath = getString(data, "topImagePath", "top_image_path");
-        record.goodsImagePath = getString(data, "goodsImagePath", "goods_image_path");
-        record.evidencesImagePath = getString(data, "evidencesImagePath", "evidences_image_path");
+        record.goodsImagePath = getStringList(data, "goodsImagePath", "goods_image_path");
+        record.evidencesImagePath = getStringList(data, "evidencesImagePath", "evidences_image_path");
         record.licenseImagePath = getString(data, "licenseImagePath", "license_image_path");
         record.passcodeImagePath = getString(data, "passcodeImagePath", "passcode_image_path");
         record.passcodeVehicleId = getString(data, "passcodeVehicleId", "passcode_vehicle_id");
@@ -179,6 +179,24 @@ public class PlatformReceiveController {
         record.toTransportdeptComment = getString(data, "toTransportdeptComment", "to_transportdept_comment");
 
         return record;
+    }
+
+    /**
+     * 获取列表类型的字段值（支持多图片数组）
+     */
+    @SuppressWarnings("unchecked")
+    private List<String> getStringList(Map<String, Object> data, String camelKey, String snakeKey) {
+        Object value = data.get(camelKey);
+        if (value == null) {
+            value = data.get(snakeKey);
+        }
+        if (value == null) return null;
+
+        if (value instanceof List) {
+            return (List<String>) value;
+        }
+        // 不再兼容字符串格式
+        throw new IllegalArgumentException(camelKey + " / " + snakeKey + " 必须为数组格式");
     }
 
     private String getString(Map<String, Object> data, String camelKey, String snakeKey) {
