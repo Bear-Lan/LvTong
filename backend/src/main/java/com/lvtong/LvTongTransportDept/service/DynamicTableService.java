@@ -1,11 +1,13 @@
 package com.lvtong.LvTongTransportDept.service;
 
+import com.lvtong.LvTongTransportDept.constant.VehicleConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -24,6 +26,7 @@ public class DynamicTableService {
     private static final Logger log = LoggerFactory.getLogger(DynamicTableService.class);
 
     private static final DateTimeFormatter CHECK_ID_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+    private static final DateTimeFormatter INSPECTION_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @Autowired
     private DataSource dataSource;
@@ -103,9 +106,9 @@ public class DynamicTableService {
      */
     public void insertRecord(String tableName, RecordData record) {
         // 参数校验
-        String missing = validateRecord(record);
-        if (missing != null) {
-            throw new IllegalArgumentException("缺少必填字段: " + missing);
+        String error = validateRecord(record);
+        if (error != null) {
+            throw new IllegalArgumentException("参数校验失败: " + error);
         }
 
         ensureTableExists(tableName);
@@ -113,6 +116,11 @@ public class DynamicTableService {
         // 自动生成 check_id
         if (record.checkId == null || record.checkId.isEmpty()) {
             record.checkId = generateCheckId(record.driverPhone, record.inspectionTime);
+        }
+
+        // 检查是否重复上传
+        if (isRecordExists(tableName, record.checkId)) {
+            throw new IllegalArgumentException("重复上传: check_id=" + record.checkId + " 已存在");
         }
 
         try {
@@ -134,15 +142,99 @@ public class DynamicTableService {
     }
 
     /**
-     * 校验必填字段
-     * 返回缺失的字段名，或null表示校验通过
+     * 检查记录是否已存在（通过 check_id）
+     */
+    private boolean isRecordExists(String tableName, String checkId) {
+        try {
+            DataSource ds = getMasterDataSource();
+            try (Connection conn = ds.getConnection()) {
+                String sql = "SELECT COUNT(*) FROM `" + tableName + "` WHERE check_id = ?";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setString(1, checkId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            return rs.getInt(1) > 0;
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("检查记录是否存在失败: {}", e.getMessage());
+            throw new IllegalArgumentException("检查记录是否存在失败: " + e.getMessage());
+        }
+        return false;
+    }
+
+    /**
+     * 校验记录数据
+     * 返回错误信息，或null表示校验通过
      */
     private String validateRecord(RecordData record) {
-        // plate_number 是唯一必填字段（NOT NULL）
+        // 必填字段
         if (record.plateNumber == null || record.plateNumber.isEmpty()) {
-            return "plateNumber";
+            return "plateNumber（车牌号）必填";
         }
+        if (record.passcodeExStationId == null || record.passcodeExStationId.isEmpty()) {
+            return "passcodeExStationId（出口站ID）必填";
+        }
+
+        // resultStatus 取值范围：0=待查验, 1=合格, 2=不合格
+        if (record.resultStatus != null) {
+            if (record.resultStatus < 0 || record.resultStatus > 2) {
+                return "resultStatus（查验结果）取值范围：0~2";
+            }
+        }
+
+        // status 只能是0
+        if (record.status != null && record.status != 0) {
+            return "status（状态）只能是0";
+        }
+
+        // loadRate 取值范围：0.00 ~ 100.00
+        if (record.loadRate != null) {
+            if (record.loadRate.compareTo(BigDecimal.ZERO) < 0 || record.loadRate.compareTo(new BigDecimal("100.00")) > 0) {
+                return "loadRate（满载率）取值范围：0.00 ~ 100.00";
+            }
+        }
+
+        // loadWeight 必须大于零
+        if (record.loadWeight != null && record.loadWeight.compareTo(BigDecimal.ZERO) <= 0) {
+            return "loadWeight（载重）必须大于零";
+        }
+
+        // nopassType 仅在 resultStatus=2（不合格）时需要检查
+        if (record.nopassType != null && record.resultStatus != null && record.resultStatus == 2) {
+            String text = VehicleConstants.getNopassTypeText(record.nopassType);
+            if ("-".equals(text) || text.matches("\\d+")) {
+                return "nopassType（不合格类型）值无效: " + record.nopassType;
+            }
+        }
+
+        // 时间格式校验（yyyy-MM-ddTHH:mm:ss）
+        if (!isValidDateTime(record.passcodeExTime)) {
+            return "passcodeExTime（出口时间）格式错误，应为 yyyy-MM-ddTHH:mm:ss";
+        }
+        if (!isValidDateTime(record.btnPrebookTime)) {
+            return "btnPrebookTime（预约时间）格式错误，应为 yyyy-MM-ddTHH:mm:ss";
+        }
+
         return null;
+    }
+
+    /**
+     * 校验时间格式（yyyy-MM-ddTHH:mm:ss）
+     */
+    private boolean isValidDateTime(String str) {
+        if (str == null || str.isEmpty()) {
+            return true; // 空字符串通过校验（非必填字段）
+        }
+        try {
+            // 格式：2026-05-06T14:40:29
+            LocalDateTime.parse(str.replace(" ", "T").substring(0, Math.min(str.length(), 19)));
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     /**
@@ -151,18 +243,20 @@ public class DynamicTableService {
      */
     private String generateCheckId(String phone, String inspectionTime) {
         if (phone == null || phone.isEmpty()) {
-            phone = "UNKNOWN";
+            throw new IllegalArgumentException("生成check_id失败: phone（手机号）不能为空");
         }
         String timeStr;
         try {
             if (inspectionTime != null && !inspectionTime.isEmpty()) {
-                LocalDateTime dt = LocalDateTime.parse(inspectionTime.replace("T", " ").substring(0, 19));
+                LocalDateTime dt = LocalDateTime.parse(inspectionTime, INSPECTION_TIME_FORMAT);
                 timeStr = dt.format(CHECK_ID_TIME_FORMAT);
             } else {
-                timeStr = LocalDateTime.now().format(CHECK_ID_TIME_FORMAT);
+                throw new IllegalArgumentException("生成check_id失败: inspectionTime（查验时间）不能为空");
             }
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
-            timeStr = LocalDateTime.now().format(CHECK_ID_TIME_FORMAT);
+            throw new IllegalArgumentException("生成check_id失败: inspectionTime格式错误，应为yyyy-MM-dd HH:mm:ss，实际值: " + inspectionTime);
         }
         return phone + timeStr + "_" + phone;
     }

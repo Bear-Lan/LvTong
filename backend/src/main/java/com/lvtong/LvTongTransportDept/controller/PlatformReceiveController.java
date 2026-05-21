@@ -44,9 +44,7 @@ public class PlatformReceiveController {
             // 根据出口站ID获取站点名称（表名）
             String tableName = dynamicTableService.getStationNameByCode(exStationId);
             if (tableName == null || tableName.isEmpty()) {
-                // 如果找不到站点信息，使用出口站ID作为表名
-                tableName = "station_" + exStationId;
-                log.warn("未找到站点信息，使用默认表名: {}", tableName);
+                return ApiResponse.error("站点信息不存在: station_id=" + exStationId);
             }
 
             // 构建记录数据
