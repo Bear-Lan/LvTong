@@ -1,14 +1,8 @@
 package com.lvtong.LvTongTransportDept.service;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.lvtong.LvTongTransportDept.entity.StationInfo;
-import com.lvtong.LvTongTransportDept.mapper.StationInfoMapper;
-import com.zaxxer.hikari.HikariConfig;
-import com.zaxxer.hikari.HikariDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
@@ -16,6 +10,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -27,23 +23,15 @@ public class DynamicTableService {
 
     private static final Logger log = LoggerFactory.getLogger(DynamicTableService.class);
 
-    @Value("${spring.datasource.host:localhost}")
-    private String host;
-
-    @Value("${spring.datasource.port:3306}")
-    private int port;
-
-    @Value("${spring.datasource.database:lvtong}")
-    private String database;
-
-    @Value("${spring.datasource.username:root}")
-    private String username;
-
-    @Value("${spring.datasource.password:123456}")
-    private String password;
+    private static final DateTimeFormatter CHECK_ID_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
     @Autowired
-    private StationInfoMapper stationInfoMapper;
+    private DataSource dataSource;
+
+    private static final String DATABASE = "three_platform";
+
+    @Autowired
+    private ProvinceCacheService provinceCacheService;
 
     /**
      * 缓存已创建的表，避免重复检查
@@ -54,57 +42,59 @@ public class DynamicTableService {
      * 根据 stationCode 获取 stationName（表名）
      */
     public String getStationNameByCode(String stationCode) {
-        LambdaQueryWrapper<StationInfo> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(StationInfo::getStationId, stationCode);
-        StationInfo station = stationInfoMapper.selectOne(wrapper);
-
-        if (station == null) {
-            log.warn("未找到站点信息 stationCode={}", stationCode);
+        if (stationCode == null || stationCode.isEmpty()) {
             return null;
         }
-
-        return station.getStationName();
+        return provinceCacheService.getStationNameByStationId(stationCode);
     }
 
     /**
      * 确保表存在，不存在则创建
      */
     public void ensureTableExists(String tableName) {
+        // 快速路径：已确认创建的表直接返回
         if (createdTables.containsKey(tableName)) {
             return;
         }
 
-        try {
-            DataSource ds = getMasterDataSource();
-            try (Connection conn = ds.getConnection()) {
+        synchronized (tableName.intern()) {
+            // 双重检查：加锁后再检查缓存
+            if (createdTables.containsKey(tableName)) {
+                return;
+            }
 
-                // 检查表是否存在
-                String checkSql = "SELECT COUNT(*) FROM information_schema.tables " +
-                                  "WHERE table_schema = ? AND table_name = ?";
-                try (PreparedStatement ps = conn.prepareStatement(checkSql)) {
-                    ps.setString(1, database);
-                    ps.setString(2, tableName);
+            try {
+                DataSource ds = getMasterDataSource();
+                try (Connection conn = ds.getConnection()) {
 
-                    try (ResultSet rs = ps.executeQuery()) {
-                        if (rs.next() && rs.getInt(1) > 0) {
-                            createdTables.put(tableName, true);
-                            log.info("表 {} 已存在", tableName);
-                            return;
+                    // 检查表是否存在
+                    String checkSql = "SELECT COUNT(*) FROM information_schema.tables " +
+                                      "WHERE table_schema = ? AND table_name = ?";
+                    try (PreparedStatement ps = conn.prepareStatement(checkSql)) {
+                        ps.setString(1, DATABASE);
+                        ps.setString(2, tableName);
+
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.next() && rs.getInt(1) > 0) {
+                                createdTables.put(tableName, true);
+                                log.info("表 {} 已存在", tableName);
+                                return;
+                            }
                         }
                     }
-                }
 
-                // 创建表
-                String createTableSql = buildCreateTableSql(tableName);
-                try (Statement stmt = conn.createStatement()) {
-                    stmt.execute(createTableSql);
-                    createdTables.put(tableName, true);
-                    log.info("表 {} 创建成功", tableName);
+                    // 创建表
+                    String createTableSql = buildCreateTableSql(tableName);
+                    try (Statement stmt = conn.createStatement()) {
+                        stmt.execute(createTableSql);
+                        createdTables.put(tableName, true);
+                        log.info("表 {} 创建成功", tableName);
+                    }
                 }
+            } catch (Exception e) {
+                log.error("创建表 {} 失败: {}", tableName, e.getMessage());
+                throw new RuntimeException("创建表失败: " + e.getMessage(), e);
             }
-        } catch (Exception e) {
-            log.error("创建表 {} 失败: {}", tableName, e.getMessage());
-            throw new RuntimeException("创建表失败: " + e.getMessage(), e);
         }
     }
 
@@ -112,18 +102,31 @@ public class DynamicTableService {
      * 插入数据到指定表
      */
     public void insertRecord(String tableName, RecordData record) {
+        // 参数校验
+        String missing = validateRecord(record);
+        if (missing != null) {
+            throw new IllegalArgumentException("缺少必填字段: " + missing);
+        }
+
         ensureTableExists(tableName);
+
+        // 自动生成 check_id
+        if (record.checkId == null || record.checkId.isEmpty()) {
+            record.checkId = generateCheckId(record.driverPhone, record.inspectionTime);
+        }
 
         try {
             DataSource ds = getMasterDataSource();
             try (Connection conn = ds.getConnection()) {
-                String sql = buildInsertSql(tableName, record);
+                String sql = buildInsertSql(tableName);
                 try (PreparedStatement ps = conn.prepareStatement(sql)) {
                     setRecordParameters(ps, record);
                     ps.executeUpdate();
-                    log.debug("数据插入表 {} 成功", tableName);
+                    log.info("数据插入表 {} 成功, plateNumber={}", tableName, record.plateNumber);
                 }
             }
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
             log.error("插入数据到表 {} 失败: {}", tableName, e.getMessage());
             throw new RuntimeException("插入数据失败: " + e.getMessage(), e);
@@ -131,32 +134,54 @@ public class DynamicTableService {
     }
 
     /**
+     * 校验必填字段
+     * 返回缺失的字段名，或null表示校验通过
+     */
+    private String validateRecord(RecordData record) {
+        // plate_number 是唯一必填字段（NOT NULL）
+        if (record.plateNumber == null || record.plateNumber.isEmpty()) {
+            return "plateNumber";
+        }
+        return null;
+    }
+
+    /**
+     * 生成 check_id
+     * 格式: 手机号 + yyyyMMddHHmmss + "_" + 手机号
+     */
+    private String generateCheckId(String phone, String inspectionTime) {
+        if (phone == null || phone.isEmpty()) {
+            phone = "UNKNOWN";
+        }
+        String timeStr;
+        try {
+            if (inspectionTime != null && !inspectionTime.isEmpty()) {
+                LocalDateTime dt = LocalDateTime.parse(inspectionTime.replace("T", " ").substring(0, 19));
+                timeStr = dt.format(CHECK_ID_TIME_FORMAT);
+            } else {
+                timeStr = LocalDateTime.now().format(CHECK_ID_TIME_FORMAT);
+            }
+        } catch (Exception e) {
+            timeStr = LocalDateTime.now().format(CHECK_ID_TIME_FORMAT);
+        }
+        return phone + timeStr + "_" + phone;
+    }
+
+    /**
      * 获取主数据源
      */
     private DataSource getMasterDataSource() {
-        HikariDataSource ds = new HikariDataSource();
-        ds.setJdbcUrl(String.format("jdbc:mysql://%s:%d/%s?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true",
-                host, port, database));
-        ds.setUsername(username);
-        ds.setPassword(password);
-        ds.setDriverClassName("com.mysql.cj.jdbc.Driver");
-        ds.setPoolName("dynamic-table-pool");
-        ds.setMaximumPoolSize(5);
-        ds.setMinimumIdle(1);
-        return ds;
+        return dataSource;
     }
 
     /**
      * 构建建表 SQL
      */
     private String buildCreateTableSql(String tableName) {
-        // 清理表名
-        String cleanTableName = tableName.replaceAll("[^a-zA-Z0-9_]", "_");
-
         return """
             CREATE TABLE IF NOT EXISTS `%s` (
-              `id` int NOT NULL AUTO_INCREMENT,
               `check_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '查验人_司机手机号',
+              `id` int NOT NULL AUTO_INCREMENT,
               `plate_number` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '车牌号',
               `plate_number_gc` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '挂车号码',
               `driver_phone` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '司机电话',
@@ -215,15 +240,13 @@ public class DynamicTableService {
               `to_transportdept_comment` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '上传结果',
               PRIMARY KEY (`id`, `check_id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='%s查验记录'
-            """.formatted(cleanTableName, cleanTableName);
+            """.formatted(tableName, tableName);
     }
 
     /**
-     * 构建插入 SQL
+     * 构建插入 SQL（55个字段，不含自增id）
      */
-    private String buildInsertSql(String tableName, RecordData record) {
-        String cleanTableName = tableName.replaceAll("[^a-zA-Z0-9_]", "_");
-
+    private String buildInsertSql(String tableName) {
         return """
             INSERT INTO `%s` (
               check_id, plate_number, plate_number_gc, driver_phone, vehicle_type,
@@ -242,15 +265,15 @@ public class DynamicTableService {
               reviewer_phone, manual_review_state, to_transportdept_state,
               to_transportdept_time, to_transportdept_comment
             ) VALUES (
-              ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
               ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-              ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+              ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+              ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
             )
-            """.formatted(cleanTableName);
+            """.formatted(tableName);
     }
 
     /**
-     * 设置记录参数
+     * 设置记录参数（55个）
      */
     private void setRecordParameters(PreparedStatement ps, RecordData record) throws Exception {
         int idx = 1;
@@ -293,22 +316,22 @@ public class DynamicTableService {
         ps.setString(idx++, record.passcodeVehicleSign);
         ps.setString(idx++, record.passcodeProvinceCount);
         ps.setString(idx++, record.operatorName);
-        ps.setTimestamp(idx++, record.btnPrebookTime);
-        ps.setTimestamp(idx++, record.acceptanceTime);
-        ps.setTimestamp(idx++, record.opengateTime);
-        ps.setTimestamp(idx++, record.openlightscreenTime);
-        ps.setTimestamp(idx++, record.closelightscreenTime);
-        ps.setTimestamp(idx++, record.cdPhotoTime);
-        ps.setTimestamp(idx++, record.inspectionTime);
-        ps.setInt(idx++, record.resultStatus);
-        ps.setInt(idx++, record.nopassType);
-        ps.setInt(idx++, record.status);
+        ps.setString(idx++, record.btnPrebookTime);
+        ps.setString(idx++, record.acceptanceTime);
+        ps.setString(idx++, record.opengateTime);
+        ps.setString(idx++, record.openlightscreenTime);
+        ps.setString(idx++, record.closelightscreenTime);
+        ps.setString(idx++, record.cdPhotoTime);
+        ps.setString(idx++, record.inspectionTime);
+        ps.setObject(idx++, record.resultStatus);
+        ps.setObject(idx++, record.nopassType);
+        ps.setObject(idx++, record.status);
         ps.setString(idx++, record.groupId);
         ps.setString(idx++, record.inspectorPhone);
         ps.setString(idx++, record.reviewerPhone);
-        ps.setInt(idx++, record.manualReviewState);
-        ps.setInt(idx++, record.toTransportdeptState);
-        ps.setTimestamp(idx++, record.toTransportdeptTime);
+        ps.setObject(idx++, record.manualReviewState);
+        ps.setObject(idx++, record.toTransportdeptState);
+        ps.setString(idx++, record.toTransportdeptTime);
         ps.setString(idx++, record.toTransportdeptComment);
     }
 
@@ -354,13 +377,13 @@ public class DynamicTableService {
         public String passcodeVehicleSign;
         public String passcodeProvinceCount;
         public String operatorName;
-        public java.sql.Timestamp btnPrebookTime;
-        public java.sql.Timestamp acceptanceTime;
-        public java.sql.Timestamp opengateTime;
-        public java.sql.Timestamp openlightscreenTime;
-        public java.sql.Timestamp closelightscreenTime;
-        public java.sql.Timestamp cdPhotoTime;
-        public java.sql.Timestamp inspectionTime;
+        public String btnPrebookTime;
+        public String acceptanceTime;
+        public String opengateTime;
+        public String openlightscreenTime;
+        public String closelightscreenTime;
+        public String cdPhotoTime;
+        public String inspectionTime;
         public Integer resultStatus;
         public Integer nopassType;
         public Integer status;
@@ -369,7 +392,7 @@ public class DynamicTableService {
         public String reviewerPhone;
         public Integer manualReviewState;
         public Integer toTransportdeptState;
-        public java.sql.Timestamp toTransportdeptTime;
+        public String toTransportdeptTime;
         public String toTransportdeptComment;
     }
 }

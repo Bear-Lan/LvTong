@@ -10,7 +10,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
-import java.sql.Timestamp;
 import java.util.List;
 import java.util.Map;
 
@@ -163,13 +162,13 @@ public class PlatformReceiveController {
         record.passcodeVehicleSign = getString(data, "passcodeVehicleSign", "passcode_vehicle_sign");
         record.passcodeProvinceCount = getString(data, "passcodeProvinceCount", "passcode_province_count");
         record.operatorName = getString(data, "operatorName", "operator_name");
-        record.btnPrebookTime = getTimestamp(data, "btnPrebookTime", "btn_prebook_time");
-        record.acceptanceTime = getTimestamp(data, "acceptanceTime", "acceptance_time");
-        record.opengateTime = getTimestamp(data, "opengateTime", "opengate_time");
-        record.openlightscreenTime = getTimestamp(data, "openlightscreenTime", "openlightscreen_time");
-        record.closelightscreenTime = getTimestamp(data, "closelightscreenTime", "closelightscreen_time");
-        record.cdPhotoTime = getTimestamp(data, "cdPhotoTime", "cd_photo_time");
-        record.inspectionTime = getTimestamp(data, "inspectionTime", "inspection_time");
+        record.btnPrebookTime = getString(data, "btnPrebookTime", "btn_prebook_time");
+        record.acceptanceTime = getString(data, "acceptanceTime", "acceptance_time");
+        record.opengateTime = getString(data, "opengateTime", "opengate_time");
+        record.openlightscreenTime = getString(data, "openlightscreenTime", "openlightscreen_time");
+        record.closelightscreenTime = getString(data, "closelightscreenTime", "closelightscreen_time");
+        record.cdPhotoTime = getString(data, "cdPhotoTime", "cd_photo_time");
+        record.inspectionTime = getString(data, "inspectionTime", "inspection_time");
         record.resultStatus = getInt(data, "resultStatus", "result_status");
         record.nopassType = getInt(data, "nopassType", "nopass_type");
         record.status = getInt(data, "status", "status");
@@ -178,7 +177,7 @@ public class PlatformReceiveController {
         record.reviewerPhone = getString(data, "reviewerPhone", "reviewer_phone");
         record.manualReviewState = getInt(data, "manualReviewState", "manual_review_state");
         record.toTransportdeptState = getInt(data, "toTransportdeptState", "to_transportdept_state");
-        record.toTransportdeptTime = getTimestamp(data, "toTransportdeptTime", "to_transportdept_time");
+        record.toTransportdeptTime = getString(data, "toTransportdeptTime", "to_transportdept_time");
         record.toTransportdeptComment = getString(data, "toTransportdeptComment", "to_transportdept_comment");
 
         return record;
@@ -189,7 +188,9 @@ public class PlatformReceiveController {
         if (value == null) {
             value = data.get(snakeKey);
         }
-        return value != null ? value.toString() : null;
+        if (value == null) return null;
+        String str = value.toString();
+        return str.isEmpty() ? null : str;
     }
 
     private BigDecimal getBigDecimal(Map<String, Object> data, String camelKey, String snakeKey) {
@@ -219,23 +220,5 @@ public class PlatformReceiveController {
         } catch (NumberFormatException e) {
             return null;
         }
-    }
-
-    private Timestamp getTimestamp(Map<String, Object> data, String camelKey, String snakeKey) {
-        Object value = data.get(camelKey);
-        if (value == null) {
-            value = data.get(snakeKey);
-        }
-        if (value == null) return null;
-        try {
-            if (value instanceof String) {
-                return Timestamp.valueOf((String) value);
-            } else if (value instanceof Number) {
-                return new Timestamp(((Number) value).longValue());
-            }
-        } catch (Exception e) {
-            log.warn("转换时间失败: key={}/{}, value={}", camelKey, snakeKey, value);
-        }
-        return null;
     }
 }
