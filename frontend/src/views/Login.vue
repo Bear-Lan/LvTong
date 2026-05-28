@@ -6,7 +6,7 @@
       <div class="deco-circle"></div>
 
       <div class="left-content">
-        <h1 class="brand-name">硚孝高速毛陈收费站绿通快检系统</h1>
+        <h1 class="brand-name">高速收费站绿通快检系统</h1>
 
         <p class="top-tagline">X透视成像·AI大数据模型·创新查验机制</p>
 

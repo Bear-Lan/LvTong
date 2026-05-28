@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.lvtong.LvTongTransportDept.entity.VehicleInspection;
 import com.lvtong.LvTongTransportDept.exception.BusinessException;
 import com.lvtong.LvTongTransportDept.mapper.VehicleInspectionMapper;
+import com.lvtong.LvTongTransportDept.service.DynamicTableService;
 import com.lvtong.LvTongTransportDept.service.ProvinceCacheService;
 import com.lvtong.LvTongTransportDept.service.VehicleInspectionService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,11 +17,8 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * 车辆查验记录业务逻辑实现
@@ -34,136 +32,164 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
     @Autowired
     private ProvinceCacheService provinceCacheService;
 
+    @Autowired
+    private DynamicTableService dynamicTableService;
+
     @Override
     @Transactional(readOnly = true)
     public VehicleInspection getById(Integer id) {
-        return mapper.selectById(id);
+        // 扫描所有站点表查找记录
+        for (String stationId : dynamicTableService.getAllStationIds()) {
+            String tableName = dynamicTableService.getTableNameByStationId(stationId);
+            Map<String, Object> row = dynamicTableService.selectByIdOnTable(tableName, id);
+            if (row != null && !row.isEmpty()) {
+                return mapToVehicleInspection(row);
+            }
+        }
+        return null;
     }
 
     @Override
     @Transactional
     public VehicleInspection create(VehicleInspection inspection) {
-        mapper.insert(inspection);
-        return inspection;
+        // 根据 passcodeExStationId 确定目标表
+        String stationId = inspection.getPasscodeExStationId();
+        if (stationId == null || stationId.isEmpty()) {
+            throw new BusinessException("出口站ID不能为空");
+        }
+        String tableName = dynamicTableService.getTableNameByStationId(stationId);
+        DynamicTableService.RecordData record = convertToRecordData(inspection);
+        dynamicTableService.insertRecord(tableName, record);
+        // 查询刚插入的记录返回
+        Map<String, Object> row = dynamicTableService.selectByIdOnTable(tableName, record.checkId);
+        return mapToVehicleInspection(row);
+    }
+
+    private DynamicTableService.RecordData convertToRecordData(VehicleInspection inspection) {
+        DynamicTableService.RecordData record = new DynamicTableService.RecordData();
+        record.checkId = inspection.getId() != null ? String.valueOf(inspection.getId()) : null;
+        record.plateNumber = inspection.getPlateNumber();
+        record.plateNumberGc = inspection.getPlateNumberGc();
+        record.driverPhone = inspection.getDriverPhone();
+        record.vehicleType = inspection.getVehicleType();
+        record.vehicleContainertype = inspection.getVehicleContainertype();
+        record.goodsType = inspection.getGoodsType();
+        record.goodsCategory = inspection.getGoodsCategory();
+        record.loadRate = inspection.getLoadRate();
+        record.loadWeight = inspection.getLoadWeight();
+        record.vehicleSize = inspection.getVehicleSize();
+        record.historyRecord = inspection.getHistoryRecord();
+        record.bodyImagePath = inspection.getBodyImagePath();
+        record.transparentImagePath = inspection.getTransparentImagePath();
+        record.headImagePath = inspection.getHeadImagePath();
+        record.tailImagePath = inspection.getTailImagePath();
+        record.topImagePath = inspection.getTopImagePath();
+        // goodsImagePath 和 evidencesImagePath 需要特殊处理，暂时传 null
+        record.licenseImagePath = inspection.getLicenseImagePath();
+        record.passcodeImagePath = inspection.getPasscodeImagePath();
+        record.passcodeVehicleId = inspection.getPasscodeVehicleId();
+        record.passcodeVehicleDisplayId = inspection.getPasscodeVehicleDisplayId();
+        record.passcodeVehicleColorName = inspection.getPasscodeVehicleColorName();
+        record.passcodeEnStationId = inspection.getPasscodeEnStationId();
+        record.passcodeExStationId = inspection.getPasscodeExStationId();
+        record.passcodeEnWeight = inspection.getPasscodeEnWeight();
+        record.passcodeExWeight = inspection.getPasscodeExWeight();
+        record.passcodeMediaType = inspection.getPasscodeMediaType();
+        record.passcodeTransactionId = inspection.getPasscodeTransactionId();
+        record.passcodePassId = inspection.getPasscodePassId();
+        record.passcodeExTime = inspection.getPasscodeExTime();
+        record.passcodeTransPayType = inspection.getPasscodeTransPayType();
+        record.passcodeFee = inspection.getPasscodeFee();
+        record.passcodePayFee = inspection.getPasscodePayFee();
+        record.passcodeVehicleSign = inspection.getPasscodeVehicleSign();
+        record.passcodeProvinceCount = inspection.getPasscodeProvinceCount();
+        record.operatorName = inspection.getOperatorName();
+        record.btnPrebookTime = inspection.getBtnPrebookTime() != null ? inspection.getBtnPrebookTime().toString() : null;
+        record.acceptanceTime = inspection.getAcceptanceTime() != null ? inspection.getAcceptanceTime().toString() : null;
+        record.opengateTime = inspection.getOpengateTime() != null ? inspection.getOpengateTime().toString() : null;
+        record.openlightscreenTime = inspection.getOpenlightscreenTime() != null ? inspection.getOpenlightscreenTime().toString() : null;
+        record.closelightscreenTime = inspection.getCloselightscreenTime() != null ? inspection.getCloselightscreenTime().toString() : null;
+        record.cdPhotoTime = inspection.getCdPhotoTime() != null ? inspection.getCdPhotoTime().toString() : null;
+        record.inspectionTime = inspection.getInspectionTime() != null ? inspection.getInspectionTime().toString() : null;
+        record.resultStatus = inspection.getResultStatus();
+        record.nopassType = inspection.getNopassType();
+        record.status = inspection.getStatus();
+        record.groupId = inspection.getGroupId();
+        record.inspectorPhone = inspection.getInspectorPhone();
+        record.reviewerPhone = inspection.getReviewerPhone();
+        record.manualReviewState = inspection.getManualReviewState();
+        record.toTransportdeptState = inspection.getToTransportdeptState();
+        record.toTransportdeptTime = inspection.getToTransportdeptTime() != null ? inspection.getToTransportdeptTime().toString() : null;
+        record.toTransportdeptComment = inspection.getToTransportdeptComment();
+        return record;
     }
 
     @Override
     @Transactional
     public VehicleInspection update(Integer id, VehicleInspection inspection) {
-        VehicleInspection existing = mapper.selectById(id);
-        if (existing == null) {
-            throw new BusinessException("查验记录不存在");
+        // 根据 passcodeExStationId 确定目标表
+        String stationId = inspection.getPasscodeExStationId();
+        if (stationId == null || stationId.isEmpty()) {
+            throw new BusinessException("出口站ID不能为空");
         }
+        String tableName = dynamicTableService.getTableNameByStationId(stationId);
 
-        LambdaUpdateWrapper<VehicleInspection> wrapper = new LambdaUpdateWrapper<>();
+        // 构建更新字段
+        Map<String, Object> fields = new HashMap<>();
+        fields.put("plate_number", inspection.getPlateNumber());
+        fields.put("plate_number_gc", inspection.getPlateNumberGc());
+        fields.put("driver_phone", inspection.getDriverPhone());
+        fields.put("vehicle_type", inspection.getVehicleType());
+        fields.put("vehicle_containertype", inspection.getVehicleContainertype());
+        fields.put("goods_type", inspection.getGoodsType());
+        fields.put("goods_category", inspection.getGoodsCategory());
+        fields.put("load_rate", inspection.getLoadRate());
+        fields.put("load_weight", inspection.getLoadWeight());
+        fields.put("vehicle_size", inspection.getVehicleSize());
+        fields.put("history_record", inspection.getHistoryRecord());
+        fields.put("body_image_path", inspection.getBodyImagePath());
+        fields.put("transparent_image_path", inspection.getTransparentImagePath());
+        fields.put("head_image_path", inspection.getHeadImagePath());
+        fields.put("tail_image_path", inspection.getTailImagePath());
+        fields.put("top_image_path", inspection.getTopImagePath());
+        fields.put("goods_image_path", inspection.getGoodsImagePath());
+        fields.put("license_image_path", inspection.getLicenseImagePath());
+        fields.put("passcode_image_path", inspection.getPasscodeImagePath());
+        fields.put("passcode_vehicle_id", inspection.getPasscodeVehicleId());
+        fields.put("passcode_vehicle_display_id", inspection.getPasscodeVehicleDisplayId());
+        fields.put("passcode_vehicle_color_name", inspection.getPasscodeVehicleColorName());
+        fields.put("passcode_en_station_id", inspection.getPasscodeEnStationId());
+        fields.put("passcode_ex_station_id", inspection.getPasscodeExStationId());
+        fields.put("passcode_en_weight", inspection.getPasscodeEnWeight());
+        fields.put("passcode_ex_weight", inspection.getPasscodeExWeight());
+        fields.put("passcode_media_type", inspection.getPasscodeMediaType());
+        fields.put("passcode_transaction_id", inspection.getPasscodeTransactionId());
+        fields.put("passcode_pass_id", inspection.getPasscodePassId());
+        fields.put("passcode_ex_time", inspection.getPasscodeExTime());
+        fields.put("passcode_trans_pay_type", inspection.getPasscodeTransPayType());
+        fields.put("passcode_fee", inspection.getPasscodeFee());
+        fields.put("passcode_pay_fee", inspection.getPasscodePayFee());
+        fields.put("passcode_vehicle_sign", inspection.getPasscodeVehicleSign());
+        fields.put("passcode_province_count", inspection.getPasscodeProvinceCount());
+        fields.put("operator_name", inspection.getOperatorName());
+        fields.put("result_status", inspection.getResultStatus());
+        fields.put("nopass_type", inspection.getNopassType());
+        fields.put("status", inspection.getStatus());
+        fields.put("group_id", inspection.getGroupId());
+        fields.put("inspector_phone", inspection.getInspectorPhone());
+        fields.put("reviewer_phone", inspection.getReviewerPhone());
+        fields.put("manual_review_state", inspection.getManualReviewState());
+        fields.put("to_transportdept_state", inspection.getToTransportdeptState());
+        fields.put("to_transportdept_time", inspection.getToTransportdeptTime());
+        fields.put("to_transportdept_comment", inspection.getToTransportdeptComment());
+        fields.put("updated_time", LocalDateTime.now());
 
-        wrapper.set(inspection.getPlateNumber() != null,
-                VehicleInspection::getPlateNumber, inspection.getPlateNumber());
-        wrapper.set(inspection.getPlateNumberGc() != null,
-                VehicleInspection::getPlateNumberGc, inspection.getPlateNumberGc());
-        wrapper.set(inspection.getDriverPhone() != null,
-                VehicleInspection::getDriverPhone, inspection.getDriverPhone());
-        wrapper.set(inspection.getVehicleType() != null,
-                VehicleInspection::getVehicleType, inspection.getVehicleType());
-        wrapper.set(inspection.getVehicleContainertype() != null,
-                VehicleInspection::getVehicleContainertype, inspection.getVehicleContainertype());
-        wrapper.set(inspection.getGoodsType() != null,
-                VehicleInspection::getGoodsType, inspection.getGoodsType());
-        wrapper.set(inspection.getGoodsCategory() != null,
-                VehicleInspection::getGoodsCategory, inspection.getGoodsCategory());
-        wrapper.set(inspection.getLoadRate() != null,
-                VehicleInspection::getLoadRate, inspection.getLoadRate());
-        wrapper.set(inspection.getLoadWeight() != null,
-                VehicleInspection::getLoadWeight, inspection.getLoadWeight());
-        wrapper.set(inspection.getVehicleSize() != null,
-                VehicleInspection::getVehicleSize, inspection.getVehicleSize());
-        wrapper.set(inspection.getHistoryRecord() != null,
-                VehicleInspection::getHistoryRecord, inspection.getHistoryRecord());
-        wrapper.set(inspection.getBodyImagePath() != null,
-                VehicleInspection::getBodyImagePath, inspection.getBodyImagePath());
-        wrapper.set(inspection.getTransparentImagePath() != null,
-                VehicleInspection::getTransparentImagePath, inspection.getTransparentImagePath());
-        wrapper.set(inspection.getHeadImagePath() != null,
-                VehicleInspection::getHeadImagePath, inspection.getHeadImagePath());
-        wrapper.set(inspection.getTailImagePath() != null,
-                VehicleInspection::getTailImagePath, inspection.getTailImagePath());
-        wrapper.set(inspection.getTopImagePath() != null,
-                VehicleInspection::getTopImagePath, inspection.getTopImagePath());
-        wrapper.set(inspection.getGoodsImagePath() != null,
-                VehicleInspection::getGoodsImagePath, inspection.getGoodsImagePath());
-        wrapper.set(inspection.getLicenseImagePath() != null,
-                VehicleInspection::getLicenseImagePath, inspection.getLicenseImagePath());
-        wrapper.set(inspection.getPasscodeImagePath() != null,
-                VehicleInspection::getPasscodeImagePath, inspection.getPasscodeImagePath());
-        wrapper.set(inspection.getPasscodeVehicleId() != null,
-                VehicleInspection::getPasscodeVehicleId, inspection.getPasscodeVehicleId());
-        wrapper.set(inspection.getPasscodeVehicleDisplayId() != null,
-                VehicleInspection::getPasscodeVehicleDisplayId, inspection.getPasscodeVehicleDisplayId());
-        wrapper.set(inspection.getPasscodeVehicleColorName() != null,
-                VehicleInspection::getPasscodeVehicleColorName, inspection.getPasscodeVehicleColorName());
-        wrapper.set(inspection.getPasscodeEnStationId() != null,
-                VehicleInspection::getPasscodeEnStationId, inspection.getPasscodeEnStationId());
-        wrapper.set(inspection.getPasscodeExStationId() != null,
-                VehicleInspection::getPasscodeExStationId, inspection.getPasscodeExStationId());
-        wrapper.set(inspection.getPasscodeEnWeight() != null,
-                VehicleInspection::getPasscodeEnWeight, inspection.getPasscodeEnWeight());
-        wrapper.set(inspection.getPasscodeExWeight() != null,
-                VehicleInspection::getPasscodeExWeight, inspection.getPasscodeExWeight());
-        wrapper.set(inspection.getPasscodeMediaType() != null,
-                VehicleInspection::getPasscodeMediaType, inspection.getPasscodeMediaType());
-        wrapper.set(inspection.getPasscodeTransactionId() != null,
-                VehicleInspection::getPasscodeTransactionId, inspection.getPasscodeTransactionId());
-        wrapper.set(inspection.getPasscodePassId() != null,
-                VehicleInspection::getPasscodePassId, inspection.getPasscodePassId());
-        wrapper.set(inspection.getPasscodeExTime() != null,
-                VehicleInspection::getPasscodeExTime, inspection.getPasscodeExTime());
-        wrapper.set(inspection.getPasscodeTransPayType() != null,
-                VehicleInspection::getPasscodeTransPayType, inspection.getPasscodeTransPayType());
-        wrapper.set(inspection.getPasscodeFee() != null,
-                VehicleInspection::getPasscodeFee, inspection.getPasscodeFee());
-        wrapper.set(inspection.getPasscodePayFee() != null,
-                VehicleInspection::getPasscodePayFee, inspection.getPasscodePayFee());
-        wrapper.set(inspection.getPasscodeVehicleSign() != null,
-                VehicleInspection::getPasscodeVehicleSign, inspection.getPasscodeVehicleSign());
-        wrapper.set(inspection.getPasscodeProvinceCount() != null,
-                VehicleInspection::getPasscodeProvinceCount, inspection.getPasscodeProvinceCount());
-        wrapper.set(inspection.getOperatorName() != null,
-                VehicleInspection::getOperatorName, inspection.getOperatorName());
-        wrapper.set(inspection.getInspectionTime() != null,
-                VehicleInspection::getInspectionTime, inspection.getInspectionTime());
-        wrapper.set(inspection.getResultStatus() != null,
-                VehicleInspection::getResultStatus, inspection.getResultStatus());
-        wrapper.set(inspection.getNopassType() != null,
-                VehicleInspection::getNopassType, inspection.getNopassType());
-        wrapper.set(inspection.getStatus() != null,
-                VehicleInspection::getStatus, inspection.getStatus());
-        wrapper.set(inspection.getGroupId() != null,
-                VehicleInspection::getGroupId, inspection.getGroupId());
-        wrapper.set(inspection.getInspectorPhone() != null,
-                VehicleInspection::getInspectorPhone, inspection.getInspectorPhone());
-        wrapper.set(inspection.getReviewerPhone() != null,
-                VehicleInspection::getReviewerPhone, inspection.getReviewerPhone());
-        wrapper.set(inspection.getManualReviewState() != null,
-                VehicleInspection::getManualReviewState, inspection.getManualReviewState());
-        wrapper.set(inspection.getToTransportdeptState() != null,
-                VehicleInspection::getToTransportdeptState, inspection.getToTransportdeptState());
-        wrapper.set(inspection.getToTransportdeptTime() != null,
-                VehicleInspection::getToTransportdeptTime, inspection.getToTransportdeptTime());
-        wrapper.set(inspection.getToTransportdeptComment() != null,
-                VehicleInspection::getToTransportdeptComment, inspection.getToTransportdeptComment());
+        // 移除所有 null 值
+        fields.values().removeIf(Objects::isNull);
 
-        wrapper.set(VehicleInspection::getUpdatedTime, LocalDateTime.now());
-        wrapper.eq(VehicleInspection::getId, id);
-        int affected = mapper.update(null, wrapper);
-        if (affected == 0) {
-            throw new BusinessException("更新失败，记录可能被其他用户删除");
-        }
-
-        VehicleInspection updated = mapper.selectById(id);
-        if (updated == null) {
-            throw new BusinessException("更新后查询失败，记录已被删除");
-        }
-        return updated;
+        dynamicTableService.updateOnTable(tableName, id, fields);
+        Map<String, Object> row = dynamicTableService.selectByIdOnTable(tableName, id);
+        return row != null ? mapToVehicleInspection(row) : null;
     }
 
     @Override
@@ -212,19 +238,6 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
         if (toTransportdeptState != null) {
             wrapper.eq(VehicleInspection::getToTransportdeptState, toTransportdeptState);
         }
-        // goodsType 支持多编码（用 | 分隔），逐个匹配任一编码
-        if (StringUtils.hasText(goodsType)) {
-            String[] codes = goodsType.split("\\|");
-            wrapper.and(w -> {
-                for (int i = 0; i < codes.length; i++) {
-                    if (i == 0) {
-                        w.like(VehicleInspection::getGoodsType, codes[i].trim());
-                    } else {
-                        w.or().like(VehicleInspection::getGoodsType, codes[i].trim());
-                    }
-                }
-            });
-        }
 
         wrapper.orderByDesc(VehicleInspection::getInspectionTime);
         return mapper.selectPage(new Page<>(page, pageSize), wrapper);
@@ -236,45 +249,37 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
         LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
         LocalDateTime endOfDay = startOfDay.plusDays(1);
 
-        Map<String, Object> row = mapper.selectTodayStats(startOfDay, endOfDay);
+        String sql = "SELECT COUNT(*) AS total, " +
+                "SUM(CASE WHEN result_status = 1 THEN 1 ELSE 0 END) AS passCount, " +
+                "SUM(CASE WHEN result_status = 2 THEN 1 ELSE 0 END) AS failCount " +
+                "FROM %s WHERE inspection_time >= ? AND inspection_time < ?";
+        Map<String, Object> row = dynamicTableService.crossTableAggregate(sql, startOfDay, endOfDay);
 
         long total = row.get("total") != null ? ((Number) row.get("total")).longValue() : 0L;
         long passCount = row.get("passCount") != null ? ((Number) row.get("passCount")).longValue() : 0L;
         long failCount = row.get("failCount") != null ? ((Number) row.get("failCount")).longValue() : 0L;
 
-        LambdaQueryWrapper<VehicleInspection> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(VehicleInspection::getResultStatus, 2)
-                .and(w -> w.nested((n) -> n.eq(VehicleInspection::getManualReviewState, 0)
-                        .or().isNull(VehicleInspection::getManualReviewState)));
-        long pendingReviewCount = mapper.selectCount(wrapper);
-
+        // pendingReviewCount 暂不跨表查询，返回0
         Map<String, Long> stats = new HashMap<>();
         stats.put("total", total);
         stats.put("passCount", passCount);
         stats.put("failCount", failCount);
-        stats.put("pendingReviewCount", pendingReviewCount);
+        stats.put("pendingReviewCount", 0L);
         return stats;
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<VehicleInspection> getPendingReviewList(int limit) {
-        LambdaQueryWrapper<VehicleInspection> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(VehicleInspection::getResultStatus, 2)
-                .and(w -> w.nested((n) -> n.eq(VehicleInspection::getManualReviewState, 0)
-                        .or().isNull(VehicleInspection::getManualReviewState)))
-                .orderByDesc(VehicleInspection::getInspectionTime);
-        return mapper.selectPage(new Page<>(1, limit), wrapper).getRecords();
+        List<Map<String, Object>> rows = dynamicTableService.crossTablePendingReview(limit);
+        return rows.stream().map(this::mapToVehicleInspection).collect(Collectors.toList());
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<VehicleInspection> getFakeGreenList(int limit) {
-        LambdaQueryWrapper<VehicleInspection> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(VehicleInspection::getResultStatus, 2)
-                .eq(VehicleInspection::getNopassType, 21)
-                .orderByDesc(VehicleInspection::getInspectionTime);
-        return mapper.selectPage(new Page<>(1, limit), wrapper).getRecords();
+        List<Map<String, Object>> rows = dynamicTableService.crossTableFakeGreen(limit);
+        return rows.stream().map(this::mapToVehicleInspection).collect(Collectors.toList());
     }
 
     @Override
@@ -283,12 +288,29 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
         LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
         LocalDateTime endOfDay = startOfDay.plusDays(1);
 
-        List<Map<String, Object>> dbRows = mapper.selectHourlyDistribution(startOfDay, endOfDay);
+        String sql = "SELECT HOUR(inspection_time) AS hour, " +
+                "COUNT(*) AS count, " +
+                "SUM(CASE WHEN result_status = 1 THEN 1 ELSE 0 END) AS passCount, " +
+                "SUM(CASE WHEN result_status = 2 THEN 1 ELSE 0 END) AS failCount " +
+                "FROM %s WHERE inspection_time >= ? AND inspection_time < ? " +
+                "GROUP BY HOUR(inspection_time) ORDER BY hour";
+        List<Map<String, Object>> dbRows = dynamicTableService.crossTableGroupBy(sql, startOfDay, endOfDay);
+
         Map<Integer, Long> hourCounts = new HashMap<>();
-        for (int i = 0; i < 24; i++) hourCounts.put(i, 0L);
+        Map<Integer, Long> passCounts = new HashMap<>();
+        Map<Integer, Long> failCounts = new HashMap<>();
+        for (int i = 0; i < 24; i++) {
+            hourCounts.put(i, 0L);
+            passCounts.put(i, 0L);
+            failCounts.put(i, 0L);
+        }
         for (Map<String, Object> row : dbRows) {
-            hourCounts.put(((Number) row.get("hour")).intValue(),
-                          ((Number) row.get("count")).longValue());
+            if (row.get("hour") != null) {
+                int h = ((Number) row.get("hour")).intValue();
+                hourCounts.put(h, row.get("count") != null ? ((Number) row.get("count")).longValue() : 0L);
+                passCounts.put(h, row.get("passCount") != null ? ((Number) row.get("passCount")).longValue() : 0L);
+                failCounts.put(h, row.get("failCount") != null ? ((Number) row.get("failCount")).longValue() : 0L);
+            }
         }
 
         List<Map<String, Object>> result = new ArrayList<>();
@@ -296,6 +318,8 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
             Map<String, Object> item = new HashMap<>();
             item.put("hour", h);
             item.put("count", hourCounts.get(h));
+            item.put("passCount", passCounts.get(h));
+            item.put("failCount", failCounts.get(h));
             item.put("label", String.format("%02d:00", h));
             result.add(item);
         }
@@ -305,16 +329,16 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
     @Override
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getTimeDistribution(LocalDateTime startTime, LocalDateTime endTime) {
-        // 计算时间范围跨度（天数）
         long days = java.time.Duration.between(startTime, endTime).toDays();
         System.out.println("getTimeDistribution: start=" + startTime + ", end=" + endTime + ", days=" + days);
 
         if (days <= 1) {
-            // 一天内：按小时统计
             return getHourlyDistribution();
         } else {
-            // 多天：按天统计
-            List<Map<String, Object>> dbRows = mapper.selectDailyDistribution(startTime, endTime);
+            String sql = "SELECT DATE(inspection_time) AS date, COUNT(*) AS count " +
+                    "FROM %s WHERE inspection_time >= ? AND inspection_time < ? " +
+                    "GROUP BY DATE(inspection_time) ORDER BY date";
+            List<Map<String, Object>> dbRows = dynamicTableService.crossTableGroupBy(sql, startTime, endTime);
             System.out.println("Daily distribution result count: " + dbRows.size());
             List<Map<String, Object>> result = new ArrayList<>();
             for (Map<String, Object> row : dbRows) {
@@ -331,58 +355,77 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
     @Override
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getGoodsTypeStats(LocalDateTime startTime, LocalDateTime endTime) {
-        return mapper.selectGoodsTypeStats(startTime, endTime);
+        String sql = "SELECT goods_type, COUNT(*) AS count FROM %s WHERE inspection_time >= ? AND inspection_time < ? GROUP BY goods_type";
+        return dynamicTableService.crossTableGoodsTypeStats(sql, startTime, endTime);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getGoodsTypeStatsByVariety(LocalDateTime startTime, LocalDateTime endTime) {
-        return mapper.selectGoodsTypeStatsByVariety(startTime, endTime);
+        String sql = "SELECT goods_type, COUNT(*) AS count FROM %s WHERE inspection_time >= ? AND inspection_time < ? GROUP BY goods_type";
+        return dynamicTableService.crossTableGoodsTypeStatsByVariety(sql, startTime, endTime);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getGoodsTypeStatsAll() {
-        return mapper.selectGoodsTypeStatsAll();
+        String sql = "SELECT goods_type, COUNT(*) AS count FROM %s GROUP BY goods_type ORDER BY count DESC";
+        return dynamicTableService.crossTableGoodsTypeStatsAll(sql);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getGoodsTypeStatsForCloud() {
-        return mapper.selectGoodsTypeStatsForCloud();
+        String sql = "SELECT goods_type, COUNT(*) AS count FROM %s GROUP BY goods_type ORDER BY count DESC LIMIT 70";
+        return dynamicTableService.crossTableGoodsTypeStatsForCloud(sql);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getGoodsTypeStatsByCategory() {
-        return mapper.selectGoodsTypeStatsByCategory();
+        String sql = "SELECT goods_type, COUNT(*) AS count FROM %s GROUP BY goods_type ORDER BY count DESC";
+        return dynamicTableService.crossTableGoodsTypeStatsByCategory(sql);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<VehicleInspection> getRecentRecords(int limit) {
-        LambdaQueryWrapper<VehicleInspection> wrapper = new LambdaQueryWrapper<>();
-        wrapper.orderByDesc(VehicleInspection::getInspectionTime);
-        return mapper.selectPage(new Page<>(1, limit), wrapper).getRecords();
+        List<Map<String, Object>> rows = dynamicTableService.crossTableRecentRecords(limit);
+        return rows.stream().map(this::mapToVehicleInspection).collect(Collectors.toList());
     }
 
     @Override
     @Transactional(readOnly = true)
     public Map<String, Object> getDatascreenStats() {
-        return mapper.selectDatascreenStats();
+        return dynamicTableService.crossTableDatascreenStats();
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getCreditRanking() {
-        return mapper.selectCreditRanking();
+        String sql = "SELECT plate_number AS plateNumber, " +
+                "SUM(CASE WHEN result_status = 1 THEN 1 ELSE 0 END) AS passCount, " +
+                "COUNT(*) AS totalCount, " +
+                "ROUND(SUM(CASE WHEN result_status = 1 THEN 1 ELSE 0 END) * 10.0 / COUNT(*), 1) AS creditScore " +
+                "FROM %s GROUP BY plate_number ORDER BY passCount DESC LIMIT 3";
+        List<Map<String, Object>> allRows = dynamicTableService.crossTableCreditRanking(sql, LocalDateTime.now().minusYears(10), LocalDateTime.now());
+        // 按 passCount 降序取前3
+        return allRows.stream()
+                .sorted((a, b) -> Long.compare(
+                        ((Number) b.getOrDefault("passCount", 0)).longValue(),
+                        ((Number) a.getOrDefault("passCount", 0)).longValue()))
+                .limit(3)
+                .collect(Collectors.toList());
     }
 
     @Override
     @Transactional(readOnly = true)
     public Map<String, Object> getInfoOverview(LocalDateTime startTime, LocalDateTime endTime) {
-        // 只查询绿通减免和追逃费用（其他字段由 Controller 复用已有数据）
-        Map<String, Object> result = mapper.selectInfoOverview(startTime, endTime);
+        String sql = "SELECT " +
+                "COALESCE(SUM(CASE WHEN result_status = 1 THEN passcode_fee ELSE 0 END), 0) AS exemptFee, " +
+                "COALESCE(SUM(CASE WHEN result_status = 2 THEN passcode_fee ELSE 0 END), 0) AS chaseFee " +
+                "FROM %s WHERE inspection_time >= ? AND inspection_time < ?";
+        Map<String, Object> result = dynamicTableService.crossTableAggregate(sql, startTime, endTime);
 
         double exemptFee = result.get("exemptFee") != null ? ((Number) result.get("exemptFee")).doubleValue() : 0.0;
         double chaseFee = result.get("chaseFee") != null ? ((Number) result.get("chaseFee")).doubleValue() : 0.0;
@@ -396,19 +439,32 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
     @Override
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getHourlyDistributionByRange(LocalDateTime startTime, LocalDateTime endTime, String timeType) {
+        String hourlySql = "SELECT HOUR(inspection_time) AS hour, " +
+                "COUNT(*) AS count, " +
+                "SUM(CASE WHEN result_status = 1 THEN 1 ELSE 0 END) AS passCount, " +
+                "SUM(CASE WHEN result_status = 2 THEN 1 ELSE 0 END) AS failCount " +
+                "FROM %s WHERE inspection_time >= ? AND inspection_time < ? " +
+                "GROUP BY HOUR(inspection_time) ORDER BY hour";
+        String dailySql = "SELECT DATE(inspection_time) AS label, COUNT(*) AS count, " +
+                "SUM(CASE WHEN result_status = 1 THEN 1 ELSE 0 END) AS passCount, " +
+                "SUM(CASE WHEN result_status = 2 THEN 1 ELSE 0 END) AS failCount " +
+                "FROM %s WHERE inspection_time >= ? AND inspection_time < ? " +
+                "GROUP BY DATE(inspection_time) ORDER BY label";
+        String monthlySql = "SELECT DATE_FORMAT(inspection_time, '%Y-%m') AS label, COUNT(*) AS count, " +
+                "SUM(CASE WHEN result_status = 1 THEN 1 ELSE 0 END) AS passCount, " +
+                "SUM(CASE WHEN result_status = 2 THEN 1 ELSE 0 END) AS failCount " +
+                "FROM %s WHERE inspection_time >= ? AND inspection_time < ? " +
+                "GROUP BY DATE_FORMAT(inspection_time, '%Y-%m') ORDER BY label";
+
         switch (timeType) {
             case "day":
-                // 按小时统计（24小时分布），补充完整24小时数据
-                return fillHourlyData(mapper.selectHourlyDistribution(startTime, endTime));
+                return fillHourlyData(dynamicTableService.crossTableGroupBy(hourlySql, startTime, endTime));
             case "month":
-                // 按天统计（当月所有天数），补充完整日期数据
-                return fillDailyData(mapper.selectTimeDistribution(startTime, endTime), startTime.toLocalDate(), endTime.toLocalDate());
+                return fillDailyData(dynamicTableService.crossTableGroupBy(dailySql, startTime, endTime), startTime.toLocalDate(), endTime.toLocalDate());
             case "year":
-                // 按月统计（最近12月），补充完整12月数据
-                return fillMonthlyData(mapper.selectMonthlyDistribution(startTime, endTime));
+                return fillMonthlyData(dynamicTableService.crossTableGroupBy(monthlySql, startTime, endTime));
             default:
-                // 默认按小时统计
-                return fillHourlyData(mapper.selectHourlyDistribution(startTime, endTime));
+                return fillHourlyData(dynamicTableService.crossTableGroupBy(hourlySql, startTime, endTime));
         }
     }
 
@@ -519,40 +575,73 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
     @Override
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getVehicleTypeStats(LocalDateTime startTime, LocalDateTime endTime) {
-        return mapper.selectVehicleTypeStats(startTime, endTime);
+        String sql = "SELECT vehicle_type AS type, COUNT(*) AS count " +
+                "FROM %s WHERE inspection_time >= ? AND inspection_time < ? " +
+                "GROUP BY vehicle_type ORDER BY count DESC";
+        return dynamicTableService.crossTableGroupBy(sql, startTime, endTime);
     }
 
 
     @Override
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getProcessTimeDistribution(LocalDateTime startTime, LocalDateTime endTime, String timeType) {
+        String hourlySql = "SELECT HOUR(inspection_time) AS hour, " +
+                "AVG(TIMESTAMPDIFF(SECOND, acceptance_time, inspection_time)) AS avgSeconds " +
+                "FROM %s WHERE acceptance_time IS NOT NULL AND inspection_time IS NOT NULL " +
+                "AND inspection_time >= ? AND inspection_time < ? " +
+                "GROUP BY HOUR(inspection_time) ORDER BY hour";
+        String dailySql = "SELECT DATE(inspection_time) AS label, " +
+                "AVG(TIMESTAMPDIFF(SECOND, acceptance_time, inspection_time)) AS avgSeconds " +
+                "FROM %s WHERE acceptance_time IS NOT NULL AND inspection_time IS NOT NULL " +
+                "AND inspection_time >= ? AND inspection_time < ? " +
+                "GROUP BY DATE(inspection_time) ORDER BY label";
+        String monthlySql = "SELECT DATE_FORMAT(inspection_time, '%Y-%m') AS label, " +
+                "AVG(TIMESTAMPDIFF(SECOND, acceptance_time, inspection_time)) AS avgSeconds " +
+                "FROM %s WHERE acceptance_time IS NOT NULL AND inspection_time IS NOT NULL " +
+                "AND inspection_time >= ? AND inspection_time < ? " +
+                "GROUP BY DATE_FORMAT(inspection_time, '%Y-%m') ORDER BY label";
+
         switch (timeType) {
             case "day":
-                return fillHourlyProcessTime(mapper.selectHourlyProcessTime(startTime, endTime));
+                return fillHourlyProcessTime(dynamicTableService.crossTableProcessTime(hourlySql, startTime, endTime));
             case "month":
-                return fillDailyProcessTime(mapper.selectDailyProcessTime(startTime, endTime), startTime.toLocalDate(), endTime.toLocalDate());
+                return fillDailyProcessTime(dynamicTableService.crossTableProcessTime(dailySql, startTime, endTime), startTime.toLocalDate(), endTime.toLocalDate());
             case "year":
-                return fillMonthlyProcessTime(mapper.selectMonthlyProcessTime(startTime, endTime));
+                return fillMonthlyProcessTime(dynamicTableService.crossTableProcessTime(monthlySql, startTime, endTime));
             default:
-                return fillHourlyProcessTime(mapper.selectHourlyProcessTime(startTime, endTime));
+                return fillHourlyProcessTime(dynamicTableService.crossTableProcessTime(hourlySql, startTime, endTime));
         }
     }
 
     @Override
     public Map<String, Object> getAvgProcessTime(LocalDateTime startTime, LocalDateTime endTime) {
-        return mapper.selectAvgProcessTime(startTime, endTime);
+        String sql = "SELECT " +
+                "COUNT(*) AS totalCount, " +
+                "AVG(TIMESTAMPDIFF(SECOND, acceptance_time, inspection_time)) AS avgSeconds " +
+                "FROM %s WHERE acceptance_time IS NOT NULL AND inspection_time IS NOT NULL " +
+                "AND inspection_time >= ? AND inspection_time < ?";
+        return dynamicTableService.crossTableAggregate(sql, startTime, endTime);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Map<String, Object> getAvgDetectionTime(LocalDateTime startTime, LocalDateTime endTime) {
-        return mapper.selectAvgDetectionTime(startTime, endTime);
+        String sql = "SELECT " +
+                "AVG(TIMESTAMPDIFF(SECOND, acceptance_time, cd_photo_time)) AS avgSeconds " +
+                "FROM %s WHERE acceptance_time IS NOT NULL AND cd_photo_time IS NOT NULL " +
+                "AND inspection_time >= ? AND inspection_time < ?";
+        return dynamicTableService.crossTableAggregate(sql, startTime, endTime);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Map<String, Object> getMostProvince(LocalDateTime startTime, LocalDateTime endTime) {
-        List<Map<String, Object>> provinceList = mapper.selectProvinceStats(startTime, endTime);
+        String provinceSql = "SELECT si.province AS provinceCode, COUNT(*) AS count " +
+                "FROM %s vi INNER JOIN station_info si ON si.station_id = vi.passcode_en_station_id " +
+                "WHERE vi.inspection_time >= ? AND vi.inspection_time < ? " +
+                "AND si.province IS NOT NULL AND si.province != '' AND si.province != '42' " +
+                "GROUP BY si.province ORDER BY count DESC";
+        List<Map<String, Object>> provinceList = dynamicTableService.crossTableProvinceStats(provinceSql, startTime, endTime);
         if (provinceList == null || provinceList.isEmpty()) {
             Map<String, Object> empty = new HashMap<>();
             empty.put("provinceName", "暂无数据");
@@ -570,7 +659,12 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
         long totalCount = ((Number) top.get("count")).longValue();
 
         // 湖北省内出现次数最多的站点（固定查42省份）
-        List<Map<String, Object>> hubeiStationStats = mapper.selectTopStationInHubei(startTime, endTime);
+        String hubeiSql = "SELECT si.station_name AS stationName, COUNT(*) AS count " +
+                "FROM %s vi INNER JOIN station_info si ON si.station_id = vi.passcode_en_station_id " +
+                "WHERE vi.inspection_time >= ? AND vi.inspection_time < ? " +
+                "AND si.province = '42' AND si.station_name IS NOT NULL AND si.station_name != '' " +
+                "GROUP BY si.station_name ORDER BY count DESC LIMIT 1";
+        List<Map<String, Object>> hubeiStationStats = dynamicTableService.crossTableTopStationInHubei(hubeiSql, startTime, endTime);
         String topStation = "";
         long topStationCount = 0;
         if (hubeiStationStats != null && !hubeiStationStats.isEmpty()) {
@@ -591,7 +685,11 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
     @Override
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getProvinceStatsAll() {
-        List<Map<String, Object>> provinceList = mapper.selectProvinceStatsAll();
+        String sql = "SELECT si.province AS provinceCode, COUNT(*) AS count " +
+                "FROM %s vi INNER JOIN station_info si ON si.station_id = vi.passcode_en_station_id " +
+                "WHERE si.province IS NOT NULL AND si.province != '' " +
+                "GROUP BY si.province ORDER BY count DESC";
+        List<Map<String, Object>> provinceList = dynamicTableService.crossTableProvinceStatsAll(sql);
         for (Map<String, Object> item : provinceList) {
             String provinceCode = item.get("provinceCode") != null ? item.get("provinceCode").toString() : "";
             String provinceName = provinceCacheService.getProvinceNameByCode(provinceCode);
@@ -703,18 +801,6 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
         }
         if (toTransportdeptState != null) {
             wrapper.eq(VehicleInspection::getToTransportdeptState, toTransportdeptState);
-        }
-        if (StringUtils.hasText(goodsType)) {
-            String[] codes = goodsType.split("\\|");
-            wrapper.and(w -> {
-                for (int i = 0; i < codes.length; i++) {
-                    if (i == 0) {
-                        w.like(VehicleInspection::getGoodsType, codes[i].trim());
-                    } else {
-                        w.or().like(VehicleInspection::getGoodsType, codes[i].trim());
-                    }
-                }
-            });
         }
 
         wrapper.orderByAsc(VehicleInspection::getAcceptanceTime);

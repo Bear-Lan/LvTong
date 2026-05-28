@@ -12,7 +12,10 @@ import java.util.Map;
 
 /**
  * 车辆查验记录 Mapper
+ * @deprecated 分表后不再使用固定表名，所有查询已迁移到 DynamicTableService 跨表查询
  */
+@Mapper
+@Deprecated
 public interface VehicleInspectionMapper extends BaseMapper<VehicleInspection> {
 
     /**
@@ -20,7 +23,9 @@ public interface VehicleInspectionMapper extends BaseMapper<VehicleInspection> {
      * 【性能说明】
      * 直接在数据库层用 COUNT 聚合，只返回 3 行数字结果，
      * 不再把全量记录拉到 Java 内存遍历，效率提升 10 倍以上。
+     * @deprecated 分表后使用 DynamicTableService.crossTableAggregate()
      */
+    @Deprecated
     @Select("SELECT COUNT(*) AS total, " +
             "SUM(CASE WHEN result_status = 1 THEN 1 ELSE 0 END) AS passCount, " +
             "SUM(CASE WHEN result_status = 2 THEN 1 ELSE 0 END) AS failCount " +

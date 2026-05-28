@@ -1,6 +1,10 @@
 package com.lvtong.LvTongTransportDept.service;
 
 import com.lvtong.LvTongTransportDept.constant.VehicleConstants;
+import com.lvtong.LvTongTransportDept.entity.AgriculturalProduct;
+import com.lvtong.LvTongTransportDept.entity.StationInfo;
+import com.lvtong.LvTongTransportDept.mapper.AgriculturalProductMapper;
+import com.lvtong.LvTongTransportDept.mapper.StationInfoMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,12 +20,15 @@ import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.Statement;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Base64;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * 动态表管理服务
@@ -43,6 +50,12 @@ public class DynamicTableService {
     @Autowired
     private ProvinceCacheService provinceCacheService;
 
+    @Autowired
+    private StationInfoMapper stationInfoMapper;
+
+    @Autowired
+    private AgriculturalProductMapper agriculturalProductMapper;
+
     /**
      * 图片存储基础路径
      */
@@ -53,6 +66,783 @@ public class DynamicTableService {
      * 缓存已创建的表，避免重复检查
      */
     private final ConcurrentHashMap<String, Boolean> createdTables = new ConcurrentHashMap<>();
+
+    /**
+     * 站点ID列表缓存（10分钟过期）
+     * key: "allStationIds", value: List of stationId
+     */
+    private final ConcurrentHashMap<String, Object> stationIdCache = new ConcurrentHashMap<>();
+    private static final String STATION_ID_CACHE_KEY = "allStationIds";
+    private static final long STATION_ID_CACHE_TTL_MS = 10 * 60 * 1000; // 10分钟
+
+    /**
+     * 获取所有站点ID列表（带10分钟缓存）
+     */
+    public List<String> getAllStationIds() {
+        long now = System.currentTimeMillis();
+        Object cached = stationIdCache.get(STATION_ID_CACHE_KEY);
+        if (cached instanceof StationIdCache cache) {
+            if (now - cache.timestamp < STATION_ID_CACHE_TTL_MS) {
+                return cache.stationIds;
+            }
+        }
+        List<String> stationIds = stationInfoMapper.selectList(null)
+                .stream()
+                .map(StationInfo::getStationId)
+                .filter(Objects::nonNull)
+                .filter(id -> !id.isEmpty())
+                .collect(Collectors.toList());
+        stationIdCache.put(STATION_ID_CACHE_KEY, new StationIdCache(stationIds, now));
+        log.info("刷新站点ID缓存，共 {} 个站点", stationIds.size());
+        return stationIds;
+    }
+
+    /**
+     * 站点ID缓存对象
+     */
+    private static class StationIdCache {
+        final List<String> stationIds;
+        final long timestamp;
+        StationIdCache(List<String> stationIds, long timestamp) {
+            this.stationIds = stationIds;
+            this.timestamp = timestamp;
+        }
+    }
+
+    /**
+     * 在单表执行查询并返回结果列表
+     */
+    private List<Map<String, Object>> executeQueryOnTable(String sql, String tableName, LocalDateTime startTime, LocalDateTime endTime) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(String.format(sql, tableName))) {
+            ps.setObject(1, startTime);
+            ps.setObject(2, endTime);
+            try (ResultSet rs = ps.executeQuery()) {
+                ResultSetMetaData metaData = rs.getMetaData();
+                int columnCount = metaData.getColumnCount();
+                while (rs.next()) {
+                    Map<String, Object> row = new HashMap<>();
+                    for (int i = 1; i <= columnCount; i++) {
+                        row.put(metaData.getColumnLabel(i), rs.getObject(i));
+                    }
+                    result.add(row);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("查询表 {} 失败: {}", tableName, e.getMessage());
+        }
+        return result;
+    }
+
+    /**
+     * 在单表执行聚合查询（无GROUP BY）
+     */
+    private Map<String, Object> executeAggregateOnTable(String sql, String tableName, LocalDateTime startTime, LocalDateTime endTime) {
+        Map<String, Object> result = new HashMap<>();
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(String.format(sql, tableName))) {
+            ps.setObject(1, startTime);
+            ps.setObject(2, endTime);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    ResultSetMetaData metaData = rs.getMetaData();
+                    int columnCount = metaData.getColumnCount();
+                    for (int i = 1; i <= columnCount; i++) {
+                        result.put(metaData.getColumnLabel(i), rs.getObject(i));
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("聚合查询表 {} 失败: {}", tableName, e.getMessage());
+        }
+        return result;
+    }
+
+    /**
+     * 跨表聚合查询（无GROUP BY）
+     * 用于 selectTodayStats, selectExemptRate, selectAvgProcessTime, selectAvgDetectionTime, selectInfoOverview
+     */
+    public Map<String, Object> crossTableAggregate(String sql, LocalDateTime startTime, LocalDateTime endTime) {
+        List<String> stationIds = getAllStationIds();
+        Map<String, Object> merged = new HashMap<>();
+        for (String stationId : stationIds) {
+            String tableName = getTableNameByStationId(stationId);
+            Map<String, Object> row = executeAggregateOnTable(sql, tableName, startTime, endTime);
+            for (Map.Entry<String, Object> entry : row.entrySet()) {
+                String key = entry.getKey();
+                Object v1 = merged.get(key);
+                Object v2 = entry.getValue();
+                if (v1 == null) {
+                    merged.put(key, v2);
+                } else if (v1 instanceof Number && v2 instanceof Number) {
+                    merged.put(key, ((Number) v1).doubleValue() + ((Number) v2).doubleValue());
+                }
+            }
+        }
+        return merged;
+    }
+
+    /**
+     * 跨表GROUP BY查询（按时间维度）
+     * 用于 selectHourlyDistribution, selectDailyDistribution, selectTimeDistribution, selectMonthlyDistribution
+     */
+    public List<Map<String, Object>> crossTableGroupBy(String sql, LocalDateTime startTime, LocalDateTime endTime) {
+        List<String> stationIds = getAllStationIds();
+        List<Map<String, Object>> allRows = new ArrayList<>();
+        for (String stationId : stationIds) {
+            String tableName = getTableNameByStationId(stationId);
+            allRows.addAll(executeQueryOnTable(sql, tableName, startTime, endTime));
+        }
+        return allRows;
+    }
+
+    /**
+     * 跨表GROUP BY查询（按字段维度）
+     * 用于 selectVehicleTypeStats
+     */
+    public List<Map<String, Object>> crossTableGroupByField(String sql, LocalDateTime startTime, LocalDateTime endTime) {
+        return crossTableGroupBy(sql, startTime, endTime);
+    }
+
+    /**
+     * 跨表处理时长查询（按小时/天/月）
+     */
+    public List<Map<String, Object>> crossTableProcessTime(String sql, LocalDateTime startTime, LocalDateTime endTime) {
+        return crossTableGroupBy(sql, startTime, endTime);
+    }
+
+    /**
+     * 跨表查询信用排行（跨所有站点查，然后取前3）
+     */
+    public List<Map<String, Object>> crossTableCreditRanking(String sql, LocalDateTime startTime, LocalDateTime endTime) {
+        List<String> stationIds = getAllStationIds();
+        List<Map<String, Object>> allRows = new ArrayList<>();
+        for (String stationId : stationIds) {
+            String tableName = getTableNameByStationId(stationId);
+            allRows.addAll(executeQueryOnTable(sql, tableName, startTime, endTime));
+        }
+        return allRows;
+    }
+
+    /**
+     * 跨表货物类型统计
+     * 先查所有站点的 goods_type 计数，再在 Java 中 JOIN agricultural_products
+     */
+    public List<Map<String, Object>> crossTableGoodsTypeStats(String sql, LocalDateTime startTime, LocalDateTime endTime) {
+        List<String> stationIds = getAllStationIds();
+        // 收集所有 goods_type 计数
+        Map<String, Long> goodsTypeCounts = new HashMap<>();
+        for (String stationId : stationIds) {
+            String tableName = getTableNameByStationId(stationId);
+            List<Map<String, Object>> rows = executeQueryOnTable(sql, tableName, startTime, endTime);
+            for (Map<String, Object> row : rows) {
+                String goodsType = row.get("goods_type") != null ? row.get("goods_type").toString() : "未填写";
+                long count = row.get("count") != null ? ((Number) row.get("count")).longValue() : 0L;
+                goodsTypeCounts.merge(goodsType, count, Long::sum);
+            }
+        }
+        // 在 Java 中 JOIN agricultural_products 获取 product_type 和 variety_name
+        List<Map<String, Object>> result = new ArrayList<>();
+        Map<String, AgriculturalProduct> productCache = new HashMap<>();
+        for (Map.Entry<String, Long> entry : goodsTypeCounts.entrySet()) {
+            String goodsType = entry.getKey();
+            Long count = entry.getValue();
+            String productType;
+            if (goodsType.contains("|")) {
+                String[] codes = goodsType.split("\\|");
+                StringBuilder sb = new StringBuilder();
+                for (String code : codes) {
+                    AgriculturalProduct p = getProductByCode(code.trim(), productCache);
+                    if (p != null) {
+                        if (sb.length() > 0) sb.append("|");
+                        sb.append(p.getProductType());
+                    }
+                }
+                productType = sb.length() > 0 ? sb.toString() : "未填写";
+            } else {
+                AgriculturalProduct p = getProductByCode(goodsType, productCache);
+                productType = p != null ? p.getProductType() : "未填写";
+            }
+            Map<String, Object> item = new HashMap<>();
+            item.put("productType", productType);
+            item.put("count", count);
+            result.add(item);
+        }
+        return result;
+    }
+
+    private AgriculturalProduct getProductByCode(String code, Map<String, AgriculturalProduct> cache) {
+        if (code == null || code.isEmpty()) return null;
+        AgriculturalProduct p = cache.get(code);
+        if (p == null) {
+            p = agriculturalProductMapper.selectOne(
+                    new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AgriculturalProduct>()
+                            .eq(AgriculturalProduct::getProductCode, code));
+            if (p != null) cache.put(code, p);
+        }
+        return p;
+    }
+
+    /**
+     * 跨表货物类型统计（按品种名，用于信息卡片）
+     */
+    public List<Map<String, Object>> crossTableGoodsTypeStatsByVariety(String sql, LocalDateTime startTime, LocalDateTime endTime) {
+        List<String> stationIds = getAllStationIds();
+        Map<String, Long> varietyCounts = new HashMap<>();
+        for (String stationId : stationIds) {
+            String tableName = getTableNameByStationId(stationId);
+            List<Map<String, Object>> rows = executeQueryOnTable(sql, tableName, startTime, endTime);
+            for (Map<String, Object> row : rows) {
+                String goodsType = row.get("goods_type") != null ? row.get("goods_type").toString() : "未填写";
+                long count = row.get("count") != null ? ((Number) row.get("count")).longValue() : 0L;
+                varietyCounts.merge(goodsType, count, Long::sum);
+            }
+        }
+        // 在 Java 中 JOIN agricultural_products 获取 variety_name
+        List<Map<String, Object>> result = new ArrayList<>();
+        Map<String, AgriculturalProduct> productCache = new HashMap<>();
+        for (Map.Entry<String, Long> entry : varietyCounts.entrySet()) {
+            String goodsType = entry.getKey();
+            Long count = entry.getValue();
+            String varietyName;
+            if (goodsType.contains("|")) {
+                String[] codes = goodsType.split("\\|");
+                StringBuilder sb = new StringBuilder();
+                for (String code : codes) {
+                    AgriculturalProduct p = getProductByCode(code.trim(), productCache);
+                    if (p != null) {
+                        if (sb.length() > 0) sb.append("|");
+                        sb.append(p.getVarietyName());
+                    }
+                }
+                varietyName = sb.length() > 0 ? sb.toString() : "未填写";
+            } else {
+                AgriculturalProduct p = getProductByCode(goodsType, productCache);
+                varietyName = p != null ? p.getVarietyName() : "未填写";
+            }
+            Map<String, Object> item = new HashMap<>();
+            item.put("goodsTypeName", varietyName);
+            item.put("count", count);
+            result.add(item);
+        }
+        return result;
+    }
+
+    /**
+     * 跨表货物类型全量统计（不限时间）
+     */
+    public List<Map<String, Object>> crossTableGoodsTypeStatsAll(String sql) {
+        List<String> stationIds = getAllStationIds();
+        Map<String, Long> varietyCounts = new HashMap<>();
+        for (String stationId : stationIds) {
+            String tableName = getTableNameByStationId(stationId);
+            List<Map<String, Object>> rows = executeQueryOnTableNoTime(sql, tableName);
+            for (Map<String, Object> row : rows) {
+                String goodsType = row.get("goods_type") != null ? row.get("goods_type").toString() : "未填写";
+                long count = row.get("count") != null ? ((Number) row.get("count")).longValue() : 0L;
+                varietyCounts.merge(goodsType, count, Long::sum);
+            }
+        }
+        Map<String, AgriculturalProduct> productCache = new HashMap<>();
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map.Entry<String, Long> entry : varietyCounts.entrySet()) {
+            String goodsType = entry.getKey();
+            Long count = entry.getValue();
+            String varietyName;
+            if (goodsType.contains("|")) {
+                String[] codes = goodsType.split("\\|");
+                StringBuilder sb = new StringBuilder();
+                for (String code : codes) {
+                    AgriculturalProduct p = getProductByCode(code.trim(), productCache);
+                    if (p != null) {
+                        if (sb.length() > 0) sb.append("|");
+                        sb.append(p.getVarietyName());
+                    }
+                }
+                varietyName = sb.length() > 0 ? sb.toString() : "未填写";
+            } else {
+                AgriculturalProduct p = getProductByCode(goodsType, productCache);
+                varietyName = p != null ? p.getVarietyName() : "未填写";
+            }
+            Map<String, Object> item = new HashMap<>();
+            item.put("goodsTypeName", varietyName);
+            item.put("count", count);
+            result.add(item);
+        }
+        return result;
+    }
+
+    /**
+     * 跨表货物类型词云统计
+     */
+    public List<Map<String, Object>> crossTableGoodsTypeStatsForCloud(String sql) {
+        return crossTableGoodsTypeStatsAll(sql);
+    }
+
+    /**
+     * 跨表货物类型饼图统计（按大类）
+     */
+    public List<Map<String, Object>> crossTableGoodsTypeStatsByCategory(String sql) {
+        List<String> stationIds = getAllStationIds();
+        Map<String, Long> typeCounts = new HashMap<>();
+        for (String stationId : stationIds) {
+            String tableName = getTableNameByStationId(stationId);
+            List<Map<String, Object>> rows = executeQueryOnTableNoTime(sql, tableName);
+            for (Map<String, Object> row : rows) {
+                String goodsType = row.get("goods_type") != null ? row.get("goods_type").toString() : "未填写";
+                long count = row.get("count") != null ? ((Number) row.get("count")).longValue() : 0L;
+                typeCounts.merge(goodsType, count, Long::sum);
+            }
+        }
+        Map<String, AgriculturalProduct> productCache = new HashMap<>();
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map.Entry<String, Long> entry : typeCounts.entrySet()) {
+            String goodsType = entry.getKey();
+            Long count = entry.getValue();
+            String productType;
+            if (goodsType.contains("|")) {
+                String[] codes = goodsType.split("\\|");
+                String firstCode = codes[0].trim();
+                AgriculturalProduct p = getProductByCode(firstCode, productCache);
+                productType = p != null ? p.getProductType() : "未填写";
+            } else {
+                AgriculturalProduct p = getProductByCode(goodsType, productCache);
+                productType = p != null ? p.getProductType() : "未填写";
+            }
+            Map<String, Object> item = new HashMap<>();
+            item.put("name", productType);
+            item.put("count", count);
+            result.add(item);
+        }
+        return result;
+    }
+
+    private List<Map<String, Object>> executeQueryOnTableNoTime(String sql, String tableName) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(String.format(sql, tableName))) {
+            try (ResultSet rs = ps.executeQuery()) {
+                ResultSetMetaData metaData = rs.getMetaData();
+                int columnCount = metaData.getColumnCount();
+                while (rs.next()) {
+                    Map<String, Object> row = new HashMap<>();
+                    for (int i = 1; i <= columnCount; i++) {
+                        row.put(metaData.getColumnLabel(i), rs.getObject(i));
+                    }
+                    result.add(row);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("查询表 {} 失败: {}", tableName, e.getMessage());
+        }
+        return result;
+    }
+
+    /**
+     * 跨表省份统计
+     */
+    public List<Map<String, Object>> crossTableProvinceStats(String sql, LocalDateTime startTime, LocalDateTime endTime) {
+        List<String> stationIds = getAllStationIds();
+        Map<String, Long> stationCounts = new HashMap<>();
+        for (String stationId : stationIds) {
+            String tableName = getTableNameByStationId(stationId);
+            List<Map<String, Object>> rows = executeQueryOnTable(sql, tableName, startTime, endTime);
+            for (Map<String, Object> row : rows) {
+                String enStationId = row.get("passcode_en_station_id") != null ? row.get("passcode_en_station_id").toString() : null;
+                if (enStationId != null && !enStationId.isEmpty()) {
+                    long count = row.get("count") != null ? ((Number) row.get("count")).longValue() : 0L;
+                    stationCounts.merge(enStationId, count, Long::sum);
+                }
+            }
+        }
+        // 汇总按省份
+        Map<String, Long> provinceCounts = new HashMap<>();
+        for (Map.Entry<String, Long> entry : stationCounts.entrySet()) {
+            String province = provinceCacheService.getProvinceByStationId(entry.getKey());
+            if (province != null && !province.isEmpty() && !"42".equals(province)) {
+                provinceCounts.merge(province, entry.getValue(), Long::sum);
+            }
+        }
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map.Entry<String, Long> entry : provinceCounts.entrySet()) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("provinceCode", entry.getKey());
+            item.put("count", entry.getValue());
+            result.add(item);
+        }
+        result.sort((a, b) -> Long.compare((Long) b.get("count"), (Long) a.get("count")));
+        return result;
+    }
+
+    /**
+     * 跨表湖北省内站点统计
+     */
+    public List<Map<String, Object>> crossTableTopStationInHubei(String sql, LocalDateTime startTime, LocalDateTime endTime) {
+        List<String> stationIds = getAllStationIds();
+        Map<String, Long> hubeiStationCounts = new HashMap<>();
+        for (String stationId : stationIds) {
+            String province = provinceCacheService.getProvinceByStationId(stationId);
+            if (!"42".equals(province)) continue;
+            String tableName = getTableNameByStationId(stationId);
+            List<Map<String, Object>> rows = executeQueryOnTable(sql, tableName, startTime, endTime);
+            for (Map<String, Object> row : rows) {
+                String stationName = row.get("station_name") != null ? row.get("station_name").toString() : null;
+                if (stationName != null && !stationName.isEmpty()) {
+                    long count = row.get("count") != null ? ((Number) row.get("count")).longValue() : 0L;
+                    hubeiStationCounts.merge(stationName, count, Long::sum);
+                }
+            }
+        }
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map.Entry<String, Long> entry : hubeiStationCounts.entrySet()) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("stationName", entry.getKey());
+            item.put("count", entry.getValue());
+            result.add(item);
+        }
+        result.sort((a, b) -> Long.compare((Long) b.get("count"), (Long) a.get("count")));
+        return result;
+    }
+
+    /**
+     * 跨表省份统计（不限时间）
+     */
+    public List<Map<String, Object>> crossTableProvinceStatsAll(String sql) {
+        List<String> stationIds = getAllStationIds();
+        Map<String, Long> stationCounts = new HashMap<>();
+        for (String stationId : stationIds) {
+            String tableName = getTableNameByStationId(stationId);
+            List<Map<String, Object>> rows = executeQueryOnTableNoTime(sql, tableName);
+            for (Map<String, Object> row : rows) {
+                String enStationId = row.get("passcode_en_station_id") != null ? row.get("passcode_en_station_id").toString() : null;
+                if (enStationId != null && !enStationId.isEmpty()) {
+                    long count = row.get("count") != null ? ((Number) row.get("count")).longValue() : 0L;
+                    stationCounts.merge(enStationId, count, Long::sum);
+                }
+            }
+        }
+        Map<String, Long> provinceCounts = new HashMap<>();
+        for (Map.Entry<String, Long> entry : stationCounts.entrySet()) {
+            String province = provinceCacheService.getProvinceByStationId(entry.getKey());
+            if (province != null && !province.isEmpty()) {
+                provinceCounts.merge(province, entry.getValue(), Long::sum);
+            }
+        }
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map.Entry<String, Long> entry : provinceCounts.entrySet()) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("provinceCode", entry.getKey());
+            item.put("count", entry.getValue());
+            result.add(item);
+        }
+        result.sort((a, b) -> Long.compare((Long) b.get("count"), (Long) a.get("count")));
+        return result;
+    }
+
+    /**
+     * 跨表大屏统计（4个子查询）
+     */
+    public Map<String, Object> crossTableDatascreenStats() {
+        Map<String, Object> result = new HashMap<>();
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime startOfDay = now.toLocalDate().atStartOfDay();
+        LocalDateTime endOfDay = startOfDay.plusDays(1);
+
+        // 今日查验数量
+        String todaySql = "SELECT COUNT(*) AS cnt FROM %s WHERE DATE(inspection_time) = CURDATE()";
+        double todayTotal = 0;
+        for (String stationId : getAllStationIds()) {
+            Map<String, Object> row = executeAggregateOnTable(todaySql, getTableNameByStationId(stationId), startOfDay, endOfDay);
+            Object cnt = row.get("cnt");
+            if (cnt instanceof Number) todayTotal += ((Number) cnt).doubleValue();
+        }
+        result.put("todayTotal", (long) todayTotal);
+
+        // 总查验数量
+        String totalSql = "SELECT COUNT(*) AS cnt FROM %s";
+        double total = 0;
+        for (String stationId : getAllStationIds()) {
+            Map<String, Object> row = executeAggregateOnTable(totalSql, getTableNameByStationId(stationId), startOfDay, endOfDay);
+            Object cnt = row.get("cnt");
+            if (cnt instanceof Number) total += ((Number) cnt).doubleValue();
+        }
+        result.put("total", (long) total);
+
+        // 总通行费用
+        String feeSql = "SELECT COALESCE(SUM(passcode_fee), 0) AS totalFee FROM %s";
+        double totalFee = 0;
+        for (String stationId : getAllStationIds()) {
+            Map<String, Object> row = executeAggregateOnTable(feeSql, getTableNameByStationId(stationId), startOfDay, endOfDay);
+            Object fee = row.get("totalFee");
+            if (fee instanceof Number) totalFee += ((Number) fee).doubleValue();
+        }
+        result.put("totalPassAmount", totalFee);
+
+        // 伪绿通数量
+        String fakeSql = "SELECT COUNT(*) AS cnt FROM %s WHERE result_status = 2 AND nopass_type IN (21, 22, 23, 24)";
+        double fakeCount = 0;
+        for (String stationId : getAllStationIds()) {
+            Map<String, Object> row = executeAggregateOnTable(fakeSql, getTableNameByStationId(stationId), startOfDay, endOfDay);
+            Object cnt = row.get("cnt");
+            if (cnt instanceof Number) fakeCount += ((Number) cnt).doubleValue();
+        }
+        result.put("fakeGreenCount", (long) fakeCount);
+
+        return result;
+    }
+
+    /**
+     * 跨表查询最近记录
+     */
+    public List<Map<String, Object>> crossTableRecentRecords(int limit) {
+        List<String> stationIds = getAllStationIds();
+        List<Map<String, Object>> allRecords = new ArrayList<>();
+        String sql = "SELECT * FROM %s ORDER BY inspection_time DESC LIMIT %d";
+        for (String stationId : stationIds) {
+            String tableName = getTableNameByStationId(stationId);
+            allRecords.addAll(executeQueryOnTableNoTime(String.format(sql, tableName, limit), tableName));
+        }
+        // 按 inspection_time 降序排序，取前 limit 条
+        allRecords.sort((a, b) -> {
+            Object t1 = a.get("inspection_time");
+            Object t2 = b.get("inspection_time");
+            if (t1 == null && t2 == null) return 0;
+            if (t1 == null) return 1;
+            if (t2 == null) return -1;
+            return t2.toString().compareTo(t1.toString());
+        });
+        return allRecords.stream().limit(limit).collect(Collectors.toList());
+    }
+
+    /**
+     * 跨表条件查询（用于 searchWithConditions 和 searchForExport）
+     * 查询所有站点表，收集所有记录后按 inspection_time 排序
+     * 注意：这个方法会查询所有站点的所有数据，对于大数据量性能较差
+     */
+    public List<Map<String, Object>> crossTableSearch(
+            String plateNumber,
+            String driverPhone,
+            String operatorName,
+            String reviewerPhone,
+            LocalDateTime startTime,
+            LocalDateTime endTime,
+            Integer resultStatus,
+            Integer manualReviewState,
+            Integer toTransportdeptState) {
+        List<String> stationIds = getAllStationIds();
+        List<Map<String, Object>> allRecords = new ArrayList<>();
+
+        for (String stationId : stationIds) {
+            String tableName = getTableNameByStationId(stationId);
+            List<Map<String, Object>> rows = executeSearchOnTable(tableName, plateNumber, driverPhone,
+                    operatorName, reviewerPhone, startTime, endTime, resultStatus, manualReviewState, toTransportdeptState);
+            allRecords.addAll(rows);
+        }
+
+        // 按 inspection_time 降序排序
+        allRecords.sort((a, b) -> {
+            Object t1 = a.get("inspection_time");
+            Object t2 = b.get("inspection_time");
+            if (t1 == null && t2 == null) return 0;
+            if (t1 == null) return 1;
+            if (t2 == null) return -1;
+            return t2.toString().compareTo(t1.toString());
+        });
+
+        return allRecords;
+    }
+
+    private List<Map<String, Object>> executeSearchOnTable(
+            String tableName,
+            String plateNumber,
+            String driverPhone,
+            String operatorName,
+            String reviewerPhone,
+            LocalDateTime startTime,
+            LocalDateTime endTime,
+            Integer resultStatus,
+            Integer manualReviewState,
+            Integer toTransportdeptState) {
+        StringBuilder sql = new StringBuilder("SELECT * FROM ");
+        sql.append(tableName).append(" WHERE 1=1");
+
+        List<Object> params = new ArrayList<>();
+        int paramIndex = 0;
+
+        if (plateNumber != null && !plateNumber.isEmpty()) {
+            sql.append(" AND plate_number LIKE ?");
+            params.add("%" + plateNumber + "%");
+        }
+        if (driverPhone != null && !driverPhone.isEmpty()) {
+            sql.append(" AND driver_phone = ?");
+            params.add(driverPhone);
+        }
+        if (operatorName != null && !operatorName.isEmpty()) {
+            sql.append(" AND operator_name = ?");
+            params.add(operatorName);
+        }
+        if (reviewerPhone != null && !reviewerPhone.isEmpty()) {
+            sql.append(" AND reviewer_phone = ?");
+            params.add(reviewerPhone);
+        }
+        if (startTime != null) {
+            sql.append(" AND inspection_time >= ?");
+            params.add(startTime);
+        }
+        if (endTime != null) {
+            sql.append(" AND inspection_time < ?");
+            params.add(endTime);
+        }
+        if (resultStatus != null) {
+            sql.append(" AND result_status = ?");
+            params.add(resultStatus);
+        }
+        if (manualReviewState != null) {
+            sql.append(" AND manual_review_state = ?");
+            params.add(manualReviewState);
+        }
+        if (toTransportdeptState != null) {
+            sql.append(" AND to_transportdept_state = ?");
+            params.add(toTransportdeptState);
+        }
+
+        sql.append(" ORDER BY inspection_time DESC");
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            for (int i = 0; i < params.size(); i++) {
+                ps.setObject(i + 1, params.get(i));
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                ResultSetMetaData metaData = rs.getMetaData();
+                int columnCount = metaData.getColumnCount();
+                while (rs.next()) {
+                    Map<String, Object> row = new HashMap<>();
+                    for (int i = 1; i <= columnCount; i++) {
+                        row.put(metaData.getColumnLabel(i), rs.getObject(i));
+                    }
+                    result.add(row);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("查询表 {} 失败: {}", tableName, e.getMessage());
+        }
+        return result;
+    }
+
+    /**
+     * 跨表查询待审核列表（result_status=2 且 manual_review_state=0 或 null）
+     */
+    public List<Map<String, Object>> crossTablePendingReview(int limit) {
+        List<String> stationIds = getAllStationIds();
+        List<Map<String, Object>> allRecords = new ArrayList<>();
+
+        for (String stationId : stationIds) {
+            String tableName = getTableNameByStationId(stationId);
+            String sql = String.format(
+                    "SELECT * FROM %s WHERE result_status = 2 AND (manual_review_state = 0 OR manual_review_state IS NULL) ORDER BY inspection_time DESC LIMIT %d",
+                    tableName, limit);
+            allRecords.addAll(executeQueryOnTableNoTime(sql, tableName));
+        }
+
+        // 合并后排序取前 limit 条
+        allRecords.sort((a, b) -> {
+            Object t1 = a.get("inspection_time");
+            Object t2 = b.get("inspection_time");
+            if (t1 == null && t2 == null) return 0;
+            if (t1 == null) return 1;
+            if (t2 == null) return -1;
+            return t2.toString().compareTo(t1.toString());
+        });
+
+        return allRecords.stream().limit(limit).collect(Collectors.toList());
+    }
+
+    /**
+     * 跨表查询伪绿通列表（result_status=2 且 nopass_type=21）
+     */
+    public List<Map<String, Object>> crossTableFakeGreen(int limit) {
+        List<String> stationIds = getAllStationIds();
+        List<Map<String, Object>> allRecords = new ArrayList<>();
+
+        for (String stationId : stationIds) {
+            String tableName = getTableNameByStationId(stationId);
+            String sql = String.format(
+                    "SELECT * FROM %s WHERE result_status = 2 AND nopass_type = 21 ORDER BY inspection_time DESC LIMIT %d",
+                    tableName, limit);
+            allRecords.addAll(executeQueryOnTableNoTime(sql, tableName));
+        }
+
+        allRecords.sort((a, b) -> {
+            Object t1 = a.get("inspection_time");
+            Object t2 = b.get("inspection_time");
+            if (t1 == null && t2 == null) return 0;
+            if (t1 == null) return 1;
+            if (t2 == null) return -1;
+            return t2.toString().compareTo(t1.toString());
+        });
+
+        return allRecords.stream().limit(limit).collect(Collectors.toList());
+    }
+
+    /**
+     * 在指定表中按 ID 查询单条记录
+     */
+    public Map<String, Object> selectByIdOnTable(String tableName, Integer id) {
+        String sql = String.format("SELECT * FROM %s WHERE id = ?", tableName);
+        List<Map<String, Object>> result = new ArrayList<>();
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setObject(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                ResultSetMetaData metaData = rs.getMetaData();
+                int columnCount = metaData.getColumnCount();
+                while (rs.next()) {
+                    Map<String, Object> row = new HashMap<>();
+                    for (int i = 1; i <= columnCount; i++) {
+                        row.put(metaData.getColumnLabel(i), rs.getObject(i));
+                    }
+                    result.add(row);
+                }
+            }
+            return result.isEmpty() ? null : result.get(0);
+        } catch (Exception e) {
+            log.warn("查询表 {} id={} 失败: {}", tableName, id, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 在指定表中按 ID 更新记录
+     */
+    public void updateOnTable(String tableName, Integer id, Map<String, Object> fields) {
+        if (fields == null || fields.isEmpty()) return;
+        StringBuilder sql = new StringBuilder("UPDATE ");
+        sql.append(tableName).append(" SET ");
+        List<Object> params = new ArrayList<>();
+        boolean first = true;
+        for (Map.Entry<String, Object> entry : fields.entrySet()) {
+            if (first) first = false;
+            else sql.append(", ");
+            sql.append(entry.getKey()).append(" = ?");
+            params.add(entry.getValue());
+        }
+        sql.append(" WHERE id = ?");
+        params.add(id);
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            for (int i = 0; i < params.size(); i++) {
+                ps.setObject(i + 1, params.get(i));
+            }
+            ps.executeUpdate();
+            log.info("更新表 {} id={} 成功", tableName, id);
+        } catch (Exception e) {
+            log.warn("更新表 {} id={} 失败: {}", tableName, id, e.getMessage());
+            throw new RuntimeException("更新失败: " + e.getMessage(), e);
+        }
+    }
 
     /**
      * 根据 stationId 获取表名（直接使用 stationId 作为表名）
