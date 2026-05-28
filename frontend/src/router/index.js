@@ -25,6 +25,12 @@ const routes = [
     component: () => import('@/views/VideoMonitor.vue')
   },
   {
+    path: '/ai-showcase',
+    name: 'AIShowcase',
+    meta: { title: '绿通AI智能体' },
+    component: () => import('@/views/AIFeaturesShowcase.vue')
+  },
+  {
     path: '/',
     component: () => import('@/layout/Layout.vue'),
     meta: { requiresAuth: true },
@@ -57,7 +63,7 @@ const routes = [
         path: 'ai-detection',
         name: 'AIDetection',
         meta: { title: 'AI功能展示' },
-        component: () => import('@/views/AIDetection.vue')
+        component: () => import('@/views/AIFeaturesShowcase.vue')
       }
     ]
   }

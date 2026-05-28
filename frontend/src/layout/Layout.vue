@@ -35,9 +35,9 @@
           <el-icon><Van /></el-icon>
           <template #title>车辆查验</template>
         </el-menu-item>
-        <el-menu-item index="/ai-detection">
+        <el-menu-item index="/#ai-showcase" @click="openAIShowcase">
           <el-icon><MagicStick /></el-icon>
-          <template #title>AI功能</template>
+          <template #title>绿通AI智能体</template>
         </el-menu-item>
         <el-menu-item index="/#datascreen" @click="openDatascreen" v-if="userStore.userInfo.role === 0">
           <el-icon><Monitor /></el-icon>
@@ -150,6 +150,9 @@ const openDatascreen = () => {
 
 const openVideoMonitor = () => {
   window.open('/#/video', '_blank')
+}
+const openAIShowcase = () => {
+  window.open('/#/ai-showcase', '_blank')
 }
 </script>
 
