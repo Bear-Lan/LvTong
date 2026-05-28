@@ -52,6 +52,12 @@ const routes = [
         name: 'InspectionDurationAnalysis',
         meta: { title: '查验时长分析' },
         component: () => import('@/views/InspectionDurationAnalysis.vue')
+      },
+      {
+        path: 'ai-detection',
+        name: 'AIDetection',
+        meta: { title: 'AI功能展示' },
+        component: () => import('@/views/AIDetection.vue')
       }
     ]
   }

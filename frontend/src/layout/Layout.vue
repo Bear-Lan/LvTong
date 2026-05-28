@@ -35,6 +35,10 @@
           <el-icon><Van /></el-icon>
           <template #title>车辆查验</template>
         </el-menu-item>
+        <el-menu-item index="/ai-detection">
+          <el-icon><MagicStick /></el-icon>
+          <template #title>AI功能</template>
+        </el-menu-item>
         <el-menu-item index="/#datascreen" @click="openDatascreen" v-if="userStore.userInfo.role === 0">
           <el-icon><Monitor /></el-icon>
           <template #title>智慧大屏</template>
@@ -111,7 +115,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Fold, Expand, HomeFilled, User, SwitchButton, Van, Monitor, VideoCamera } from '@element-plus/icons-vue'
+import { Fold, Expand, HomeFilled, User, SwitchButton, Van, Monitor, VideoCamera, MagicStick } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
 
