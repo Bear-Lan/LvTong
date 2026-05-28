@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -61,7 +62,7 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
         DynamicTableService.RecordData record = convertToRecordData(inspection);
         dynamicTableService.insertRecord(tableName, record);
         // 查询刚插入的记录返回
-        Map<String, Object> row = dynamicTableService.selectByIdOnTable(tableName, record.checkId);
+        Map<String, Object> row = dynamicTableService.selectByIdOnTable(tableName, Integer.parseInt(record.checkId));
         return mapToVehicleInspection(row);
     }
 
@@ -805,5 +806,48 @@ public class VehicleInspectionServiceImpl implements VehicleInspectionService {
 
         wrapper.orderByAsc(VehicleInspection::getAcceptanceTime);
         return mapper.selectList(wrapper);
+    }
+
+    private VehicleInspection mapToVehicleInspection(Map<String, Object> row) {
+        VehicleInspection v = new VehicleInspection();
+        v.setId(row.get("id") != null ? ((Number) row.get("id")).intValue() : null);
+        v.setPlateNumber(row.get("plate_number") != null ? row.get("plate_number").toString() : null);
+        v.setPlateNumberGc(row.get("plate_number_gc") != null ? row.get("plate_number_gc").toString() : null);
+        v.setDriverPhone(row.get("driver_phone") != null ? row.get("driver_phone").toString() : null);
+        v.setVehicleType(row.get("vehicle_type") != null ? row.get("vehicle_type").toString() : null);
+        v.setVehicleContainertype(row.get("vehicle_containertype") != null ? row.get("vehicle_containertype").toString() : null);
+        v.setGoodsType(row.get("goods_type") != null ? row.get("goods_type").toString() : null);
+        v.setGoodsCategory(row.get("goods_category") != null ? row.get("goods_category").toString() : null);
+        v.setLoadRate(row.get("load_rate") != null ? new java.math.BigDecimal(row.get("load_rate").toString()) : null);
+        v.setLoadWeight(row.get("load_weight") != null ? new java.math.BigDecimal(row.get("load_weight").toString()) : null);
+        v.setVehicleSize(row.get("vehicle_size") != null ? row.get("vehicle_size").toString() : null);
+        v.setBodyImagePath(row.get("body_image_path") != null ? row.get("body_image_path").toString() : null);
+        v.setTransparentImagePath(row.get("transparent_image_path") != null ? row.get("transparent_image_path").toString() : null);
+        v.setHeadImagePath(row.get("head_image_path") != null ? row.get("head_image_path").toString() : null);
+        v.setTailImagePath(row.get("tail_image_path") != null ? row.get("tail_image_path").toString() : null);
+        v.setTopImagePath(row.get("top_image_path") != null ? row.get("top_image_path").toString() : null);
+        v.setGoodsImagePath(row.get("goods_image_path") != null ? row.get("goods_image_path").toString() : null);
+        v.setLicenseImagePath(row.get("license_image_path") != null ? row.get("license_image_path").toString() : null);
+        v.setPasscodeImagePath(row.get("passcode_image_path") != null ? row.get("passcode_image_path").toString() : null);
+        v.setPasscodeVehicleId(row.get("passcode_vehicle_id") != null ? row.get("passcode_vehicle_id").toString() : null);
+        v.setPasscodeVehicleDisplayId(row.get("passcode_vehicle_display_id") != null ? row.get("passcode_vehicle_display_id").toString() : null);
+        v.setPasscodeVehicleColorName(row.get("passcode_vehicle_color_name") != null ? row.get("passcode_vehicle_color_name").toString() : null);
+        v.setPasscodeEnStationId(row.get("passcode_en_station_id") != null ? row.get("passcode_en_station_id").toString() : null);
+        v.setPasscodeExStationId(row.get("passcode_ex_station_id") != null ? row.get("passcode_ex_station_id").toString() : null);
+        v.setPasscodeEnWeight(row.get("passcode_en_weight") != null ? row.get("passcode_en_weight").toString() : null);
+        v.setPasscodeExWeight(row.get("passcode_ex_weight") != null ? row.get("passcode_ex_weight").toString() : null);
+        v.setPasscodeMediaType(row.get("passcode_media_type") != null ? row.get("passcode_media_type").toString() : null);
+        v.setPasscodeTransactionId(row.get("passcode_transaction_id") != null ? row.get("passcode_transaction_id").toString() : null);
+        v.setPasscodePassId(row.get("passcode_pass_id") != null ? row.get("passcode_pass_id").toString() : null);
+        v.setPasscodeExTime(row.get("passcode_ex_time") != null ? row.get("passcode_ex_time").toString() : null);
+        v.setPasscodeFee(row.get("passcode_fee") != null ? row.get("passcode_fee").toString() : null);
+        v.setOperatorName(row.get("operator_name") != null ? row.get("operator_name").toString() : null);
+        v.setReviewerPhone(row.get("reviewer_phone") != null ? row.get("reviewer_phone").toString() : null);
+        v.setInspectionTime(row.get("inspection_time") != null ? LocalDateTime.parse(row.get("inspection_time").toString().replace(" ", "T")) : null);
+        v.setAcceptanceTime(row.get("acceptance_time") != null ? LocalDateTime.parse(row.get("acceptance_time").toString().replace(" ", "T")) : null);
+        v.setResultStatus(row.get("result_status") != null ? ((Number) row.get("result_status")).intValue() : null);
+        v.setManualReviewState(row.get("manual_review_state") != null ? ((Number) row.get("manual_review_state")).intValue() : null);
+        v.setToTransportdeptState(row.get("to_transportdept_state") != null ? ((Number) row.get("to_transportdept_state")).intValue() : null);
+        return v;
     }
 }
