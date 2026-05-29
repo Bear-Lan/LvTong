@@ -115,6 +115,63 @@ public class AIDetectionServiceImpl implements AIDetectionService {
         }
     }
 
+    @Override
+    public Map<String, Object> detectAxle(MultipartFile file) {
+        try {
+            String params = "score_threshold=0.95&detic_score_threshold=0.8&return_image=1";
+            String response = doMultipartPostWithParams(VEHICLE_GOODS_URL, file.getInputStream(), file.getOriginalFilename(), "image", params);
+
+            JSONObject jsonResponse = JSON.parseObject(response);
+
+            Map<String, Object> result = new HashMap<>();
+            if (jsonResponse.containsKey("wheel_count")) {
+                result.put("wheel_count", jsonResponse.get("wheel_count"));
+            }
+            if (jsonResponse.containsKey("cratetype")) {
+                result.put("cratetype", jsonResponse.getString("cratetype"));
+            }
+            if (jsonResponse.containsKey("data")) {
+                result.put("data", jsonResponse.get("data"));
+            }
+            if (jsonResponse.containsKey("result_image")) {
+                result.put("result_image", jsonResponse.get("result_image"));
+            }
+
+            return result;
+        } catch (Exception e) {
+            log.error("车轴识别失败", e);
+            throw new RuntimeException("车轴识别失败: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public Map<String, Object> detectCarriage(MultipartFile file) {
+        try {
+            String params = "score_threshold=0.95&detic_score_threshold=0.8&return_image=1";
+            String response = doMultipartPostWithParams(VEHICLE_GOODS_URL, file.getInputStream(), file.getOriginalFilename(), "image", params);
+
+            JSONObject jsonResponse = JSON.parseObject(response);
+
+            Map<String, Object> result = new HashMap<>();
+            if (jsonResponse.containsKey("cratetype")) {
+                String cratetype = jsonResponse.getString("cratetype");
+                result.put("cratetype", cratetype);
+                result.put("cratetype_text", VehicleConstants.getContainerTypeText(cratetype));
+            }
+            if (jsonResponse.containsKey("data")) {
+                result.put("data", jsonResponse.get("data"));
+            }
+            if (jsonResponse.containsKey("result_image")) {
+                result.put("result_image", jsonResponse.get("result_image"));
+            }
+
+            return result;
+        } catch (Exception e) {
+            log.error("车厢识别失败", e);
+            throw new RuntimeException("车厢识别失败: " + e.getMessage(), e);
+        }
+    }
+
     /**
      * 发送multipart请求到AI服务器
      */

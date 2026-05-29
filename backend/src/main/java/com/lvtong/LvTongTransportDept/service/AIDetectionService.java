@@ -37,4 +37,22 @@ public interface AIDetectionService {
      * @return 行驶证信息JSON
      */
     Map<String, Object> detectDriverLicense(MultipartFile file);
+
+    /**
+     * 车轴识别
+     * 识别车轴数量和位置
+     *
+     * @param file 车轴图片文件
+     * @return 识别结果，包含 wheel_count 和 data 数组
+     */
+    Map<String, Object> detectAxle(MultipartFile file);
+
+    /**
+     * 车厢识别
+     * 识别车厢类型
+     *
+     * @param file 车厢图片文件
+     * @return 识别结果，包含车厢类型中文描述
+     */
+    Map<String, Object> detectCarriage(MultipartFile file);
 }

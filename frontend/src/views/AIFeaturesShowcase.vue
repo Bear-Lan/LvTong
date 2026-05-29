@@ -40,20 +40,16 @@
       <!-- 中心AI核心 -->
       <div class="center-core">
         <div class="core-container">
-          <!-- 外层光环 -->
           <div class="orbit orbit-1"></div>
           <div class="orbit orbit-2"></div>
           <div class="orbit orbit-3"></div>
-          <!-- 粒子层 -->
           <div class="particle-ring"></div>
-          <!-- 核心主体 -->
           <div class="core-main">
             <div class="core-inner">
               <span class="core-text">绿通AI智能体</span>
             </div>
             <div class="core-pulse"></div>
           </div>
-          <!-- 中心发光 -->
           <div class="core-glow"></div>
         </div>
         <p class="core-label">AI智能核心</p>
@@ -85,20 +81,185 @@
     <el-dialog
       v-model="showDialog"
       :title="currentFeature?.name"
-      width="500px"
+      width="900px"
       class="feature-dialog"
-      center
+      :close-on-click-modal="false"
+      @closed="resetDialogState"
     >
-      <div class="dialog-content">
-        <div class="dialog-icon" v-html="currentFeature?.iconLarge"></div>
-        <p class="dialog-desc">{{ currentFeature?.longDesc }}</p>
+      <!-- 顶部操作按钮区 -->
+      <div class="dialog-toolbar">
+        <el-upload
+          ref="uploadRef"
+          :auto-upload="false"
+          :show-file-list="false"
+          accept="image/*"
+          :disabled="detecting"
+          :on-change="handleFileChange"
+          :on-remove="handleFileRemove"
+        >
+          <el-button size="large" :disabled="detecting" type="primary" plain>
+            <el-icon><UploadFilled /></el-icon>
+            上传图片
+          </el-button>
+        </el-upload>
+        <el-button
+          size="large"
+          type="primary"
+          :disabled="!selectedFile || detecting"
+          :loading="detecting"
+          @click="handleDetect"
+        >
+          <el-icon v-if="!detecting"><MagicStick /></el-icon>
+          开始AI检测
+        </el-button>
       </div>
+
+      <!-- 主体左右分栏 -->
+      <div class="dialog-body">
+        <!-- 左侧：图片预览 -->
+        <div class="dialog-left">
+          <el-tabs v-model="activeImageTab" class="image-tabs">
+            <el-tab-pane label="原图" name="original"></el-tab-pane>
+            <el-tab-pane label="检测结果图" name="result" :disabled="!detectionComplete || !resultImageUrl"></el-tab-pane>
+          </el-tabs>
+          <div
+            class="image-container"
+            :class="{ 'has-image': previewUrl, 'drag-over': isDragOver }"
+            @dragover.prevent="isDragOver = true"
+            @dragleave="isDragOver = false"
+            @drop.prevent="handleDrop"
+            @click="triggerUpload"
+          >
+            <el-image
+              v-if="previewUrl"
+              :src="activeImageTab === 'result' && resultImageUrl ? resultImageUrl : previewUrl"
+              fit="contain"
+              class="preview-image"
+            />
+            <div v-if="!previewUrl" class="upload-hint">
+              <el-icon class="hint-icon"><Picture /></el-icon>
+              <span class="hint-text">点击或拖拽上传图片</span>
+              <span class="hint-format">支持 jpg/png/jpeg/bmp</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右侧：检测结果 -->
+        <div class="dialog-right">
+          <div class="result-header">
+            <el-icon><List /></el-icon>
+            <span>AI检测结果</span>
+          </div>
+          <div class="result-body">
+            <!-- 车轴识别结果 -->
+            <template v-if="detectionResult && currentFeature?.action === 'axle'">
+              <div class="result-info">
+                <div class="info-item">
+                  <span class="info-label">轮胎总数</span>
+                  <span class="info-value highlight">{{ detectionResult.wheel_count }}</span>
+                </div>
+                <div class="info-divider"></div>
+                <div class="info-item">
+                  <span class="info-label">车厢类型</span>
+                  <span class="info-value">{{ detectionResult.cratetype }}</span>
+                </div>
+              </div>
+              <div class="result-table">
+                <div class="table-header">
+                  <span>序号</span>
+                  <span>类型</span>
+                  <span>置信度</span>
+                </div>
+                <div
+                  v-for="(item, index) in detectionResult.data"
+                  :key="index"
+                  class="table-row"
+                >
+                  <span>{{ index + 1 }}</span>
+                  <span>{{ formatAxleLabel(item.label) }}</span>
+                  <span>{{ (item.score * 100).toFixed(1) }}%</span>
+                </div>
+              </div>
+            </template>
+
+            <!-- 车厢识别结果 -->
+            <template v-else-if="detectionResult && currentFeature?.action === 'carriage'">
+              <div class="result-info">
+                <div class="info-item">
+                  <span class="info-label">车厢类型</span>
+                  <span class="info-value highlight">{{ detectionResult.cratetype_text || detectionResult.cratetype }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">车厢编码</span>
+                  <span class="info-value">{{ detectionResult.cratetype }}</span>
+                </div>
+              </div>
+              <div class="result-table" v-if="detectionResult.data && detectionResult.data.length > 0">
+                <div class="table-header">
+                  <span>序号</span>
+                  <span>类型</span>
+                  <span>置信度</span>
+                </div>
+                <div
+                  v-for="(item, index) in detectionResult.data"
+                  :key="index"
+                  class="table-row"
+                >
+                  <span>{{ index + 1 }}</span>
+                  <span>{{ formatAxleLabel(item.label) }}</span>
+                  <span>{{ (item.score * 100).toFixed(1) }}%</span>
+                </div>
+              </div>
+            </template>
+
+            <!-- 货物识别结果 -->
+            <template v-else-if="detectionResult && currentFeature?.action === 'goods'">
+              <div class="result-info">
+                <div class="info-item">
+                  <span class="info-label">识别货物数</span>
+                  <span class="info-value highlight">{{ filteredGoods.length }}</span>
+                </div>
+              </div>
+              <div class="result-table" v-if="filteredGoods.length > 0">
+                <div class="table-header goods-header">
+                  <span>序号</span>
+                  <span>货物名称</span>
+                  <span>品种</span>
+                  <span>置信度</span>
+                </div>
+                <div
+                  v-for="(item, index) in filteredGoods"
+                  :key="index"
+                  class="table-row goods-row"
+                >
+                  <span>{{ index + 1 }}</span>
+                  <span>{{ item.chinese_name }}</span>
+                  <span>{{ item.variety_name }}</span>
+                  <span>{{ (item.score * 100).toFixed(1) }}%</span>
+                </div>
+              </div>
+              <div v-else class="empty-result">
+                <el-icon class="empty-icon"><Document /></el-icon>
+                <span class="empty-text">未识别到有效货物</span>
+              </div>
+            </template>
+
+            <!-- 其他识别结果 -->
+            <template v-else-if="detectionResult">
+              <pre class="json-result">{{ JSON.stringify(detectionResult, null, 2) }}</pre>
+            </template>
+
+            <div v-else class="empty-result">
+              <el-icon class="empty-icon"><Document /></el-icon>
+              <span class="empty-text">暂无检测结果<br/>请先上传图片并开始检测</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <template #footer>
         <div class="dialog-footer">
           <el-button size="large" @click="showDialog = false">关闭</el-button>
-          <el-button type="primary" size="large" @click="goToDetection">
-            进入功能
-          </el-button>
         </div>
       </template>
     </el-dialog>
@@ -106,14 +267,152 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed } from 'vue'
+import { ElMessage } from 'element-plus'
+import { UploadFilled, MagicStick, Picture, List, Document } from '@element-plus/icons-vue'
+import { detectVehicle, detectGoods, detectAxle, detectCarriage } from '@/api/ai'
 
-const router = useRouter()
 const showDialog = ref(false)
 const currentFeature = ref(null)
+const uploadRef = ref(null)
 
 document.title = '绿通AI智能体'
+
+// 弹窗状态
+const selectedFile = ref(null)
+const previewUrl = ref('')
+const resultImageUrl = ref('')
+const detecting = ref(false)
+const detectionComplete = ref(false)
+const detectionResult = ref(null)
+const activeImageTab = ref('original')
+const isDragOver = ref(false)
+
+// 10个功能的模拟数据生成器
+const mockDataGenerators = {
+  vehicle: () => ({
+    code: 200,
+    message: '识别成功',
+    data: {
+      cratetype_text: '封闭厢式货车',
+      wheel_count: 6,
+      data: [
+        { label: '车头', class_id: 1, score: 0.98, box: { x1: 50, y1: 100, x2: 200, y2: 180 } },
+        { label: '车轮', class_id: 2, score: 0.95, box: { x1: 80, y1: 200, x2: 120, y2: 240 } },
+        { label: '车轮', class_id: 2, score: 0.94, box: { x1: 150, y1: 200, x2: 190, y2: 240 } }
+      ]
+    }
+  }),
+  height: () => ({
+    code: 200,
+    message: '识别成功',
+    data: {
+      vehicle_height: 3.2,
+      unit: '米',
+      max_limit: 4.0,
+      status: '正常',
+      box: { x1: 80, y1: 50, x2: 250, y2: 200 }
+    }
+  }),
+  dimension: () => ({
+    code: 200,
+    message: '识别成功',
+    data: {
+      length: 9.5,
+      width: 2.5,
+      height: 3.8,
+      unit: '米',
+      boxes: [
+        { label: '长度', box: { x1: 30, y1: 150, x2: 280, y2: 170 } },
+        { label: '宽度', box: { x1: 260, y1: 80, x2: 280, y2: 220 } },
+        { label: '高度', box: { x1: 200, y1: 30, x2: 220, y2: 200 } }
+      ]
+    }
+  }),
+  license: () => ({
+    code: 200,
+    message: '识别成功',
+    data: {
+      plate_number: '粤B12345',
+      vehicle_type: '重型货车',
+      owner: '深圳市某某物流有限公司',
+      register_date: '2020-05-15',
+      boxes: [
+        { label: '车牌', box: { x1: 50, y1: 30, x2: 200, y2: 60 } },
+        { label: '车架号', box: { x1: 50, y1: 70, x2: 200, y2: 100 } }
+      ]
+    }
+  }),
+  axle: () => ({
+    code: 200,
+    message: '识别成功',
+    data: {
+      axle_count: 3,
+      axle_type: '双轮胎',
+      axles: [
+        { pos: 1, wheel_count: 4, box: { x1: 60, y1: 180, x2: 120, y2: 220 } },
+        { pos: 2, wheel_count: 4, box: { x1: 140, y1: 180, x2: 200, y2: 220 } },
+        { pos: 3, wheel_count: 4, box: { x1: 220, y1: 180, x2: 280, y2: 220 } }
+      ]
+    }
+  }),
+  carriage: () => ({
+    code: 200,
+    message: '识别成功',
+    data: {
+      carriage_type: '封闭厢式',
+      length: 9.6,
+      width: 2.4,
+      height: 2.8,
+      box: { x1: 40, y1: 60, x2: 300, y2: 220 }
+    }
+  }),
+  mixed: () => ({
+    code: 200,
+    message: '识别成功',
+    data: {
+      is_mixed: false,
+      cargo_type: '单一货物',
+      confidence: 0.92,
+      boxes: [
+        { label: '货物A', box: { x1: 50, y1: 80, x2: 150, y2: 180 } }
+      ]
+    }
+  }),
+  loading: () => ({
+    code: 200,
+    message: '识别成功',
+    data: {
+      loading_rate: 78.5,
+      unit: '%',
+      total_volume: 64.5,
+      used_volume: 50.6,
+      unit_vol: '立方米'
+    }
+  }),
+  xray: () => ({
+    code: 200,
+    message: '识别成功',
+    data: {
+      interior_detected: true,
+      cargo_count: 12,
+      categories: ['蔬菜', '水果'],
+      boxes: [
+        { label: '货物1', box: { x1: 60, y1: 100, x2: 100, y2: 140 } },
+        { label: '货物2', box: { x1: 110, y1: 100, x2: 150, y2: 140 } },
+        { label: '货物3', box: { x1: 160, y1: 100, x2: 200, y2: 140 } }
+      ]
+    }
+  })
+}
+
+// 已实现API的功能映射
+const apiMapping = {
+  vehicle: { api: detectVehicle, hasBoxes: true },
+  goods: { api: detectGoods, hasBoxes: false },
+  axle: { api: detectAxle, hasBoxes: true },
+  carriage: { api: detectCarriage, hasBoxes: true }
+}
 
 // 左侧功能（数据输入）
 const leftFeatures = [
@@ -203,14 +502,121 @@ const rightFeatures = [
   }
 ]
 
+// 车轴标签映射
+const axleLabelMap = {
+  'wheel': '轮胎',
+  'locomotive': '车头',
+  'box_truck_block': '车厢'
+}
+
+// 格式化车轴标签
+const formatAxleLabel = (label) => {
+  return axleLabelMap[label] || label
+}
+
+// 过滤货物数据（排除product_code为others的）
+const filteredGoods = computed(() => {
+  if (!detectionResult.value?.real_object_data) return []
+  return detectionResult.value.real_object_data.filter(item =>
+    item.product_code && item.product_code.toLowerCase() !== 'others'
+  )
+})
+
 const handleCardClick = (item) => {
   currentFeature.value = item
   showDialog.value = true
 }
 
-const goToDetection = () => {
-  showDialog.value = false
-  router.push('/ai-detection')
+const handleFileChange = (file) => {
+  const ext = file.name.toLowerCase().split('.').pop()
+  if (!['jpg', 'jpeg', 'png', 'bmp'].includes(ext)) {
+    ElMessage.error('仅支持 jpg/png/jpeg/bmp 格式图片')
+    return
+  }
+  detectionResult.value = null
+  detectionComplete.value = false
+  resultImageUrl.value = ''
+  activeImageTab.value = 'original'
+  selectedFile.value = file.raw
+  previewUrl.value = URL.createObjectURL(file.raw)
+}
+
+const handleFileRemove = () => {
+  selectedFile.value = null
+  previewUrl.value = ''
+  resultImageUrl.value = ''
+  detectionResult.value = null
+  detectionComplete.value = false
+  activeImageTab.value = 'original'
+}
+
+const handleDrop = (e) => {
+  isDragOver.value = false
+  const file = e.dataTransfer.files[0]
+  if (file) {
+    handleFileChange({ raw: file, name: file.name })
+  }
+}
+
+const triggerUpload = () => {
+  if (!selectedFile.value && !detecting.value) {
+    uploadRef.value?.$refs['upload-inner']?.$refs.input.click()
+  }
+}
+
+const handleDetect = async () => {
+  if (!selectedFile.value) {
+    ElMessage.warning('请先上传图片')
+    return
+  }
+
+  detecting.value = true
+  detectionResult.value = null
+  resultImageUrl.value = ''
+  activeImageTab.value = 'original'
+
+  try {
+    const action = currentFeature.value?.action
+    const apiConfig = apiMapping[action]
+
+    if (apiConfig?.api) {
+      // 调用真实API
+      const response = await apiConfig.api(selectedFile.value)
+      if (response.code === 200) {
+        detectionResult.value = response.data
+        // 提取结果图base64
+        if (response.data?.result_image?.base64) {
+          const format = response.data.result_image.format || 'jpg'
+          resultImageUrl.value = `data:image/${format};base64,${response.data.result_image.base64}`
+        }
+      } else {
+        ElMessage.error(response.message || '识别失败')
+      }
+    } else {
+      // 模拟AI接口延迟
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      const generator = mockDataGenerators[action] || mockDataGenerators.vehicle
+      detectionResult.value = generator().data
+    }
+
+    detectionComplete.value = true
+    activeImageTab.value = 'result'
+  } catch (error) {
+    console.error('检测失败:', error)
+    ElMessage.error(error.message || '检测失败，请检查AI服务是否可用')
+  } finally {
+    detecting.value = false
+  }
+}
+
+const resetDialogState = () => {
+  selectedFile.value = null
+  previewUrl.value = ''
+  resultImageUrl.value = ''
+  detecting.value = false
+  detectionComplete.value = false
+  detectionResult.value = null
+  activeImageTab.value = 'original'
 }
 </script>
 
@@ -316,7 +722,7 @@ const goToDetection = () => {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 80px;
+  gap: 100px;
   padding: 20px 60px 60px;
   min-height: calc(100vh - 120px);
 }
@@ -421,62 +827,46 @@ const goToDetection = () => {
 
 .data-line {
   position: absolute;
-  height: 2px;
   top: 50%;
-  background: linear-gradient(90deg, transparent, #64ffda, transparent);
+  transform: translateY(-50%);
+  height: 2px;
   opacity: 0.4;
   animation: dataFlow 2s ease-in-out infinite;
 }
 
 .left-line {
-  right: 100%;
-  margin-right: 20px;
+  left: 100%;
+  width: 120px;
   background: linear-gradient(90deg, transparent, #64ffda);
 }
 
 .right-line {
-  left: 100%;
-  margin-left: 20px;
+  right: 100%;
+  width: 120px;
   background: linear-gradient(270deg, transparent, #64ffda);
 }
 
-.cards-left .glass-card {
-  margin-bottom: 20px;
-}
-
-.cards-left .card-1 { margin-bottom: 30px; }
-.cards-left .card-2 { margin-bottom: 10px; }
-.cards-left .card-3 { margin-left: 40px; margin-bottom: 10px; }
-.cards-left .card-4 { margin-bottom: 10px; }
-.cards-left .card-5 { margin-left: 40px; }
-
-.cards-right .glass-card {
-  margin-bottom: 20px;
-}
-
-.cards-right .card-1 { margin-bottom: 30px; }
-.cards-right .card-2 { margin-bottom: 10px; }
-.cards-right .card-3 { margin-right: 40px; margin-bottom: 10px; }
-.cards-right .card-4 { margin-bottom: 10px; }
-.cards-right .card-5 { margin-right: 40px; }
-
 @keyframes dataFlow {
   0% { opacity: 0.2; }
-  50% { opacity: 0.6; }
+  50% { opacity: 0.7; }
   100% { opacity: 0.2; }
 }
 
-.left-line.line-1 { width: 80px; animation-delay: 0s; }
-.left-line.line-2 { width: 100px; animation-delay: 0.3s; }
-.left-line.line-3 { width: 120px; animation-delay: 0.6s; }
-.left-line.line-4 { width: 100px; animation-delay: 0.9s; }
-.left-line.line-5 { width: 80px; animation-delay: 1.2s; }
+.cards-left {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 24px;
+}
 
-.right-line.line-1 { width: 80px; animation-delay: 0s; }
-.right-line.line-2 { width: 100px; animation-delay: 0.3s; }
-.right-line.line-3 { width: 120px; animation-delay: 0.6s; }
-.right-line.line-4 { width: 100px; animation-delay: 0.9s; }
-.right-line.line-5 { width: 80px; animation-delay: 1.2s; }
+.cards-right {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 24px;
+}
 
 .center-core {
   display: flex;
@@ -488,8 +878,8 @@ const goToDetection = () => {
 
 .core-container {
   position: relative;
-  width: 180px;
-  height: 180px;
+  width: 280px;
+  height: 280px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -503,23 +893,23 @@ const goToDetection = () => {
 }
 
 .orbit-1 {
-  width: 200px;
-  height: 200px;
+  width: 320px;
+  height: 320px;
   animation-duration: 15s;
   border-style: dashed;
 }
 
 .orbit-2 {
-  width: 240px;
-  height: 240px;
+  width: 380px;
+  height: 380px;
   animation-duration: 20s;
   animation-direction: reverse;
   border-color: rgba(0, 191, 255, 0.2);
 }
 
 .orbit-3 {
-  width: 280px;
-  height: 280px;
+  width: 440px;
+  height: 440px;
   animation-duration: 25s;
   border-color: rgba(100, 255, 218, 0.15);
 }
@@ -531,8 +921,8 @@ const goToDetection = () => {
 
 .particle-ring {
   position: absolute;
-  width: 200px;
-  height: 200px;
+  width: 320px;
+  height: 320px;
   border-radius: 50%;
   background-image:
     radial-gradient(2px 2px at 50% 0%, rgba(100, 255, 218, 0.6), transparent),
@@ -544,8 +934,8 @@ const goToDetection = () => {
 
 .core-main {
   position: relative;
-  width: 100px;
-  height: 100px;
+  width: 220px;
+  height: 220px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -553,22 +943,22 @@ const goToDetection = () => {
 }
 
 .core-inner {
-  width: 80px;
-  height: 80px;
+  width: 180px;
+  height: 180px;
   border-radius: 50%;
   background: linear-gradient(135deg, #0a192f, #071426);
-  border: 2px solid rgba(100, 255, 218, 0.5);
+  border: 3px solid rgba(100, 255, 218, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow:
-    0 0 30px rgba(100, 255, 218, 0.3),
-    0 0 60px rgba(100, 255, 218, 0.2),
-    inset 0 0 20px rgba(100, 255, 218, 0.1);
+    0 0 40px rgba(100, 255, 218, 0.4),
+    0 0 80px rgba(100, 255, 218, 0.25),
+    inset 0 0 30px rgba(100, 255, 218, 0.15);
 }
 
 .core-text {
-  font-size: 12px;
+  font-size: 20px;
   font-weight: 700;
   background: linear-gradient(135deg, #64ffda, #00bfff);
   -webkit-background-clip: text;
@@ -579,10 +969,10 @@ const goToDetection = () => {
 
 .core-pulse {
   position: absolute;
-  width: 80px;
-  height: 80px;
+  width: 180px;
+  height: 180px;
   border-radius: 50%;
-  background: rgba(100, 255, 218, 0.2);
+  background: rgba(100, 255, 218, 0.25);
   animation: corePulse 2s ease-in-out infinite;
 }
 
@@ -593,10 +983,10 @@ const goToDetection = () => {
 
 .core-glow {
   position: absolute;
-  width: 160px;
-  height: 160px;
+  width: 320px;
+  height: 320px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(100, 255, 218, 0.15) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(100, 255, 218, 0.2) 0%, transparent 70%);
   animation: glowPulse 3s ease-in-out infinite;
 }
 
@@ -614,59 +1004,436 @@ const goToDetection = () => {
   text-shadow: 0 0 10px rgba(100, 255, 218, 0.3);
 }
 
+/* ======================= 弹窗样式 ======================= */
+
+/* 弹窗整体 */
 .feature-dialog {
-  --el-dialog-bg-color: rgba(10, 25, 47, 0.95);
+  --el-dialog-bg-color: rgba(10, 25, 47, 0.98);
   --el-text-color-primary: #fff;
-  border: 1px solid rgba(100, 255, 218, 0.3);
+  border: 1px solid rgba(100, 255, 218, 0.3) !important;
   border-radius: 16px !important;
+  box-shadow: 0 0 40px rgba(100, 255, 218, 0.15), 0 20px 60px rgba(0, 0, 0, 0.5) !important;
+  backdrop-filter: blur(12px);
+  max-width: 1100px;
+}
+
+.feature-dialog :deep(.el-dialog) {
+  background: transparent !important;
 }
 
 .feature-dialog :deep(.el-dialog__header) {
   border-bottom: 1px solid rgba(100, 255, 218, 0.2);
-  padding-bottom: 16px;
+  padding: 16px 20px;
+  margin-right: 0;
+}
+
+.feature-dialog :deep(.el-dialog__headerbtn) {
+  top: 16px;
+  right: 16px;
+}
+
+.feature-dialog :deep(.el-dialog__headerbtn .el-dialog__close) {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 18px;
+  transition: all 0.3s;
+}
+
+.feature-dialog :deep(.el-dialog__headerbtn:hover .el-dialog__close) {
+  color: #64ffda;
+  text-shadow: 0 0 10px rgba(100, 255, 218, 0.5);
 }
 
 .feature-dialog :deep(.el-dialog__title) {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.feature-dialog :deep(.el-dialog__body) {
+  padding: 20px;
+  color: #fff;
+}
+
+/* 顶部工具栏 */
+.dialog-toolbar {
+  display: flex;
+  gap: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(100, 255, 218, 0.15);
+  margin-bottom: 16px;
+}
+
+/* 工具栏按钮 - 科技风 */
+.dialog-toolbar .el-button {
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.3s;
+}
+
+.dialog-toolbar .el-button--primary.is-plain {
+  background: transparent !important;
+  border: 1px solid rgba(100, 255, 218, 0.5) !important;
+  color: #64ffda !important;
+}
+
+.dialog-toolbar .el-button--primary.is-plain:hover {
+  background: rgba(100, 255, 218, 0.1) !important;
+  border-color: #64ffda !important;
+  box-shadow: 0 0 15px rgba(100, 255, 218, 0.3);
+}
+
+.dialog-toolbar .el-button--primary {
+  background: linear-gradient(135deg, #64ffda, #00bfff) !important;
+  border: none !important;
+  color: #071426 !important;
+  font-weight: 600;
+}
+
+.dialog-toolbar .el-button--primary:hover:not(:disabled) {
+  box-shadow: 0 0 20px rgba(100, 255, 218, 0.5);
+  transform: translateY(-1px);
+}
+
+.dialog-toolbar .el-button.is-disabled {
+  background: rgba(100, 255, 218, 0.15) !important;
+  border-color: rgba(100, 255, 218, 0.3) !important;
+  color: rgba(255, 255, 255, 0.4) !important;
+  box-shadow: none !important;
+}
+
+/* 主体左右分栏 */
+.dialog-body {
+  display: flex;
+  gap: 20px;
+  min-height: 420px;
+}
+
+.dialog-left {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dialog-right {
+  width: 340px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ======================= 图片切换标签 ======================= */
+.image-tabs {
+  margin-bottom: 12px;
+}
+
+.image-tabs :deep(.el-tabs__header) {
+  margin-bottom: 0;
+  border-bottom: 1px solid rgba(100, 255, 218, 0.15);
+}
+
+.image-tabs :deep(.el-tabs__nav-wrap::after) {
+  display: none;
+}
+
+.image-tabs :deep(.el-tabs__item) {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 0 20px;
+  height: 40px;
+  line-height: 40px;
+  transition: all 0.3s;
+}
+
+.image-tabs :deep(.el-tabs__item:hover) {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.image-tabs :deep(.el-tabs__item.is-disabled) {
+  color: rgba(255, 255, 255, 0.25);
+  cursor: not-allowed;
+}
+
+.image-tabs :deep(.el-tabs__item.is-active) {
   color: #64ffda;
   font-weight: 600;
 }
 
-.dialog-content {
+.image-tabs :deep(.el-tabs__active-bar) {
+  height: 2px;
+  background: linear-gradient(90deg, #64ffda, #00bfff);
+  box-shadow: 0 0 10px rgba(100, 255, 218, 0.5);
+}
+
+/* ======================= 图片容器 ======================= */
+.image-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 25, 47, 0.6);
+  border: 1px solid rgba(100, 255, 218, 0.2);
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s;
+  min-height: 340px;
+}
+
+.image-container:hover {
+  border-color: rgba(100, 255, 218, 0.4);
+  box-shadow: 0 0 20px rgba(100, 255, 218, 0.1);
+}
+
+.image-container.has-image {
+  background: rgba(0, 0, 0, 0.3);
+  border-style: solid;
+}
+
+.image-container.drag-over {
+  border-color: #64ffda;
+  background: rgba(100, 255, 218, 0.08);
+}
+
+.preview-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.upload-hint {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
-  padding: 20px 0;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
 }
 
-.dialog-icon {
-  width: 80px;
-  height: 80px;
+.hint-icon {
+  font-size: 56px;
+  color: rgba(100, 255, 218, 0.4);
+  transition: all 0.3s;
+}
+
+.image-container:hover .hint-icon {
+  color: #64ffda;
+  text-shadow: 0 0 20px rgba(100, 255, 218, 0.5);
+}
+
+.hint-text {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.hint-format {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+/* ======================= 结果区域 ======================= */
+.result-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, rgba(100, 255, 218, 0.12), rgba(0, 191, 255, 0.08));
+  border: 1px solid rgba(100, 255, 218, 0.25);
+  border-radius: 10px 10px 0 0;
+  color: #64ffda;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.result-header .el-icon {
+  font-size: 16px;
+}
+
+.result-body {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(100, 255, 218, 0.2);
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  overflow: auto;
+  min-height: 300px;
+}
+
+/* 滚动条样式 */
+.result-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.result-body::-webkit-scrollbar-track {
+  background: rgba(100, 255, 218, 0.05);
+  border-radius: 3px;
+}
+
+.result-body::-webkit-scrollbar-thumb {
+  background: rgba(100, 255, 218, 0.3);
+  border-radius: 3px;
+}
+
+.result-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 255, 218, 0.5);
+}
+
+.json-result {
+  margin: 0;
   padding: 16px;
-  background: rgba(0, 191, 255, 0.1);
-  border-radius: 16px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.85);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.empty-result {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  min-height: 300px;
+  padding: 20px;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 48px;
+  color: rgba(100, 255, 218, 0.25);
+}
+
+.empty-text {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.4);
+  line-height: 1.5;
+}
+
+/* ======================= 结果信息展示 ======================= */
+.result-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: rgba(100, 255, 218, 0.06);
+  border: 1px solid rgba(100, 255, 218, 0.12);
+  border-radius: 8px;
+  transition: all 0.3s;
+}
+
+.info-item:hover {
+  background: rgba(100, 255, 218, 0.1);
+  border-color: rgba(100, 255, 218, 0.2);
+}
+
+.info-label {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+}
+
+.info-value {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.info-value.highlight {
+  color: #64ffda;
+  font-size: 22px;
+  font-weight: 700;
+  text-shadow: 0 0 15px rgba(100, 255, 218, 0.4);
+}
+
+.info-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(100, 255, 218, 0.2), transparent);
+}
+
+/* ======================= 结果表格 ======================= */
+.result-table {
+  margin: 0 16px 16px;
+  border: 1px solid rgba(100, 255, 218, 0.2);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.table-header {
+  display: grid;
+  grid-template-columns: 50px 1fr 90px;
+  gap: 8px;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, rgba(100, 255, 218, 0.15), rgba(0, 191, 255, 0.1));
+  font-size: 12px;
+  font-weight: 600;
   color: #64ffda;
 }
 
-.dialog-icon :deep(svg) {
-  width: 100%;
-  height: 100%;
+.table-row {
+  display: grid;
+  grid-template-columns: 50px 1fr 90px;
+  gap: 8px;
+  padding: 12px 14px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+  border-top: 1px solid rgba(100, 255, 218, 0.1);
+  transition: all 0.2s;
 }
 
-.dialog-desc {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.7);
-  line-height: 1.6;
-  text-align: center;
-  margin: 0;
+.table-row:hover {
+  background: rgba(100, 255, 218, 0.05);
 }
 
+.goods-header {
+  grid-template-columns: 50px 1fr 90px 90px !important;
+}
+
+.goods-row {
+  grid-template-columns: 50px 1fr 90px 90px !important;
+}
+
+/* ======================= 弹窗底部 ======================= */
 .dialog-footer {
   display: flex;
   gap: 12px;
   justify-content: center;
+  padding-top: 16px;
+  border-top: 1px solid rgba(100, 255, 218, 0.15);
+  margin-top: 16px;
 }
 
+.dialog-footer .el-button {
+  min-width: 120px;
+  height: 42px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid rgba(100, 255, 218, 0.4);
+  background: transparent;
+  color: #64ffda;
+  transition: all 0.3s;
+}
+
+.dialog-footer .el-button:hover {
+  background: rgba(100, 255, 218, 0.1);
+  border-color: #64ffda;
+  box-shadow: 0 0 15px rgba(100, 255, 218, 0.3);
+}
+
+/* 响应式 */
 @media (max-width: 1200px) {
   .main-container {
     gap: 40px;
@@ -717,6 +1484,28 @@ const goToDetection = () => {
 
   .center-core {
     order: -1;
+  }
+
+  .dialog-body {
+    flex-direction: column;
+    min-height: auto;
+  }
+
+  .dialog-left {
+    min-height: 300px;
+  }
+
+  .dialog-right {
+    width: 100%;
+  }
+
+  .dialog-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .feature-dialog {
+    max-width: 95vw;
+    margin: 20px;
   }
 }
 </style>

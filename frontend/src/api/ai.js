@@ -59,3 +59,43 @@ export function detectDriverLicense(file) {
     }
   })
 }
+
+/**
+ * 车轴识别
+ * 识别车轴数量和位置
+ * @param {File} file - 车轴图片文件
+ * @returns {Promise}
+ */
+export function detectAxle(file) {
+  const formData = new FormData()
+  formData.append('image', file)
+
+  return request({
+    url: '/ai/axle',
+    method: 'post',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
+/**
+ * 车厢识别
+ * 识别车厢类型
+ * @param {File} file - 车厢图片文件
+ * @returns {Promise}
+ */
+export function detectCarriage(file) {
+  const formData = new FormData()
+  formData.append('image', file)
+
+  return request({
+    url: '/ai/carriage',
+    method: 'post',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}

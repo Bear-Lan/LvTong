@@ -88,4 +88,44 @@ public class AIDetectionController {
             return ApiResponse.error(500, "行驶证识别失败: " + e.getMessage());
         }
     }
+
+    /**
+     * 车轴识别
+     * 识别车轴数量和位置
+     */
+    @PostMapping("/axle")
+    @Operation(summary = "车轴识别", description = "上传车轴图片，识别车轴数量和位置")
+    public ApiResponse<Map<String, Object>> detectAxle(
+            @Parameter(description = "车轴图片文件")
+            @RequestParam("image") MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return ApiResponse.error(400, "请选择要上传的图片文件");
+        }
+        try {
+            Map<String, Object> result = aiDetectionService.detectAxle(file);
+            return ApiResponse.success(result);
+        } catch (Exception e) {
+            return ApiResponse.error(500, "车轴识别失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 车厢识别
+     * 识别车厢类型
+     */
+    @PostMapping("/carriage")
+    @Operation(summary = "车厢识别", description = "上传车厢图片，识别车厢类型")
+    public ApiResponse<Map<String, Object>> detectCarriage(
+            @Parameter(description = "车厢图片文件")
+            @RequestParam("image") MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return ApiResponse.error(400, "请选择要上传的图片文件");
+        }
+        try {
+            Map<String, Object> result = aiDetectionService.detectCarriage(file);
+            return ApiResponse.success(result);
+        } catch (Exception e) {
+            return ApiResponse.error(500, "车厢识别失败: " + e.getMessage());
+        }
+    }
 }
