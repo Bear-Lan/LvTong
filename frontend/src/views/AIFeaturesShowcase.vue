@@ -97,7 +97,7 @@
           :on-change="handleFileChange"
           :on-remove="handleFileRemove"
         >
-          <el-button size="large" :disabled="detecting" type="primary" plain>
+          <el-button size="large" :disabled="detecting" type="primary">
             <el-icon><UploadFilled /></el-icon>
             上传图片
           </el-button>
@@ -288,122 +288,17 @@ const detectionResult = ref(null)
 const activeImageTab = ref('original')
 const isDragOver = ref(false)
 
-// 10个功能的模拟数据生成器
+// 10个功能的模拟数据生成器（待开发状态）
 const mockDataGenerators = {
-  vehicle: () => ({
-    code: 200,
-    message: '识别成功',
-    data: {
-      cratetype_text: '封闭厢式货车',
-      wheel_count: 6,
-      data: [
-        { label: '车头', class_id: 1, score: 0.98, box: { x1: 50, y1: 100, x2: 200, y2: 180 } },
-        { label: '车轮', class_id: 2, score: 0.95, box: { x1: 80, y1: 200, x2: 120, y2: 240 } },
-        { label: '车轮', class_id: 2, score: 0.94, box: { x1: 150, y1: 200, x2: 190, y2: 240 } }
-      ]
-    }
-  }),
-  height: () => ({
-    code: 200,
-    message: '识别成功',
-    data: {
-      vehicle_height: 3.2,
-      unit: '米',
-      max_limit: 4.0,
-      status: '正常',
-      box: { x1: 80, y1: 50, x2: 250, y2: 200 }
-    }
-  }),
-  dimension: () => ({
-    code: 200,
-    message: '识别成功',
-    data: {
-      length: 9.5,
-      width: 2.5,
-      height: 3.8,
-      unit: '米',
-      boxes: [
-        { label: '长度', box: { x1: 30, y1: 150, x2: 280, y2: 170 } },
-        { label: '宽度', box: { x1: 260, y1: 80, x2: 280, y2: 220 } },
-        { label: '高度', box: { x1: 200, y1: 30, x2: 220, y2: 200 } }
-      ]
-    }
-  }),
-  license: () => ({
-    code: 200,
-    message: '识别成功',
-    data: {
-      plate_number: '粤B12345',
-      vehicle_type: '重型货车',
-      owner: '深圳市某某物流有限公司',
-      register_date: '2020-05-15',
-      boxes: [
-        { label: '车牌', box: { x1: 50, y1: 30, x2: 200, y2: 60 } },
-        { label: '车架号', box: { x1: 50, y1: 70, x2: 200, y2: 100 } }
-      ]
-    }
-  }),
-  axle: () => ({
-    code: 200,
-    message: '识别成功',
-    data: {
-      axle_count: 3,
-      axle_type: '双轮胎',
-      axles: [
-        { pos: 1, wheel_count: 4, box: { x1: 60, y1: 180, x2: 120, y2: 220 } },
-        { pos: 2, wheel_count: 4, box: { x1: 140, y1: 180, x2: 200, y2: 220 } },
-        { pos: 3, wheel_count: 4, box: { x1: 220, y1: 180, x2: 280, y2: 220 } }
-      ]
-    }
-  }),
-  carriage: () => ({
-    code: 200,
-    message: '识别成功',
-    data: {
-      carriage_type: '封闭厢式',
-      length: 9.6,
-      width: 2.4,
-      height: 2.8,
-      box: { x1: 40, y1: 60, x2: 300, y2: 220 }
-    }
-  }),
-  mixed: () => ({
-    code: 200,
-    message: '识别成功',
-    data: {
-      is_mixed: false,
-      cargo_type: '单一货物',
-      confidence: 0.92,
-      boxes: [
-        { label: '货物A', box: { x1: 50, y1: 80, x2: 150, y2: 180 } }
-      ]
-    }
-  }),
-  loading: () => ({
-    code: 200,
-    message: '识别成功',
-    data: {
-      loading_rate: 78.5,
-      unit: '%',
-      total_volume: 64.5,
-      used_volume: 50.6,
-      unit_vol: '立方米'
-    }
-  }),
-  xray: () => ({
-    code: 200,
-    message: '识别成功',
-    data: {
-      interior_detected: true,
-      cargo_count: 12,
-      categories: ['蔬菜', '水果'],
-      boxes: [
-        { label: '货物1', box: { x1: 60, y1: 100, x2: 100, y2: 140 } },
-        { label: '货物2', box: { x1: 110, y1: 100, x2: 150, y2: 140 } },
-        { label: '货物3', box: { x1: 160, y1: 100, x2: 200, y2: 140 } }
-      ]
-    }
-  })
+  vehicle: () => ({ code: 200, message: '待开发', data: { status: '待开发功能' } }),
+  height: () => ({ code: 200, message: '待开发', data: { status: '待开发功能' } }),
+  dimension: () => ({ code: 200, message: '待开发', data: { status: '待开发功能' } }),
+  license: () => ({ code: 200, message: '待开发', data: { status: '待开发功能' } }),
+  axle: () => ({ code: 200, message: '待开发', data: { status: '待开发功能' } }),
+  carriage: () => ({ code: 200, message: '待开发', data: { status: '待开发功能' } }),
+  mixed: () => ({ code: 200, message: '待开发', data: { status: '待开发功能' } }),
+  loading: () => ({ code: 200, message: '待开发', data: { status: '待开发功能' } }),
+  xray: () => ({ code: 200, message: '待开发', data: { status: '待开发功能' } })
 }
 
 // 已实现API的功能映射
@@ -1098,7 +993,7 @@ const resetDialogState = () => {
 .dialog-toolbar .el-button.is-disabled {
   background: rgba(100, 255, 218, 0.15) !important;
   border-color: rgba(100, 255, 218, 0.3) !important;
-  color: rgba(255, 255, 255, 0.4) !important;
+  color: rgba(55, 52, 52, 0.7)ant;
   box-shadow: none !important;
 }
 
@@ -1243,18 +1138,19 @@ const resetDialogState = () => {
   background: linear-gradient(135deg, rgba(100, 255, 218, 0.12), rgba(0, 191, 255, 0.08));
   border: 1px solid rgba(100, 255, 218, 0.25);
   border-radius: 10px 10px 0 0;
-  color: #64ffda;
+  color: #000;
   font-weight: 600;
   font-size: 14px;
 }
 
 .result-header .el-icon {
   font-size: 16px;
+  color: #000;
 }
 
 .result-body {
   flex: 1;
-  background: rgba(0, 0, 0, 0.4);
+  background: #ffffff;
   border: 1px solid rgba(100, 255, 218, 0.2);
   border-top: none;
   border-radius: 0 0 10px 10px;
@@ -1268,17 +1164,17 @@ const resetDialogState = () => {
 }
 
 .result-body::-webkit-scrollbar-track {
-  background: rgba(100, 255, 218, 0.05);
+  background: rgba(0, 0, 0, 0.05);
   border-radius: 3px;
 }
 
 .result-body::-webkit-scrollbar-thumb {
-  background: rgba(100, 255, 218, 0.3);
+  background: rgba(0, 0, 0, 0.2);
   border-radius: 3px;
 }
 
 .result-body::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 255, 218, 0.5);
+  background: rgba(0, 0, 0, 0.4);
 }
 
 .json-result {
@@ -1307,12 +1203,12 @@ const resetDialogState = () => {
 
 .empty-icon {
   font-size: 48px;
-  color: rgba(100, 255, 218, 0.25);
+  color: rgba(0, 0, 0, 0.3);
 }
 
 .empty-text {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.4);
+  color: #333;
   line-height: 1.5;
 }
 
@@ -1336,26 +1232,25 @@ const resetDialogState = () => {
 }
 
 .info-item:hover {
-  background: rgba(100, 255, 218, 0.1);
-  border-color: rgba(100, 255, 218, 0.2);
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.15);
 }
 
 .info-label {
-  color: rgba(255, 255, 255, 0.6);
+  color: #333;
   font-size: 13px;
 }
 
 .info-value {
-  color: #fff;
+  color: #000;
   font-size: 14px;
   font-weight: 500;
 }
 
 .info-value.highlight {
-  color: #64ffda;
+  color: #000;
   font-size: 22px;
   font-weight: 700;
-  text-shadow: 0 0 15px rgba(100, 255, 218, 0.4);
 }
 
 .info-divider {
@@ -1379,7 +1274,7 @@ const resetDialogState = () => {
   background: linear-gradient(135deg, rgba(100, 255, 218, 0.15), rgba(0, 191, 255, 0.1));
   font-size: 12px;
   font-weight: 600;
-  color: #64ffda;
+  color: #000;
 }
 
 .table-row {
@@ -1388,13 +1283,13 @@ const resetDialogState = () => {
   gap: 8px;
   padding: 12px 14px;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.85);
-  border-top: 1px solid rgba(100, 255, 218, 0.1);
+  color: #000;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
   transition: all 0.2s;
 }
 
 .table-row:hover {
-  background: rgba(100, 255, 218, 0.05);
+  background: rgba(0, 0, 0, 0.03);
 }
 
 .goods-header {
