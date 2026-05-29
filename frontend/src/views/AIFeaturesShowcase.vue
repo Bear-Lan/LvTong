@@ -282,7 +282,7 @@
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { UploadFilled, MagicStick, Picture, List, Document, Clock } from '@element-plus/icons-vue'
-import { detectVehicle, detectGoods, detectAxle, detectCarriage } from '@/api/ai'
+import { detectGoods, detectAxle, detectCarriage } from '@/api/ai'
 
 const showDialog = ref(false)
 const currentFeature = ref(null)
@@ -302,7 +302,6 @@ const isDragOver = ref(false)
 
 // 已实现API的功能映射
 const apiMapping = {
-  vehicle: { api: detectVehicle, hasBoxes: true },
   goods: { api: detectGoods, hasBoxes: false },
   axle: { api: detectAxle, hasBoxes: true },
   carriage: { api: detectCarriage, hasBoxes: true }
