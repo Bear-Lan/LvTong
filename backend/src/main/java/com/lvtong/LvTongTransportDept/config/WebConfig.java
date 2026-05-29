@@ -32,6 +32,7 @@ public class WebConfig implements WebMvcConfigurer {
                         "/api/mobile/**",
                         "/api/inspection/datascreen/**",
                         "/api/stream/**",
+                        "/api/hikNet/**",
                         "/swagger-ui/**",
                         "/swagger-ui.html",
                         "/api-docs/**",

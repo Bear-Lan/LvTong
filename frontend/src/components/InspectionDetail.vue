@@ -479,6 +479,63 @@
         </div>
       </div>
 
+      <!-- 视频回放区域（与VideoMonitor.vue布局一致） -->
+      <div class="playback-section" v-if="playbackReady">
+        <div class="playback-header">
+          <span class="playback-title">录像回放</span>
+          <span class="playback-time-range">{{ row.acceptanceTime }} ~ {{ row.inspectionTime }}</span>
+        </div>
+        <div class="video-split-container">
+          <!-- 左侧：车道（占1/3宽度，全高） -->
+          <div class="split-left">
+            <VideoPlayback
+              class="lane-video"
+              channel-key="lane"
+              channel-name="车道"
+              :channel-id="laneChannelId"
+              :start-time="playbackStartTime"
+              :end-time="playbackEndTime"
+              :is-rotated="true"
+            />
+          </div>
+          <!-- 右侧：2x2分屏（占2/3宽度） -->
+          <div class="split-right">
+            <div class="split-right-top">
+              <VideoPlayback
+                channel-key="ptz360"
+                channel-name="360球机"
+                :channel-id="ptz360ChannelId"
+                :start-time="playbackStartTime"
+                :end-time="playbackEndTime"
+              />
+              <VideoPlayback
+                channel-key="appointment"
+                channel-name="预约机"
+                :channel-id="appointmentChannelId"
+                :start-time="playbackStartTime"
+                :end-time="playbackEndTime"
+              />
+            </div>
+            <div class="split-right-bottom">
+              <VideoPlayback
+                channel-key="rear"
+                channel-name="车尾"
+                :channel-id="rearChannelId"
+                :start-time="playbackStartTime"
+                :end-time="playbackEndTime"
+              />
+              <VideoPlayback
+                channel-key="front"
+                channel-name="车头"
+                :channel-id="frontChannelId"
+                :start-time="playbackStartTime"
+                :end-time="playbackEndTime"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div><!-- /detail-body -->
 
     <!-- 货物类型选择弹窗 -->
@@ -637,6 +694,8 @@ import { ElMessage } from 'element-plus'
 import { Plus, Picture, Edit } from '@element-plus/icons-vue'
 import { getProductList, getNopassTypeOptions, updateInspection } from '@/api/vehicleInspection'
 import { getUserPhoneList } from '@/api/user'
+import VideoPlayback from '@/components/VideoPlayback.vue'
+import { listChannels } from '@/api/stream'
 
 // ================================================================
 // Props & Emits
@@ -833,6 +892,37 @@ const reviewers = ref([])
 
 /** 提交按钮 loading */
 const submitting = ref(false)
+
+/** 通道ID */
+const laneChannelId = ref(null)
+const appointmentChannelId = ref(null)
+const frontChannelId = ref(null)
+const rearChannelId = ref(null)
+const ptz360ChannelId = ref(null)
+
+/** 回放时间范围（限制1小时） */
+const MAX_PLAYBACK_HOURS = 1
+const playbackStartTime = computed(() => {
+  if (!props.row.acceptanceTime) return ''
+  const start = new Date(props.row.acceptanceTime)
+  return formatTime(start)
+})
+const playbackEndTime = computed(() => {
+  if (!props.row.acceptanceTime || !props.row.inspectionTime) return ''
+  const start = new Date(props.row.acceptanceTime)
+  const end = new Date(props.row.inspectionTime)
+  const maxEnd = new Date(start.getTime() + MAX_PLAYBACK_HOURS * 60 * 60 * 1000)
+  const actualEnd = end < maxEnd ? end : maxEnd
+  return formatTime(actualEnd)
+})
+const playbackReady = computed(() => {
+  return !!playbackStartTime.value && !!playbackEndTime.value
+})
+const formatTime = (date) => {
+  if (!date) return ''
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}
 
 /** 货车长宽高弹框数据 */
 const vehicleSizeForm = reactive({
@@ -1126,7 +1216,25 @@ onMounted(() => {
   loadProducts()
   loadNopassTypes()
   loadReviewers()
+  loadChannels()
 })
+
+/** 加载通道信息 */
+const loadChannels = async () => {
+  try {
+    const res = await listChannels()
+    if (res.code === 200 && res.data?.length >= 5) {
+      const channels = res.data
+      laneChannelId.value = channels.find(c => c.cameraType === 'lane')?.channel
+      appointmentChannelId.value = channels.find(c => c.cameraType === 'appointment')?.channel
+      frontChannelId.value = channels.find(c => c.cameraType === 'front')?.channel
+      rearChannelId.value = channels.find(c => c.cameraType === 'rear')?.channel
+      ptz360ChannelId.value = channels.find(c => c.cameraType === 'ptz360')?.channel
+    }
+  } catch {
+    // 通道加载失败不影响主流程
+  }
+}
 </script>
 
 <style>
@@ -1157,6 +1265,11 @@ onMounted(() => {
 }
 
 /* ========== 区域通用样式 ========== */
+.detail-body {
+  max-height: calc(95vh - 80px);
+  overflow-y: auto;
+}
+
 .detail-section {
   margin-bottom: 8px;
   background: #fff;
@@ -1653,5 +1766,73 @@ onMounted(() => {
   font-size: 14px;
   color: #606266;
   font-weight: 500;
+}
+
+/* ========== 视频回放区域样式 ========== */
+.playback-section {
+  margin-top: 8px;
+  background: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.playback-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-bottom: 2px solid #0f4c75;
+}
+
+.playback-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e0e0e0;
+}
+
+.playback-time-range {
+  font-size: 12px;
+  color: #a0a8b6;
+}
+
+/* 5路分屏容器 - 与VideoMonitor.vue一致 */
+.video-split-container {
+  display: flex;
+  flex: 1;
+  gap: 4px;
+  padding: 4px;
+  width: 100%;
+  height: 360px;
+  box-sizing: border-box;
+}
+
+.split-left {
+  flex: 0 0 20%;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.lane-video {
+  flex: 1;
+  min-height: 0;
+}
+
+.split-right {
+  flex: 0 0 80%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.split-right-top,
+.split-right-bottom {
+  display: flex;
+  flex: 1;
+  gap: 4px;
+  min-height: 0;
 }
 </style>
