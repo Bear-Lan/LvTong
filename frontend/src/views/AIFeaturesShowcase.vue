@@ -141,6 +141,9 @@
               :src="activeImageTab === 'result' && resultImageUrl ? resultImageUrl : previewUrl"
               fit="contain"
               class="preview-image"
+              :preview-src-list="previewSrcList"
+              :initial-index="0"
+              preview-teleported
             />
             <div v-if="!previewUrl" class="upload-hint">
               <el-icon class="hint-icon"><Picture /></el-icon>
@@ -318,6 +321,7 @@ document.title = '绿通AI智能体'
 const selectedFile = ref(null)
 const previewUrl = ref('')
 const resultImageUrl = ref('')
+const previewSrcList = ref([])
 const detecting = ref(false)
 const detectionComplete = ref(false)
 const detectionResult = ref(null)
@@ -480,7 +484,9 @@ const handleFileChange = (file) => {
   resultImageUrl.value = ''
   activeImageTab.value = 'original'
   selectedFile.value = file.raw
-  previewUrl.value = URL.createObjectURL(file.raw)
+  const url = URL.createObjectURL(file.raw)
+  previewUrl.value = url
+  previewSrcList.value = [url]
 }
 
 const handleFileRemove = () => {
