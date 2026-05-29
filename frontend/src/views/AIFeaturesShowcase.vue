@@ -87,7 +87,7 @@
       @closed="resetDialogState"
     >
       <!-- 顶部操作按钮区 -->
-      <div class="dialog-toolbar">
+      <div class="dialog-toolbar" v-if="currentFeature && apiMapping[currentFeature.action]?.api">
         <el-upload
           ref="uploadRef"
           :auto-upload="false"
@@ -114,8 +114,14 @@
         </el-button>
       </div>
 
+      <!-- 待开发提示 -->
+      <div class="developing-tip" v-else-if="currentFeature">
+        <el-icon class="tip-icon"><Clock /></el-icon>
+        <span class="tip-text">{{ currentFeature?.name }} - 功能待开发</span>
+      </div>
+
       <!-- 主体左右分栏 -->
-      <div class="dialog-body">
+      <div class="dialog-body" v-if="currentFeature && apiMapping[currentFeature.action]?.api">
         <!-- 左侧：图片预览 -->
         <div class="dialog-left">
           <el-tabs v-model="activeImageTab" class="image-tabs">
@@ -194,14 +200,14 @@
                   <span class="info-value">{{ detectionResult.cratetype }}</span>
                 </div>
               </div>
-              <div class="result-table" v-if="detectionResult.data && detectionResult.data.length > 0">
+              <div class="result-table" v-if="carriageFilteredData.length > 0">
                 <div class="table-header">
                   <span>序号</span>
                   <span>类型</span>
                   <span>置信度</span>
                 </div>
                 <div
-                  v-for="(item, index) in detectionResult.data"
+                  v-for="(item, index) in carriageFilteredData"
                   :key="index"
                   class="table-row"
                 >
@@ -244,7 +250,13 @@
               </div>
             </template>
 
-            <!-- 其他识别结果 -->
+            <!-- 待开发状态 -->
+            <template v-else-if="detectionResult?.status === '待开发'">
+              <div class="empty-result" style="min-height: 200px;">
+                <el-icon class="empty-icon"><Clock /></el-icon>
+                <span class="empty-text">待开发</span>
+              </div>
+            </template>
             <template v-else-if="detectionResult">
               <pre class="json-result">{{ JSON.stringify(detectionResult, null, 2) }}</pre>
             </template>
@@ -269,7 +281,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { UploadFilled, MagicStick, Picture, List, Document } from '@element-plus/icons-vue'
+import { UploadFilled, MagicStick, Picture, List, Document, Clock } from '@element-plus/icons-vue'
 import { detectVehicle, detectGoods, detectAxle, detectCarriage } from '@/api/ai'
 
 const showDialog = ref(false)
@@ -287,19 +299,6 @@ const detectionComplete = ref(false)
 const detectionResult = ref(null)
 const activeImageTab = ref('original')
 const isDragOver = ref(false)
-
-// 10个功能的模拟数据生成器（待开发状态）
-const mockDataGenerators = {
-  vehicle: () => ({ code: 200, message: '待开发', data: { status: '待开发功能' } }),
-  height: () => ({ code: 200, message: '待开发', data: { status: '待开发功能' } }),
-  dimension: () => ({ code: 200, message: '待开发', data: { status: '待开发功能' } }),
-  license: () => ({ code: 200, message: '待开发', data: { status: '待开发功能' } }),
-  axle: () => ({ code: 200, message: '待开发', data: { status: '待开发功能' } }),
-  carriage: () => ({ code: 200, message: '待开发', data: { status: '待开发功能' } }),
-  mixed: () => ({ code: 200, message: '待开发', data: { status: '待开发功能' } }),
-  loading: () => ({ code: 200, message: '待开发', data: { status: '待开发功能' } }),
-  xray: () => ({ code: 200, message: '待开发', data: { status: '待开发功能' } })
-}
 
 // 已实现API的功能映射
 const apiMapping = {
@@ -417,8 +416,32 @@ const filteredGoods = computed(() => {
   )
 })
 
+// 车厢识别过滤车轮数据，只显示车头和车厢
+const carriageFilteredData = computed(() => {
+  if (!detectionResult.value?.data) return []
+  return detectionResult.value.data.filter(item =>
+    item.label && item.label.toLowerCase() !== 'wheel'
+  )
+})
+
 const handleCardClick = (item) => {
   currentFeature.value = item
+
+  // 检查功能是否已实现
+  const apiConfig = apiMapping[item.action]
+  if (!apiConfig?.api) {
+    // 未实现的功能，直接显示待开发状态
+    detectionResult.value = { status: '待开发' }
+    detectionComplete.value = true
+    resultImageUrl.value = ''
+    previewUrl.value = ''
+    selectedFile.value = null
+    activeImageTab.value = 'original'
+  } else {
+    // 已实现功能，重置检测状态
+    resetDialogState()
+  }
+
   showDialog.value = true
 }
 
@@ -488,10 +511,8 @@ const handleDetect = async () => {
         ElMessage.error(response.message || '识别失败')
       }
     } else {
-      // 模拟AI接口延迟
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      const generator = mockDataGenerators[action] || mockDataGenerators.vehicle
-      detectionResult.value = generator().data
+      // 未实现的功能，直接显示待开发
+      detectionResult.value = { status: '待开发' }
     }
 
     detectionComplete.value = true
@@ -997,6 +1018,30 @@ const resetDialogState = () => {
   box-shadow: none !important;
 }
 
+/* 待开发提示 */
+.developing-tip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 60px 20px;
+  color: rgba(100, 255, 218, 0.8);
+}
+
+.tip-icon {
+  font-size: 64px;
+  color: rgba(100, 255, 218, 0.5);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.tip-text {
+  font-size: 18px;
+  font-weight: 500;
+  color: rgba(100, 255, 218, 0.9);
+  letter-spacing: 1px;
+}
+
 /* 主体左右分栏 */
 .dialog-body {
   display: flex;
@@ -1033,7 +1078,7 @@ const resetDialogState = () => {
 }
 
 .image-tabs :deep(.el-tabs__item) {
-  color: rgba(255, 255, 255, 0.5);
+  color: #333;
   font-size: 14px;
   font-weight: 500;
   padding: 0 20px;
@@ -1043,7 +1088,7 @@ const resetDialogState = () => {
 }
 
 .image-tabs :deep(.el-tabs__item:hover) {
-  color: rgba(255, 255, 255, 0.8);
+  color: #000;
 }
 
 .image-tabs :deep(.el-tabs__item.is-disabled) {
