@@ -9,8 +9,7 @@
     <div class="page-header">
       <h1 class="main-title">
         <span class="title-icon">⚡</span>
-        绿通AI智能检测平台
-        <span class="title-sub">GREENTOANG AI DETECTION</span>
+        绿通AI智能测试平台
       </h1>
     </div>
 
@@ -52,7 +51,6 @@
           </div>
           <div class="core-glow"></div>
         </div>
-        <p class="core-label">AI智能核心</p>
       </div>
 
       <!-- 右侧功能卡片组（分析输出） -->
@@ -955,9 +953,9 @@ const resetDialogState = () => {
 
 /* 弹窗整体 */
 .feature-dialog {
-  --el-dialog-bg-color: rgba(10, 25, 47, 0.98);
-  --el-text-color-primary: #fff;
-  border: 1px solid rgba(100, 255, 218, 0.3) !important;
+  --el-dialog-bg-color: #fff;
+  --el-text-color-primary: #000;
+  border: 1px solid rgba(0, 191, 255, 0.3) !important;
   border-radius: 16px !important;
   box-shadow: 0 0 40px rgba(100, 255, 218, 0.15), 0 20px 60px rgba(0, 0, 0, 0.5) !important;
   backdrop-filter: blur(12px);
@@ -969,7 +967,7 @@ const resetDialogState = () => {
 }
 
 .feature-dialog :deep(.el-dialog__header) {
-  border-bottom: 1px solid rgba(100, 255, 218, 0.2);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
   padding: 16px 20px;
   margin-right: 0;
 }
@@ -980,18 +978,18 @@ const resetDialogState = () => {
 }
 
 .feature-dialog :deep(.el-dialog__headerbtn .el-dialog__close) {
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(0, 0, 0, 0.5);
   font-size: 18px;
   transition: all 0.3s;
 }
 
 .feature-dialog :deep(.el-dialog__headerbtn:hover .el-dialog__close) {
-  color: #64ffda;
-  text-shadow: 0 0 10px rgba(100, 255, 218, 0.5);
+  color: #00bfff;
+  text-shadow: 0 0 10px rgba(0, 191, 255, 0.5);
 }
 
 .feature-dialog :deep(.el-dialog__title) {
-  color: #fff;
+  color: #000;
   font-size: 18px;
   font-weight: 600;
   letter-spacing: 1px;
@@ -999,7 +997,7 @@ const resetDialogState = () => {
 
 .feature-dialog :deep(.el-dialog__body) {
   padding: 20px;
-  color: #fff;
+  color: #000;
 }
 
 /* 顶部工具栏 */
@@ -1123,19 +1121,19 @@ const resetDialogState = () => {
 }
 
 .image-tabs :deep(.el-tabs__item.is-disabled) {
-  color: rgba(255, 255, 255, 0.25);
+  color: rgba(0, 0, 0, 0.25);
   cursor: not-allowed;
 }
 
 .image-tabs :deep(.el-tabs__item.is-active) {
-  color: #64ffda;
+  color: #00bfff;
   font-weight: 600;
 }
 
 .image-tabs :deep(.el-tabs__active-bar) {
   height: 2px;
-  background: linear-gradient(90deg, #64ffda, #00bfff);
-  box-shadow: 0 0 10px rgba(100, 255, 218, 0.5);
+  background: linear-gradient(90deg, #00bfff, #00bfff);
+  box-shadow: 0 0 10px rgba(0, 191, 255, 0.5);
 }
 
 /* ======================= 图片容器 ======================= */
@@ -1144,8 +1142,8 @@ const resetDialogState = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(10, 25, 47, 0.6);
-  border: 1px solid rgba(100, 255, 218, 0.2);
+  background: rgba(240, 240, 240, 0.5);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: 12px;
   position: relative;
   overflow: hidden;
@@ -1155,18 +1153,18 @@ const resetDialogState = () => {
 }
 
 .image-container:hover {
-  border-color: rgba(100, 255, 218, 0.4);
-  box-shadow: 0 0 20px rgba(100, 255, 218, 0.1);
+  border-color: rgba(0, 191, 255, 0.4);
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
 }
 
 .image-container.has-image {
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.05);
   border-style: solid;
 }
 
 .image-container.drag-over {
-  border-color: #64ffda;
-  background: rgba(100, 255, 218, 0.08);
+  border-color: #00bfff;
+  background: rgba(0, 191, 255, 0.05);
 }
 
 .preview-image {
@@ -1180,29 +1178,29 @@ const resetDialogState = () => {
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(0, 0, 0, 0.4);
   text-align: center;
 }
 
 .hint-icon {
   font-size: 56px;
-  color: rgba(100, 255, 218, 0.4);
+  color: rgba(0, 0, 0, 0.2);
   transition: all 0.3s;
 }
 
 .image-container:hover .hint-icon {
-  color: #64ffda;
-  text-shadow: 0 0 20px rgba(100, 255, 218, 0.5);
+  color: #00bfff;
+  text-shadow: 0 0 20px rgba(0, 191, 255, 0.3);
 }
 
 .hint-text {
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(0, 0, 0, 0.5);
 }
 
 .hint-format {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(0, 0, 0, 0.3);
 }
 
 /* ======================= 结果区域 ======================= */
@@ -1259,7 +1257,7 @@ const resetDialogState = () => {
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: 13px;
   line-height: 1.7;
-  color: rgba(255, 255, 255, 0.85);
+  color: #000;
   white-space: pre-wrap;
   word-break: break-all;
 }
@@ -1271,7 +1269,7 @@ const resetDialogState = () => {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(0, 0, 0, 0.4);
   min-height: 300px;
   padding: 20px;
   text-align: center;
