@@ -1005,11 +1005,11 @@ const resetDialogState = () => {
   display: flex;
   gap: 16px;
   padding-bottom: 16px;
-  border-bottom: 1px solid rgba(100, 255, 218, 0.15);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
   margin-bottom: 16px;
 }
 
-/* 工具栏按钮 - 科技风 */
+/* 工具栏按钮 */
 .dialog-toolbar .el-button {
   border-radius: 8px;
   font-weight: 500;
@@ -1018,32 +1018,32 @@ const resetDialogState = () => {
 
 .dialog-toolbar .el-button--primary.is-plain {
   background: transparent !important;
-  border: 1px solid rgba(100, 255, 218, 0.5) !important;
-  color: #64ffda !important;
+  border: 1px solid rgba(0, 0, 0, 0.3) !important;
+  color: #000 !important;
 }
 
 .dialog-toolbar .el-button--primary.is-plain:hover {
-  background: rgba(100, 255, 218, 0.1) !important;
-  border-color: #64ffda !important;
-  box-shadow: 0 0 15px rgba(100, 255, 218, 0.3);
+  background: rgba(0, 0, 0, 0.05) !important;
+  border-color: rgba(0, 0, 0, 0.5) !important;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
 }
 
 .dialog-toolbar .el-button--primary {
-  background: linear-gradient(135deg, #64ffda, #00bfff) !important;
+  background: linear-gradient(135deg, #00bfff, #00bfff) !important;
   border: none !important;
-  color: #071426 !important;
+  color: #fff !important;
   font-weight: 600;
 }
 
 .dialog-toolbar .el-button--primary:hover:not(:disabled) {
-  box-shadow: 0 0 20px rgba(100, 255, 218, 0.5);
+  box-shadow: 0 0 20px rgba(0, 191, 255, 0.4);
   transform: translateY(-1px);
 }
 
 .dialog-toolbar .el-button.is-disabled {
-  background: rgba(100, 255, 218, 0.15) !important;
-  border-color: rgba(100, 255, 218, 0.3) !important;
-  color: rgba(55, 52, 52, 0.7)ant;
+  background: rgba(0, 0, 0, 0.1) !important;
+  border-color: rgba(0, 0, 0, 0.2) !important;
+  color: rgba(0, 0, 0, 0.4);
   box-shadow: none !important;
 }
 
@@ -1055,19 +1055,19 @@ const resetDialogState = () => {
   justify-content: center;
   gap: 16px;
   padding: 60px 20px;
-  color: rgba(100, 255, 218, 0.8);
+  color: rgba(0, 0, 0, 0.7);
 }
 
 .tip-icon {
   font-size: 64px;
-  color: rgba(100, 255, 218, 0.5);
+  color: rgba(0, 0, 0, 0.3);
   animation: pulse 2s ease-in-out infinite;
 }
 
 .tip-text {
   font-size: 18px;
   font-weight: 500;
-  color: rgba(100, 255, 218, 0.9);
+  color: rgba(0, 0, 0, 0.8);
   letter-spacing: 1px;
 }
 
@@ -1380,7 +1380,7 @@ const resetDialogState = () => {
   gap: 12px;
   justify-content: center;
   padding-top: 16px;
-  border-top: 1px solid rgba(100, 255, 218, 0.15);
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
   margin-top: 16px;
 }
 
@@ -1390,16 +1390,16 @@ const resetDialogState = () => {
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
-  border: 1px solid rgba(100, 255, 218, 0.4);
+  border: 1px solid rgba(0, 0, 0, 0.3);
   background: transparent;
-  color: #64ffda;
+  color: #000;
   transition: all 0.3s;
 }
 
 .dialog-footer .el-button:hover {
-  background: rgba(100, 255, 218, 0.1);
-  border-color: #64ffda;
-  box-shadow: 0 0 15px rgba(100, 255, 218, 0.3);
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
 }
 
 /* 响应式 */
