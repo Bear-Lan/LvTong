@@ -99,3 +99,23 @@ export function detectCarriage(file) {
     }
   })
 }
+
+/**
+ * OCR行驶证识别
+ * 识别行驶证正反面信息
+ * @param {File} file - 行驶证图片文件
+ * @returns {Promise}
+ */
+export function detectOCR(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  return request({
+    url: '/ai/driver-license',
+    method: 'post',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}

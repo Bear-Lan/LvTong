@@ -250,6 +250,30 @@
               </div>
             </template>
 
+            <!-- OCR行驶证识别结果 -->
+            <template v-else-if="detectionResult && currentFeature?.action === 'license'">
+              <div class="result-table" v-if="detectionResult.data && detectionResult.data.length > 0">
+                <div class="table-header">
+                  <span>序号</span>
+                  <span>项目</span>
+                  <span>内容</span>
+                </div>
+                <div
+                  v-for="(item, index) in detectionResult.data"
+                  :key="index"
+                  class="table-row"
+                >
+                  <span>{{ index + 1 }}</span>
+                  <span>{{ item.key }}</span>
+                  <span>{{ item.value }}</span>
+                </div>
+              </div>
+              <div v-else class="empty-result">
+                <el-icon class="empty-icon"><Document /></el-icon>
+                <span class="empty-text">未识别到有效信息</span>
+              </div>
+            </template>
+
             <!-- 待开发状态 -->
             <template v-else-if="detectionResult?.status === '待开发'">
               <div class="empty-result" style="min-height: 200px;">
@@ -282,7 +306,7 @@
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { UploadFilled, MagicStick, Picture, List, Document, Clock } from '@element-plus/icons-vue'
-import { detectGoods, detectAxle, detectCarriage } from '@/api/ai'
+import { detectGoods, detectAxle, detectCarriage, detectOCR } from '@/api/ai'
 
 const showDialog = ref(false)
 const currentFeature = ref(null)
@@ -304,7 +328,8 @@ const isDragOver = ref(false)
 const apiMapping = {
   goods: { api: detectGoods, hasBoxes: false },
   axle: { api: detectAxle, hasBoxes: true },
-  carriage: { api: detectCarriage, hasBoxes: true }
+  carriage: { api: detectCarriage, hasBoxes: true },
+  license: { api: detectOCR, hasBoxes: false }
 }
 
 // 左侧功能（数据输入）
@@ -499,10 +524,11 @@ const handleDetect = async () => {
     if (apiConfig?.api) {
       // 调用真实API
       const response = await apiConfig.api(selectedFile.value)
-      if (response.code === 200) {
+      // 兼容不同API返回格式（code=200或code=1）
+      if (response.code === 200 || response.code === 1) {
         detectionResult.value = response.data
-        // 提取结果图base64
-        if (response.data?.result_image?.base64) {
+        // 提取结果图base64（仅已有结果图的API）
+        if (apiConfig.hasBoxes && response.data?.result_image?.base64) {
           const format = response.data.result_image.format || 'jpg'
           resultImageUrl.value = `data:image/${format};base64,${response.data.result_image.base64}`
         }
