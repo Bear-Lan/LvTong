@@ -25,6 +25,12 @@ const routes = [
     component: () => import('@/views/VideoMonitor.vue')
   },
   {
+    path: '/playback',
+    name: 'VideoPlaybackPage',
+    meta: { title: '录像回放' },
+    component: () => import('@/components/VideoPlaybackPage.vue')
+  },
+  {
     path: '/ai-showcase',
     name: 'AIShowcase',
     meta: { title: '绿通AI智能体' },
