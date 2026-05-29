@@ -140,7 +140,7 @@
               fit="contain"
               class="preview-image"
               :preview-src-list="previewSrcList"
-              :initial-index="0"
+              :initial-index="activeImageTab === 'result' && resultImageUrl ? 1 : 0"
               preview-teleported
             />
             <div v-if="!previewUrl" class="upload-hint">
@@ -534,7 +534,10 @@ const handleDetect = async () => {
         // 提取结果图base64（仅已有结果图的API）
         if (apiConfig.hasBoxes && response.data?.result_image?.base64) {
           const format = response.data.result_image.format || 'jpg'
-          resultImageUrl.value = `data:image/${format};base64,${response.data.result_image.base64}`
+          const resultUrl = `data:image/${format};base64,${response.data.result_image.base64}`
+          resultImageUrl.value = resultUrl
+          // 检测结果图的双击预览列表包含原图和结果图
+          previewSrcList.value = [previewUrl.value, resultUrl]
         }
       } else {
         ElMessage.error(response.message || '识别失败')
