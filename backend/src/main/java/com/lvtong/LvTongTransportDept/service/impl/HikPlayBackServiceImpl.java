@@ -52,6 +52,7 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
         final AtomicReference<Process> ffmpegProcess = new AtomicReference<>();
         final CountDownLatch dataReceivedLatch = new CountDownLatch(1);
         final AtomicLong bytesWritten = new AtomicLong(0);
+        final AtomicLong lastDataTime = new AtomicLong(System.currentTimeMillis());
 
         PlaybackResources(NativeLong playHandle, NativeLong userId, CountDownLatch stopLatch, Path rawFile) {
             this.playHandle = playHandle;
@@ -143,6 +144,7 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
             // NVR 返回 H.265 ES（HEVC 视频 + G711 音频），回调线程直接写入文件
             final FileOutputStream fosForCallback = fos;
             final AtomicLong bytesWritten = resources.bytesWritten;
+            final AtomicLong lastDataTime = resources.lastDataTime;
             final CountDownLatch dataReceivedLatch = resources.dataReceivedLatch;
             AtomicLong lastLogTime = new AtomicLong(System.currentTimeMillis());
 
@@ -155,7 +157,10 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
                         buf.get(data);
                         fosForCallback.write(data);
                         fosForCallback.flush();
-                        dataReceivedLatch.countDown();
+                        lastDataTime.set(System.currentTimeMillis());
+                        if (dataReceivedLatch.getCount() > 0) {
+                            dataReceivedLatch.countDown();
+                        }
                         long total = bytesWritten.addAndGet(dwBufSize);
                         long now = System.currentTimeMillis();
                         if (now - lastLogTime.get() > 5000) {
@@ -169,13 +174,28 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
             };
             hcNetSDK.NET_DVR_SetPlayDataCallBack(playHandle, callback, Pointer.NULL);
 
-            // 等待 NVR 数据写入文件（最多等待 30 秒）
+            // 等待 NVR 数据积累足够后再启动 FFmpeg（减少开头碎片NALU导致的雪花）
             log.info("等待 NVR 数据写入文件...");
             boolean dataReceived = dataReceivedLatch.await(30, TimeUnit.SECONDS);
             if (!dataReceived) {
                 log.error("NVR 数据未写入，超时未收到数据");
             }
-            log.info("NVR 数据已开始写入，累计: {} bytes", bytesWritten.get());
+
+            // 等待数据稳定（文件大小连续2秒不变，且至少有500KB）
+            long stableStart = System.currentTimeMillis();
+            long prevSize = 0;
+            while (System.currentTimeMillis() - stableStart < 30_000) {
+                long currentSize = bytesWritten.get();
+                long quietTime = System.currentTimeMillis() - lastDataTime.get();
+                if (currentSize > 500 * 1024 && currentSize == prevSize && quietTime > 2000) {
+                    log.info("数据已稳定，静止 {}ms，累计: {} bytes", quietTime, currentSize);
+                    break;
+                }
+                prevSize = currentSize;
+                Thread.sleep(200);
+            }
+            long accumulated = bytesWritten.get();
+            log.info("NVR 数据已积累，累计: {} bytes", accumulated);
 
             // NVR 数据开始写入后，启动 FFmpeg 进程
             Process ffmpegProcess = startFfmpegStreaming(rawFile, outputStream);
@@ -237,21 +257,22 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
         log.info("启动 FFmpeg，临时文件大小: {} bytes", fileSize);
 
         // FFmpeg 命令：按原始速率读取文件，转码为 H.264，输出到 stdout
-        // 输出 MP4 格式（但不加 +faststart，因为 pipe 输出不支持 seekable）
         ProcessBuilder pb = new ProcessBuilder(
                 FFMPEG_PATH,
-                "-re",                           // 按原始速率读取（实时读取文件内容）
-                "-fflags", "+genpts+igndts",     // 生成 pts，处理不连续的dts
-                "-f", "hevc",                    // 指定输入格式为 HEVC/H.265 裸流
+                "-re",                           // 按原始速率读取
+                "-fflags", "+genpts+igndts",     // 生成pts，处理不连续的dts
+                "-f", "hevc",                    // 指定输入格式为 HEVC 裸流
                 "-i", rawFile.toAbsolutePath().toString(),
-                "-probesize", "5000000",         // 探测buffer大小，处理不完整HEVC流
-                "-analyzeduration", "5000000",   // 探测时间，增加可识别完整帧的概率
+                "-probesize", "5000000",
+                "-analyzeduration", "5000000",
                 "-c:v", "libx264",              // H.265 -> H.264 转码
-                "-preset", "ultrafast",         // 最快编码速度
-                "-an",                           // 不要音频
-                "-movflags", "empty_moov",      // 允许初始写入即输出 MP4（无需 seekable）
+                "-preset", "ultrafast",
+                "-crf", "18",                   // 低 CRF 值提高质量
+                "-vf", "scale=1920:-2",         // 缩放到 1080p，缓解源流 3200x1800@1200kbps 压缩伪影
+                "-an",
+                "-movflags", "empty_moov",
                 "-f", "mp4",
-                "pipe:1"                         // 输出到 stdout
+                "pipe:1"
         );
         pb.redirectErrorStream(false); // 不合并错误流，单独处理
         Process process = pb.start();

@@ -6,26 +6,23 @@
         class="playback-video"
         :style="{ objectFit: fit }"
         playsinline
+        @timeupdate="onTimeUpdate"
+        @loadedmetadata="onLoadedMetadata"
       ></video>
     </div>
 
-    <div class="video-actions">
-      <button
-        class="action-btn"
-        :class="{ 'is-disabled': isLoading }"
-        @click.stop="retryConnect"
-        title="重连"
-        :disabled="isLoading"
-      >
-        <el-icon><RefreshRight /></el-icon>
+    <!-- 底部控制栏 -->
+    <div v-if="isConnected" class="video-controls">
+      <button class="ctrl-btn" @click.stop="togglePause" :title="isPaused ? '继续' : '暂停'">
+        <el-icon><VideoPause v-if="!isPaused" /><VideoPlay v-else /></el-icon>
       </button>
-      <button class="action-btn" @click.stop="toggleFullscreen" title="全屏">
-        <el-icon><FullScreen /></el-icon>
-      </button>
-      <button class="action-btn" @click.stop="handleScreenshot" title="截图">
-        <el-icon><Camera /></el-icon>
-      </button>
-      <button class="action-btn" @click.stop="toggleMute" :title="isMuted ? '取消静音' : '静音'">
+      <div class="progress-bar" @click.stop="seekTo">
+        <div class="progress-track">
+          <div class="progress-fill" :style="{ width: progressPercent + '%' }"></div>
+        </div>
+      </div>
+      <span class="time-label">{{ formatTime(currentTime) }} / {{ formatTime(duration) }}</span>
+      <button class="ctrl-btn" @click.stop="toggleMute" :title="isMuted ? '取消静音' : '静音'">
         <el-icon><Mute v-if="isMuted" /><Microphone v-else /></el-icon>
       </button>
     </div>
@@ -38,6 +35,22 @@
     <div v-else-if="!channelId" class="video-placeholder">
       <el-icon><VideoCamera /></el-icon>
       <p>{{ channelName }}</p>
+      <p class="placeholder-tip">无通道信息</p>
+    </div>
+
+    <div v-else-if="isEnded" class="video-ended">
+      <el-icon><VideoPlay /></el-icon>
+      <p>录像已播完</p>
+      <button class="play-btn" @click.stop="handleReplay">
+        <el-icon><VideoPlay /></el-icon>
+        <span>重新播放</span>
+      </button>
+    </div>
+
+    <div v-else-if="hasError" class="video-error">
+      <el-icon><Warning /></el-icon>
+      <p>{{ errorMessage }}</p>
+      <button class="retry-btn" @click.stop="retryConnect">重试</button>
     </div>
 
     <div v-else-if="!isPlaying" class="video-placeholder">
@@ -48,18 +61,12 @@
         <span>播放录像</span>
       </button>
     </div>
-
-    <div v-else-if="hasError" class="video-error">
-      <el-icon><Warning /></el-icon>
-      <p>{{ errorMessage }}</p>
-      <button class="retry-btn" @click.stop="retryConnect">重试</button>
-    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { FullScreen, Camera, VideoCamera, RefreshRight, Microphone, Mute, Warning, VideoPlay } from '@element-plus/icons-vue'
+import { ref, onUnmounted, watch, nextTick } from 'vue'
+import { VideoCamera, Microphone, Mute, Warning, VideoPlay, VideoPause } from '@element-plus/icons-vue'
 
 const props = defineProps({
   channelKey: { type: String, required: true },
@@ -68,7 +75,7 @@ const props = defineProps({
   mediaServerUrl: { type: String, default: '' },
   startTime: { type: String, default: '' },
   endTime: { type: String, default: '' },
-  fit: { type: String, default: 'fill' },
+  fit: { type: String, default: 'contain' },
   isRotated: { type: Boolean, default: false }
 })
 
@@ -80,8 +87,39 @@ const isPlaying = ref(false)
 const isConnected = ref(false)
 const isLoading = ref(false)
 const hasError = ref(false)
+const isEnded = ref(false)
+const isPaused = ref(false)
 const errorMessage = ref('播放失败')
 const isMuted = ref(true)
+const currentTime = ref(0)
+const duration = ref(0)
+
+const progressPercent = ref(0)
+
+const formatTime = (seconds) => {
+  if (!seconds || isNaN(seconds)) return '00:00'
+  const m = Math.floor(seconds / 60)
+  const s = Math.floor(seconds % 60)
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
+
+const onTimeUpdate = () => {
+  if (!videoElement.value) return
+  currentTime.value = videoElement.value.currentTime
+  if (duration.value > 0) {
+    progressPercent.value = (currentTime.value / duration.value) * 100
+  }
+}
+
+const onLoadedMetadata = () => {
+  if (!videoElement.value) return
+  duration.value = videoElement.value.duration
+  isLoading.value = false
+  isConnected.value = true
+  isPaused.value = false
+  updateRotatedStyle()
+  videoElement.value.play().catch(() => {})
+}
 
 const updateRotatedStyle = () => {
   if (!videoElement.value || !videoWrapper.value) return
@@ -105,6 +143,11 @@ const startStream = async () => {
   isLoading.value = true
   hasError.value = false
   errorMessage.value = '播放失败'
+  isEnded.value = false
+  isPaused.value = false
+  currentTime.value = 0
+  duration.value = 0
+  progressPercent.value = 0
   stopStream()
 
   const apiUrl = `/api/hikNet/playBackVideo?startTime=${encodeURIComponent(props.startTime)}&endTime=${encodeURIComponent(props.endTime)}&channel=${props.channelId}`
@@ -112,13 +155,7 @@ const startStream = async () => {
   try {
     videoElement.value.src = apiUrl
     videoElement.value.muted = isMuted.value
-
-    videoElement.value.onloadedmetadata = () => {
-      isLoading.value = false
-      isConnected.value = true
-      updateRotatedStyle()
-      videoElement.value.play().catch(() => {})
-    }
+    videoElement.value.load()
 
     videoElement.value.onerror = () => {
       errorMessage.value = '播放失败，请重试'
@@ -128,9 +165,10 @@ const startStream = async () => {
     }
 
     videoElement.value.onended = () => {
+      isEnded.value = true
       isConnected.value = false
+      isPaused.value = false
       isLoading.value = false
-      errorMessage.value = '播放结束'
     }
   } catch (e) {
     console.error('连接视频流失败:', e)
@@ -149,6 +187,10 @@ const stopStream = () => {
   }
   isConnected.value = false
   isLoading.value = false
+  isPaused.value = false
+  currentTime.value = 0
+  duration.value = 0
+  progressPercent.value = 0
 }
 
 const retryConnect = () => {
@@ -161,27 +203,31 @@ const handlePlay = () => {
   isPlaying.value = true
 }
 
-const toggleFullscreen = () => {
+const handleReplay = () => {
+  isEnded.value = false
+  isPlaying.value = false
+  stopStream()
+  nextTick(() => {
+    isPlaying.value = true
+  })
+}
+
+const togglePause = () => {
   if (!videoElement.value) return
-  if (document.fullscreenElement) {
-    document.exitFullscreen()
+  if (isPaused.value) {
+    videoElement.value.play()
+    isPaused.value = false
   } else {
-    videoElement.value.parentElement.requestFullscreen()
+    videoElement.value.pause()
+    isPaused.value = true
   }
 }
 
-const handleScreenshot = () => {
-  if (!videoElement.value) return
-  const canvas = document.createElement('canvas')
-  canvas.width = videoElement.value.videoWidth
-  canvas.height = videoElement.value.videoHeight
-  const ctx = canvas.getContext('2d')
-  ctx.drawImage(videoElement.value, 0, 0)
-  const link = document.createElement('a')
-  link.download = `${props.channelName}_${Date.now()}.png`
-  link.href = canvas.toDataURL('image/png')
-  link.click()
-  emit('screenshot')
+const seekTo = (e) => {
+  if (!videoElement.value || !duration.value) return
+  const rect = e.currentTarget.getBoundingClientRect()
+  const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+  videoElement.value.currentTime = ratio * duration.value
 }
 
 const toggleMute = () => {
@@ -197,15 +243,11 @@ watch(() => [props.channelId, props.startTime, props.endTime, isPlaying], async 
   }
 }, { immediate: false })
 
-onMounted(() => {
-  // 默认不播放，点击播放按钮后才开始
-})
-
 onUnmounted(() => {
   stopStream()
 })
 
-defineExpose({ toggleFullscreen, handleScreenshot })
+defineExpose({})
 </script>
 
 <style scoped>
@@ -244,16 +286,22 @@ defineExpose({ toggleFullscreen, handleScreenshot })
   height: 100%;
 }
 
-.video-actions {
+/* 底部控制栏 */
+.video-controls {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 36px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
   display: flex;
-  gap: 6px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
   z-index: 10;
 }
 
-.action-btn {
+.ctrl-btn {
   width: 28px;
   height: 28px;
   display: flex;
@@ -264,20 +312,45 @@ defineExpose({ toggleFullscreen, handleScreenshot })
   border-radius: 4px;
   color: #fff;
   cursor: pointer;
-  transition: all 0.2s;
+  flex-shrink: 0;
 }
 
-.action-btn:hover {
+.ctrl-btn:hover {
   background: rgba(255, 255, 255, 0.35);
 }
 
-.action-btn.is-disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
+.ctrl-btn .el-icon {
+  font-size: 14px;
 }
 
-.action-btn .el-icon {
-  font-size: 16px;
+.progress-bar {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.progress-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #409eff;
+  border-radius: 2px;
+  transition: width 0.1s linear;
+}
+
+.time-label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.8);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .video-loading {
@@ -293,7 +366,6 @@ defineExpose({ toggleFullscreen, handleScreenshot })
   color: #409eff;
   background: rgba(0, 0, 0, 0.6);
   z-index: 20;
-  animation: pulse-bg 2s ease-in-out infinite;
 }
 
 @keyframes pulse-bg {
@@ -302,14 +374,13 @@ defineExpose({ toggleFullscreen, handleScreenshot })
 }
 
 .loading-spinner {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   border: 3px solid rgba(64, 158, 255, 0.2);
   border-top-color: #409eff;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
-  margin-bottom: 12px;
-  box-shadow: 0 0 20px rgba(64, 158, 255, 0.3);
+  margin-bottom: 10px;
 }
 
 @keyframes spin {
@@ -317,7 +388,7 @@ defineExpose({ toggleFullscreen, handleScreenshot })
 }
 
 .video-loading p {
-  font-size: 14px;
+  font-size: 13px;
   margin: 0;
 }
 
@@ -337,27 +408,23 @@ defineExpose({ toggleFullscreen, handleScreenshot })
 }
 
 .video-error .el-icon {
-  font-size: 32px;
-  margin-bottom: 8px;
+  font-size: 28px;
+  margin-bottom: 6px;
 }
 
 .video-error p {
-  font-size: 14px;
-  margin: 0 0 12px;
+  font-size: 13px;
+  margin: 0 0 10px;
 }
 
 .retry-btn {
-  padding: 6px 16px;
+  padding: 5px 14px;
   background: #409eff;
   border: none;
   border-radius: 4px;
   color: #fff;
   font-size: 12px;
   cursor: pointer;
-}
-
-.retry-btn:hover {
-  background: #66b1ff;
 }
 
 .video-placeholder {
@@ -375,25 +442,56 @@ defineExpose({ toggleFullscreen, handleScreenshot })
 }
 
 .video-placeholder .el-icon {
-  font-size: 32px;
-  margin-bottom: 8px;
+  font-size: 28px;
+  margin-bottom: 6px;
 }
 
 .video-placeholder p {
-  font-size: 14px;
-  margin: 0 0 12px;
+  font-size: 13px;
+  margin: 0 0 10px;
+}
+
+.placeholder-tip {
+  font-size: 11px !important;
+  color: #888 !important;
+  margin: 0 !important;
+}
+
+.video-ended {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #409eff;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 20;
+}
+
+.video-ended .el-icon {
+  font-size: 28px;
+  margin-bottom: 6px;
+}
+
+.video-ended p {
+  font-size: 13px;
+  margin: 0 0 10px;
 }
 
 .play-btn {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 20px;
+  padding: 7px 18px;
   background: #409eff;
   border: none;
   border-radius: 4px;
   color: #fff;
-  font-size: 14px;
+  font-size: 13px;
   cursor: pointer;
 }
 
@@ -402,6 +500,6 @@ defineExpose({ toggleFullscreen, handleScreenshot })
 }
 
 .play-btn .el-icon {
-  font-size: 18px;
+  font-size: 16px;
 }
 </style>

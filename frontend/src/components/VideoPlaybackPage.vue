@@ -68,9 +68,14 @@ const appointmentChannelId = ref(null)
 const frontChannelId = ref(null)
 const rearChannelId = ref(null)
 const ptz360ChannelId = ref(null)
+const activeChannel = ref(null)
 
 const startTime = ref('')
 const endTime = ref('')
+
+const handleChannelPlay = (channelKey) => {
+  activeChannel.value = channelKey
+}
 
 onMounted(async () => {
   startTime.value = route.query.startTime || ''
