@@ -66,8 +66,8 @@ public class HikPlayBackController {
             return;
         }
 
-        response.setContentType("video/x-flv");
-        response.setHeader("Connection", "keep-alive");
+        response.setContentType("video/mp4");
+        response.setHeader("Cache-Control", "no-cache");
         response.setStatus(HttpServletResponse.SC_OK);
 
         try (OutputStream out = response.getOutputStream()) {
@@ -112,8 +112,8 @@ public class HikPlayBackController {
             return;
         }
 
-        response.setContentType("video/x-flv");
-        response.setHeader("Connection", "keep-alive");
+        response.setContentType("video/mp4");
+        response.setHeader("Cache-Control", "no-cache");
         response.setStatus(HttpServletResponse.SC_OK);
 
         try (OutputStream out = response.getOutputStream()) {

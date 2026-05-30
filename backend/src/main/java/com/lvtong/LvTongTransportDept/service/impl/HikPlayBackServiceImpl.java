@@ -9,45 +9,64 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * 海康威视 NVR 回放服务
- * 使用 JNA SDK 获取回放数据 + FFmpeg 转封装为 FLV
+ * NVR 数据先写入临时文件，FFmpeg 实时读取并转码为 H.264，流式输出到前端
  */
 @Slf4j
 @Service
 public class HikPlayBackServiceImpl implements HikPlayBackService {
 
-    // NVR设备配置
     private static final String NVR_IP = "192.168.218.250";
     private static final int NVR_PORT = 8000;
     private static final String NVR_USERNAME = "admin";
     private static final String NVR_PASSWORD = "whds@2025";
 
-    // FFmpeg路径
     private static final String FFMPEG_PATH = "D:\\tools\\ffmpeg-master-latest-win64-gpl\\bin\\ffmpeg.exe";
+    private static final String TEMP_DIR = "D:\\hik_temp";
 
-    // 通道号映射
-    private static final int CHANNEL_LANE = 3;
-    private static final int CHANNEL_FRONT = 1;
-    private static final int CHANNEL_REAR = 2;
-    private static final int CHANNEL_APPOINTMENT = 4;
-    private static final int CHANNEL_PTZ360 = 5;
+    private static final DateTimeFormatter FILE_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
 
     @Autowired
     private HCNetSDK hcNetSDK;
 
+    private volatile AtomicReference<PlaybackResources> currentResources = new AtomicReference<>();
+    private final ThreadLocal<PlaybackResources> threadResources = new ThreadLocal<>();
+
+    private static class PlaybackResources {
+        final NativeLong playHandle;
+        final NativeLong userId;
+        final CountDownLatch stopLatch;
+        final Path rawFile;
+        final AtomicReference<Process> ffmpegProcess = new AtomicReference<>();
+        final CountDownLatch dataReceivedLatch = new CountDownLatch(1);
+        final AtomicLong bytesWritten = new AtomicLong(0);
+
+        PlaybackResources(NativeLong playHandle, NativeLong userId, CountDownLatch stopLatch, Path rawFile) {
+            this.playHandle = playHandle;
+            this.userId = userId;
+            this.stopLatch = stopLatch;
+            this.rawFile = rawFile;
+        }
+    }
+
     @Override
     public void playBackByTime(LocalDateTime startTime, LocalDateTime endTime, int channel, OutputStream outputStream) {
-        log.info("JNA回放: startTime={}, endTime={}, channel={}", startTime, endTime, channel);
+        log.info("流式回放开始: startTime={}, endTime={}, channel={}", startTime, endTime, channel);
 
-        // 初始化SDK
+        CountDownLatch stopLatch = new CountDownLatch(1);
+
         if (!hcNetSDK.NET_DVR_Init()) {
             log.error("SDK初始化失败，错误码: {}", hcNetSDK.NET_DVR_GetLastError());
             return;
@@ -56,7 +75,6 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
         hcNetSDK.NET_DVR_SetConnectTime(2000, 1);
         hcNetSDK.NET_DVR_SetReconnect(100000, true);
 
-        // 登录
         HCNetSDK.NET_DVR_DEVICEINFO_V30 deviceInfo = new HCNetSDK.NET_DVR_DEVICEINFO_V30();
         deviceInfo.write();
         NativeLong userId = hcNetSDK.NET_DVR_Login_V30(NVR_IP, (short) NVR_PORT, NVR_USERNAME, NVR_PASSWORD, deviceInfo);
@@ -67,175 +85,276 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
         deviceInfo.read();
         log.info("登录成功，userId={}", userId);
 
-        // 创建管道
-        java.nio.channels.Pipe pipe;
+        Path rawFile = null;
+        NativeLong playHandle = new NativeLong(-1);
+        FileOutputStream fos = null;
+        AtomicReference<PlaybackResources> resourcesRef = new AtomicReference<>();
+
         try {
-            pipe = java.nio.channels.Pipe.open();
-        } catch (IOException e) {
-            log.error("创建管道失败: {}", e.getMessage());
-            return;
-        }
-        final java.nio.channels.Pipe finalPipe = pipe;
-        OutputStream pipeSink = java.nio.channels.Channels.newOutputStream(finalPipe.sink());
+            Files.createDirectories(Path.of(TEMP_DIR));
+            String prefix = startTime.format(FILE_DATE_FORMAT) + "_ch" + channel;
+            rawFile = Path.of(TEMP_DIR, prefix + "_raw.dat");
 
-        // 构建回放参数
-        HCNetSDK.NET_DVR_VOD_PARA vodPara = new HCNetSDK.NET_DVR_VOD_PARA();
-        vodPara.dwSize = vodPara.size();
-        vodPara.struIDInfo.dwSize = vodPara.struIDInfo.size();
-        // 通道号偏移33 (D1=33, D2=34, ...)
-        vodPara.struIDInfo.dwChannel = 33 + (channel - 1);
+            fos = new FileOutputStream(rawFile.toFile());
 
-        vodPara.struBeginTime.dwYear = startTime.getYear();
-        vodPara.struBeginTime.dwMonth = startTime.getMonthValue();
-        vodPara.struBeginTime.dwDay = startTime.getDayOfMonth();
-        vodPara.struBeginTime.dwHour = startTime.getHour();
-        vodPara.struBeginTime.dwMinute = startTime.getMinute();
-        vodPara.struBeginTime.dwSecond = startTime.getSecond();
+            HCNetSDK.NET_DVR_VOD_PARA vodPara = new HCNetSDK.NET_DVR_VOD_PARA();
+            vodPara.dwSize = vodPara.size();
+            vodPara.struIDInfo.dwSize = vodPara.struIDInfo.size();
+            vodPara.struIDInfo.dwChannel = 33 + (channel - 1);
 
-        vodPara.struEndTime.dwYear = endTime.getYear();
-        vodPara.struEndTime.dwMonth = endTime.getMonthValue();
-        vodPara.struEndTime.dwDay = endTime.getDayOfMonth();
-        vodPara.struEndTime.dwHour = endTime.getHour();
-        vodPara.struEndTime.dwMinute = endTime.getMinute();
-        vodPara.struEndTime.dwSecond = endTime.getSecond();
-        vodPara.hWnd = null;
-        vodPara.write();
+            vodPara.struBeginTime.dwYear = startTime.getYear();
+            vodPara.struBeginTime.dwMonth = startTime.getMonthValue();
+            vodPara.struBeginTime.dwDay = startTime.getDayOfMonth();
+            vodPara.struBeginTime.dwHour = startTime.getHour();
+            vodPara.struBeginTime.dwMinute = startTime.getMinute();
+            vodPara.struBeginTime.dwSecond = startTime.getSecond();
 
-        log.info("开始回放，通道={}, dwChannel={}", channel, vodPara.struIDInfo.dwChannel);
+            vodPara.struEndTime.dwYear = endTime.getYear();
+            vodPara.struEndTime.dwMonth = endTime.getMonthValue();
+            vodPara.struEndTime.dwDay = endTime.getDayOfMonth();
+            vodPara.struEndTime.dwHour = endTime.getHour();
+            vodPara.struEndTime.dwMinute = endTime.getMinute();
+            vodPara.struEndTime.dwSecond = endTime.getSecond();
+            vodPara.hWnd = null;
+            vodPara.write();
 
-        // 开始回放
-        NativeLong playHandle = hcNetSDK.NET_DVR_PlayBackByTime_V40(userId, vodPara);
-        if (playHandle.intValue() == -1) {
-            log.error("按时间回放失败，错误码: {}", hcNetSDK.NET_DVR_GetLastError());
-            return;
-        }
-        log.info("回放句柄: {}", playHandle);
+            log.info("开始回放，通道={}, dwChannel={}", channel, vodPara.struIDInfo.dwChannel);
 
-        // 开启取流
-        IntByReference intInlen1 = new IntByReference(0);
-        boolean bCtrl = hcNetSDK.NET_DVR_PlayBackControl_V40(playHandle, HCNetSDK.NET_DVR_PLAYSTART, Pointer.NULL, 0, Pointer.NULL, intInlen1);
-        if (!bCtrl) {
-            log.error("NET_DVR_PLAYSTART失败，错误码: {}", hcNetSDK.NET_DVR_GetLastError());
-            return;
-        }
-        log.info("开启取流成功");
+            playHandle = hcNetSDK.NET_DVR_PlayBackByTime_V40(userId, vodPara);
+            if (playHandle.intValue() == -1) {
+                log.error("按时间回放失败，错误码: {}", hcNetSDK.NET_DVR_GetLastError());
+                return;
+            }
+            log.info("回放句柄: {}", playHandle);
 
-        // 设置数据回调
-        final int finalChannel = channel;
-        HCNetSDK.FPlayDataCallBack callback = new HCNetSDK.FPlayDataCallBack() {
-            public void invoke(int lPlayHandle, int dwDataType, Pointer pBuffer, int dwBufSize, int dwUser) {
-                log.info("通道{}收到数据: dwDataType={}, dwBufSize={}", finalChannel, dwDataType, dwBufSize);
-                if (dwDataType == 1 || dwDataType == 2) { // 视频数据
+            PlaybackResources resources = new PlaybackResources(playHandle, userId, stopLatch, rawFile);
+            resourcesRef.set(resources);
+            currentResources.set(resources);
+            threadResources.set(resources);
+
+            IntByReference intInlen1 = new IntByReference(0);
+            boolean bCtrl = hcNetSDK.NET_DVR_PlayBackControl_V40(playHandle, HCNetSDK.NET_DVR_PLAYSTART, Pointer.NULL, 0, Pointer.NULL, intInlen1);
+            if (!bCtrl) {
+                log.error("NET_DVR_PLAYSTART失败，错误码: {}", hcNetSDK.NET_DVR_GetLastError());
+                return;
+            }
+            log.info("开启取流成功");
+
+            // NVR 返回 H.265 ES（HEVC 视频 + G711 音频），回调线程直接写入文件
+            final FileOutputStream fosForCallback = fos;
+            final AtomicLong bytesWritten = resources.bytesWritten;
+            final CountDownLatch dataReceivedLatch = resources.dataReceivedLatch;
+            AtomicLong lastLogTime = new AtomicLong(System.currentTimeMillis());
+
+            HCNetSDK.FPlayDataCallBack callback = new HCNetSDK.FPlayDataCallBack() {
+                public void invoke(int lPlayHandle, int dwDataType, Pointer pBuffer, int dwBufSize, int dwUser) {
+                    if (dwBufSize <= 0 || pBuffer == null) return;
                     try {
                         ByteBuffer buf = pBuffer.getByteBuffer(0, dwBufSize);
                         byte[] data = new byte[dwBufSize];
                         buf.get(data);
-                        pipeSink.write(data);
-                        log.debug("通道{}写入{} bytes到管道", finalChannel, dwBufSize);
-                    } catch (IOException e) {
-                        log.error("写入管道异常: {}", e.getMessage());
-                    }
-                }
-            }
-        };
-        hcNetSDK.NET_DVR_SetPlayDataCallBack(playHandle, callback, Pointer.NULL);
-
-        // 启动FFmpeg进行转封装
-        Process ffmpegProcess = null;
-        try {
-            ProcessBuilder pb = new ProcessBuilder(
-                    FFMPEG_PATH,
-                    "-f", "h264",
-                    "-i", "pipe:0",
-                    "-c:v", "copy",
-                    "-f", "flv",
-                    "-"
-            );
-            pb.redirectErrorStream(false);
-            ffmpegProcess = pb.start();
-            log.info("FFmpeg进程启动");
-
-            InputStream ffmpegInput = ffmpegProcess.getInputStream();
-            InputStream ffmpegError = ffmpegProcess.getErrorStream();
-
-            // 启动FFmpeg错误流读取线程
-            Thread errorReader = new Thread(() -> {
-                try {
-                    byte[] errBuf = new byte[1024];
-                    int errRead;
-                    while ((errRead = ffmpegError.read(errBuf)) != -1) {
-                        String errMsg = new String(errBuf, 0, errRead);
-                        if (errMsg.contains("frame=") || errMsg.contains("error") || errMsg.contains("Error")) {
-                            log.warn("FFmpeg: {}", errMsg.trim());
+                        fosForCallback.write(data);
+                        fosForCallback.flush();
+                        dataReceivedLatch.countDown();
+                        long total = bytesWritten.addAndGet(dwBufSize);
+                        long now = System.currentTimeMillis();
+                        if (now - lastLogTime.get() > 5000) {
+                            lastLogTime.set(now);
+                            log.info("数据采集中... dwDataType={}, 此次={}, 累计={}", dwDataType, dwBufSize, total);
                         }
+                    } catch (IOException e) {
+                        log.warn("文件写入异常: {}", e.getMessage());
                     }
-                } catch (IOException e) {
-                    // ignore
                 }
-            });
-            errorReader.start();
+            };
+            hcNetSDK.NET_DVR_SetPlayDataCallBack(playHandle, callback, Pointer.NULL);
 
-            // 将管道数据通过FFmpeg转换后输出
-            byte[] buffer = new byte[8192];
-            int bytesRead;
-            int totalBytes = 0;
-            while (!Thread.currentThread().isInterrupted()) {
-                bytesRead = ffmpegInput.read(buffer);
-                if (bytesRead == -1) {
-                    log.info("FFmpeg输入结束");
-                    break;
-                }
-                outputStream.write(buffer, 0, bytesRead);
-                totalBytes += bytesRead;
-                if (totalBytes % (100 * 8192) < 8192) {
-                    log.debug("已写入 {} bytes", totalBytes);
-                }
+            // 等待 NVR 数据写入文件（最多等待 30 秒）
+            log.info("等待 NVR 数据写入文件...");
+            boolean dataReceived = dataReceivedLatch.await(30, TimeUnit.SECONDS);
+            if (!dataReceived) {
+                log.error("NVR 数据未写入，超时未收到数据");
             }
-            outputStream.flush();
-            log.info("转封装完成，总共写入 {} bytes", totalBytes);
+            log.info("NVR 数据已开始写入，累计: {} bytes", bytesWritten.get());
 
-        } catch (IOException e) {
-            log.error("FFmpeg转封装异常: {}", e.getMessage());
+            // NVR 数据开始写入后，启动 FFmpeg 进程
+            Process ffmpegProcess = startFfmpegStreaming(rawFile, outputStream);
+            log.info("FFmpeg 流式转码进程已启动, pid={}", ffmpegProcess.pid());
+            resources.ffmpegProcess.set(ffmpegProcess);
+
+            log.info("等待回放停止信号...");
+            boolean signalled = stopLatch.await(5, TimeUnit.MINUTES);
+            if (signalled) {
+                log.info("收到停止信号，停止数据采集");
+            } else {
+                log.info("等待超时（5分钟），自动停止数据采集");
+            }
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.info("回放被中断");
+        } catch (Exception e) {
+            log.error("回放异常: {}", e.getMessage());
         } finally {
-            if (playHandle != null && playHandle.intValue() > 0) {
-                hcNetSDK.NET_DVR_StopPlayBack(playHandle);
+            log.info("Finally块开始执行，清理资源...");
+            PlaybackResources r = threadResources.get();
+            if (r == null) r = currentResources.get();
+            if (r != null) {
+                if (r.playHandle != null && r.playHandle.intValue() > 0) hcNetSDK.NET_DVR_StopPlayBack(r.playHandle);
             }
-            if (userId != null && userId.intValue() > 0) {
-                hcNetSDK.NET_DVR_Logout(userId);
+            if (userId != null && userId.intValue() > 0) hcNetSDK.NET_DVR_Logout(userId);
+
+            threadResources.remove();
+            currentResources.set(null);
+
+            // 关闭写入流
+            if (fos != null) {
+                try { fos.flush(); fos.close(); } catch (IOException e) {/* ignore */}
             }
-            if (ffmpegProcess != null) {
-                ffmpegProcess.destroy();
-                try {
-                    ffmpegProcess.waitFor(5, TimeUnit.SECONDS);
-                } catch (InterruptedException e) {
-                    // ignore
+
+            // 停止 FFmpeg 进程
+            if (r != null) {
+                Process p = r.ffmpegProcess.get();
+                if (p != null && p.isAlive()) {
+                    log.info("停止 FFmpeg 进程, pid={}", p.pid());
+                    p.destroy();
                 }
-                if (ffmpegProcess.isAlive()) {
-                    ffmpegProcess.destroyForcibly();
-                }
             }
+
+            // 清理临时文件
+            cleanupTempFiles(rawFile);
+        }
+
+        log.info("流式回放结束");
+    }
+
+    /**
+     * 启动 FFmpeg 进程，持续读取临时文件并转码输出到 outputStream
+     * 调用此方法时 NVR 数据已写入文件，不会出现空文件问题
+     */
+    private Process startFfmpegStreaming(Path rawFile, OutputStream outputStream) throws IOException, InterruptedException {
+        long fileSize = Files.exists(rawFile) ? Files.size(rawFile) : 0;
+        log.info("启动 FFmpeg，临时文件大小: {} bytes", fileSize);
+
+        // FFmpeg 命令：按原始速率读取文件，转码为 H.264，输出到 stdout
+        // 输出 MP4 格式（但不加 +faststart，因为 pipe 输出不支持 seekable）
+        ProcessBuilder pb = new ProcessBuilder(
+                FFMPEG_PATH,
+                "-re",                           // 按原始速率读取（实时读取文件内容）
+                "-fflags", "+genpts+igndts",     // 生成 pts，处理不连续的dts
+                "-f", "hevc",                    // 指定输入格式为 HEVC/H.265 裸流
+                "-i", rawFile.toAbsolutePath().toString(),
+                "-probesize", "5000000",         // 探测buffer大小，处理不完整HEVC流
+                "-analyzeduration", "5000000",   // 探测时间，增加可识别完整帧的概率
+                "-c:v", "libx264",              // H.265 -> H.264 转码
+                "-preset", "ultrafast",         // 最快编码速度
+                "-an",                           // 不要音频
+                "-movflags", "empty_moov",      // 允许初始写入即输出 MP4（无需 seekable）
+                "-f", "mp4",
+                "pipe:1"                         // 输出到 stdout
+        );
+        pb.redirectErrorStream(false); // 不合并错误流，单独处理
+        Process process = pb.start();
+
+        // 读取 FFmpeg 的 stderr（错误输出包含转码进度信息）
+        Thread errorThread = new Thread(() -> {
+            BufferedReader br = new BufferedReader(new InputStreamReader(process.getErrorStream()));
             try {
-                pipeSink.close();
+                String line;
+                while ((line = br.readLine()) != null) {
+                    log.info("FFmpeg stderr: {}", line);
+                }
             } catch (IOException e) {
                 // ignore
             }
-            log.info("资源已清理");
+        });
+        errorThread.setDaemon(true);
+        errorThread.start();
+
+        // 持续将 FFmpeg 输出写入 HTTP 响应
+        final long startTime = System.currentTimeMillis();
+        Thread outputThread = new Thread(() -> {
+            byte[] buffer = new byte[8192];
+            try {
+                long totalBytes = 0;
+                long lastLogTime = System.currentTimeMillis();
+                int bytesRead;
+                while ((bytesRead = process.getInputStream().read(buffer)) != -1) {
+                    outputStream.write(buffer, 0, bytesRead);
+                    outputStream.flush();
+                    totalBytes += bytesRead;
+                    long now = System.currentTimeMillis();
+                    if (now - lastLogTime > 2000) {
+                        lastLogTime = now;
+                        long elapsed = (now - startTime) / 1000;
+                        log.info("FFmpeg 输出中... 已输出 {} bytes, 已耗时 {}s", totalBytes, elapsed);
+                    }
+                }
+                log.info("FFmpeg 输出完成，共 {} bytes", totalBytes);
+            } catch (IOException e) {
+                log.warn("FFmpeg 输出异常: {}", e.getMessage());
+            }
+        });
+        outputThread.setDaemon(true);
+        outputThread.start();
+
+        // 检查 FFmpeg 是否立即退出（说明转码失败）
+        Thread monitorThread = new Thread(() -> {
+            try {
+                boolean exited = process.waitFor(3, TimeUnit.SECONDS);
+                if (exited && process.exitValue() != 0) {
+                    log.error("FFmpeg 进程异常退出，exitCode={}", process.exitValue());
+                } else if (exited) {
+                    log.info("FFmpeg 进程正常退出");
+                }
+            } catch (InterruptedException e) {
+                // ignore
+            }
+        });
+        monitorThread.setDaemon(true);
+        monitorThread.start();
+
+        return process;
+    }
+
+    private void cleanupTempFiles(Path... paths) {
+        for (Path p : paths) {
+            if (p != null && Files.exists(p)) {
+                try {
+                    Files.deleteIfExists(p);
+                    log.info("已删除临时文件: {}", p);
+                } catch (IOException e) {
+                    log.warn("删除临时文件失败: {}: {}", p, e.getMessage());
+                }
+            }
         }
     }
 
     @Override
     public void stopPlayback() {
-        log.info("停止回放");
-    }
+        PlaybackResources r = threadResources.get();
+        if (r == null) r = currentResources.get();
+        if (r == null) {
+            log.info("停止回放：无进行中的回放");
+            return;
+        }
+        log.info("停止回放: playHandle={}", r.playHandle);
+        r.stopLatch.countDown();
+        if (r.playHandle != null && r.playHandle.intValue() > 0) {
+            hcNetSDK.NET_DVR_StopPlayBack(r.playHandle);
+        }
+        if (r.userId != null && r.userId.intValue() > 0) {
+            hcNetSDK.NET_DVR_Logout(r.userId);
+        }
 
-    public static int getChannelByCameraType(String cameraType) {
-        return switch (cameraType) {
-            case "lane" -> CHANNEL_LANE;
-            case "front" -> CHANNEL_FRONT;
-            case "rear" -> CHANNEL_REAR;
-            case "appointment" -> CHANNEL_APPOINTMENT;
-            case "ptz360" -> CHANNEL_PTZ360;
-            default -> CHANNEL_LANE;
-        };
+        // 停止 FFmpeg 进程
+        Process p = r.ffmpegProcess.get();
+        if (p != null && p.isAlive()) {
+            p.destroy();
+        }
+
+        threadResources.remove();
+        currentResources.set(null);
+        log.info("停止回放完成");
     }
 }

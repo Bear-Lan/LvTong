@@ -5,7 +5,6 @@
         ref="videoElement"
         class="playback-video"
         :style="{ objectFit: fit }"
-        autoplay
         playsinline
       ></video>
     </div>
@@ -41,9 +40,18 @@
       <p>{{ channelName }}</p>
     </div>
 
+    <div v-else-if="!isPlaying" class="video-placeholder">
+      <el-icon><VideoCamera /></el-icon>
+      <p>{{ channelName }}</p>
+      <button class="play-btn" @click.stop="handlePlay">
+        <el-icon><VideoPlay /></el-icon>
+        <span>播放录像</span>
+      </button>
+    </div>
+
     <div v-else-if="hasError" class="video-error">
       <el-icon><Warning /></el-icon>
-      <p>播放失败</p>
+      <p>{{ errorMessage }}</p>
       <button class="retry-btn" @click.stop="retryConnect">重试</button>
     </div>
   </div>
@@ -51,8 +59,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { FullScreen, Camera, VideoCamera, RefreshRight, Microphone, Mute, Warning } from '@element-plus/icons-vue'
-import flvjs from 'flv.js'
+import { FullScreen, Camera, VideoCamera, RefreshRight, Microphone, Mute, Warning, VideoPlay } from '@element-plus/icons-vue'
 
 const props = defineProps({
   channelKey: { type: String, required: true },
@@ -69,11 +76,12 @@ const emit = defineEmits(['fullscreen', 'screenshot'])
 
 const videoElement = ref(null)
 const videoWrapper = ref(null)
+const isPlaying = ref(false)
 const isConnected = ref(false)
 const isLoading = ref(false)
 const hasError = ref(false)
+const errorMessage = ref('播放失败')
 const isMuted = ref(true)
-let flvPlayer = null
 
 const updateRotatedStyle = () => {
   if (!videoElement.value || !videoWrapper.value) return
@@ -96,46 +104,34 @@ const startStream = async () => {
 
   isLoading.value = true
   hasError.value = false
+  errorMessage.value = '播放失败'
   stopStream()
 
-  const baseUrl = props.mediaServerUrl || ''
   const apiUrl = `/api/hikNet/playBackVideo?startTime=${encodeURIComponent(props.startTime)}&endTime=${encodeURIComponent(props.endTime)}&channel=${props.channelId}`
 
   try {
-    flvPlayer = flvjs.createPlayer({
-      type: 'flv',
-      url: apiUrl,
-      isLive: true,
-      hasAudio: true,
-      hasVideo: true,
-      cors: true
-    })
+    videoElement.value.src = apiUrl
+    videoElement.value.muted = isMuted.value
 
-    flvPlayer.attachMediaElement(videoElement.value)
+    videoElement.value.onloadedmetadata = () => {
+      isLoading.value = false
+      isConnected.value = true
+      updateRotatedStyle()
+      videoElement.value.play().catch(() => {})
+    }
 
-    flvPlayer.on(flvjs.Events.ERROR, (errType, errDetail) => {
-      console.error(`FLV播放错误 [${props.channelName}]:`, errType, errDetail)
+    videoElement.value.onerror = () => {
+      errorMessage.value = '播放失败，请重试'
       hasError.value = true
       isLoading.value = false
       isConnected.value = false
-    })
+    }
 
-    flvPlayer.on(flvjs.Events.LOADING_COMPLETE, () => {
+    videoElement.value.onended = () => {
       isConnected.value = false
       isLoading.value = false
-    })
-
-    flvPlayer.on(flvjs.Events.METADATA_ARRIVED, () => {
-      isConnected.value = true
-      isLoading.value = false
-      videoElement.value.muted = isMuted.value
-      updateRotatedStyle()
-    })
-
-    flvPlayer.load()
-    await new Promise(r => setTimeout(r, 500))
-    videoElement.value.play().catch(() => {})
-    isLoading.value = false
+      errorMessage.value = '播放结束'
+    }
   } catch (e) {
     console.error('连接视频流失败:', e)
     hasError.value = true
@@ -144,16 +140,12 @@ const startStream = async () => {
 }
 
 const stopStream = () => {
-  if (flvPlayer) {
-    flvPlayer.pause()
-    flvPlayer.unload()
-    flvPlayer.detachMediaElement()
-    flvPlayer.destroy()
-    flvPlayer = null
-  }
   if (videoElement.value) {
-    videoElement.value.srcObject = null
+    videoElement.value.pause()
     videoElement.value.src = ''
+    videoElement.value.onloadedmetadata = null
+    videoElement.value.onerror = null
+    videoElement.value.onended = null
   }
   isConnected.value = false
   isLoading.value = false
@@ -161,7 +153,12 @@ const stopStream = () => {
 
 const retryConnect = () => {
   hasError.value = false
+  isPlaying.value = true
   startStream()
+}
+
+const handlePlay = () => {
+  isPlaying.value = true
 }
 
 const toggleFullscreen = () => {
@@ -193,23 +190,15 @@ const toggleMute = () => {
   videoElement.value.muted = isMuted.value
 }
 
-watch(() => [props.channelId, props.startTime, props.endTime], async ([newId, newStart, newEnd], [oldId, oldStart, oldEnd]) => {
-  if ((newId && newId !== oldId) || (newStart && newStart !== oldStart) || (newEnd && newEnd !== oldEnd)) {
+watch(() => [props.channelId, props.startTime, props.endTime, isPlaying], async ([newId, newStart, newEnd, playing]) => {
+  if (newId && newStart && newEnd && playing) {
     await nextTick()
-    setTimeout(() => {
-      if (newId && newStart && newEnd) {
-        startStream()
-      }
-    }, 100)
+    startStream()
   }
-})
+}, { immediate: false })
 
 onMounted(() => {
-  setTimeout(() => {
-    if (props.channelId && props.startTime && props.endTime && videoElement.value) {
-      startStream()
-    }
-  }, 100)
+  // 默认不播放，点击播放按钮后才开始
 })
 
 onUnmounted(() => {
@@ -392,6 +381,27 @@ defineExpose({ toggleFullscreen, handleScreenshot })
 
 .video-placeholder p {
   font-size: 14px;
-  margin: 0;
+  margin: 0 0 12px;
+}
+
+.play-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  background: #409eff;
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.play-btn:hover {
+  background: #66b1ff;
+}
+
+.play-btn .el-icon {
+  font-size: 18px;
 }
 </style>
