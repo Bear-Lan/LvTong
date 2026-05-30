@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.time.LocalDateTime;
-import java.util.concurrent.TimeUnit;
 
 /**
  * 海康威视 NVR 录像回放接口
@@ -33,7 +32,6 @@ public class HikPlayBackController {
 
     /**
      * 单通道回放（按时间范围）
-     * 返回 FLV 视频流
      */
     @GetMapping("/playBackVideo")
     @Operation(summary = "NVR录像回放（单通道）", description = "按时间范围回放指定通道的录像，返回FLV流")
@@ -46,7 +44,6 @@ public class HikPlayBackController {
             @RequestParam(defaultValue = "1") int channel,
             HttpServletResponse response) {
 
-        // 时间范围校验
         if (startTime.isAfter(endTime)) {
             try {
                 response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
@@ -81,7 +78,6 @@ public class HikPlayBackController {
 
     /**
      * 五通道同时回放（acceptance_time 到 inspection_time）
-     * 返回 FLV 视频流（按预约机通道返回）
      */
     @GetMapping("/playBackVideoAll")
     @Operation(summary = "NVR录像回放（5通道）", description = "按时间范围回放所有5个通道的录像，返回FLV流")
@@ -92,7 +88,6 @@ public class HikPlayBackController {
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime endTime,
             HttpServletResponse response) {
 
-        // 时间范围校验
         if (startTime.isAfter(endTime)) {
             try {
                 response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
@@ -117,12 +112,21 @@ public class HikPlayBackController {
         response.setStatus(HttpServletResponse.SC_OK);
 
         try (OutputStream out = response.getOutputStream()) {
-            // 预约机通道作为主回放通道（5个通道同步回放）
             hikPlayBackService.playBackByTime(startTime, endTime, 4, out);
         } catch (Exception e) {
             log.error("回放异常: {}", e.getMessage());
         } finally {
             hikPlayBackService.stopPlayback();
         }
+    }
+
+    /**
+     * 停止当前回放
+     */
+    @GetMapping("/stopPlayback")
+    @Operation(summary = "停止回放", description = "停止当前进行中的录像回放，释放资源")
+    public void stopPlayback() {
+        log.info("收到停止回放请求");
+        hikPlayBackService.stopPlayback();
     }
 }

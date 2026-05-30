@@ -21,7 +21,7 @@
           <div class="progress-fill" :style="{ width: progressPercent + '%' }"></div>
         </div>
       </div>
-      <span class="time-label">{{ formatTime(currentTime) }} / {{ formatTime(duration) }}</span>
+      <span class="time-label">{{ formatTime(currentTime) }} / {{ formatTime(totalSeconds) }}</span>
       <button class="ctrl-btn" @click.stop="toggleMute" :title="isMuted ? '取消静音' : '静音'">
         <el-icon><Mute v-if="isMuted" /><Microphone v-else /></el-icon>
       </button>
@@ -79,8 +79,6 @@ const props = defineProps({
   isRotated: { type: Boolean, default: false }
 })
 
-const emit = defineEmits(['fullscreen', 'screenshot'])
-
 const videoElement = ref(null)
 const videoWrapper = ref(null)
 const isPlaying = ref(false)
@@ -92,8 +90,7 @@ const isPaused = ref(false)
 const errorMessage = ref('播放失败')
 const isMuted = ref(true)
 const currentTime = ref(0)
-const duration = ref(0)
-
+const totalSeconds = ref(0)
 const progressPercent = ref(0)
 
 const formatTime = (seconds) => {
@@ -106,17 +103,17 @@ const formatTime = (seconds) => {
 const onTimeUpdate = () => {
   if (!videoElement.value) return
   currentTime.value = videoElement.value.currentTime
-  if (duration.value > 0) {
-    progressPercent.value = (currentTime.value / duration.value) * 100
+  if (totalSeconds.value > 0) {
+    progressPercent.value = Math.min(100, (currentTime.value / totalSeconds.value) * 100)
   }
 }
 
 const onLoadedMetadata = () => {
   if (!videoElement.value) return
-  duration.value = videoElement.value.duration
-  isLoading.value = false
+  totalSeconds.value = videoElement.value.duration || 0
   isConnected.value = true
   isPaused.value = false
+  isLoading.value = false
   updateRotatedStyle()
   videoElement.value.play().catch(() => {})
 }
@@ -136,9 +133,8 @@ const updateRotatedStyle = () => {
   videoElement.value.style.transform = 'rotate(90deg)'
 }
 
-const startStream = async () => {
-  if (!props.channelId || !videoElement.value) return
-  if (!props.startTime || !props.endTime) return
+const startStream = () => {
+  if (!props.channelId || !props.startTime || !props.endTime || !videoElement.value) return
 
   isLoading.value = true
   hasError.value = false
@@ -146,57 +142,61 @@ const startStream = async () => {
   isEnded.value = false
   isPaused.value = false
   currentTime.value = 0
-  duration.value = 0
+  totalSeconds.value = 0
   progressPercent.value = 0
-  stopStream()
+
+  videoElement.value.pause()
+  videoElement.value.src = ''
+  videoElement.value.load()
 
   const apiUrl = `/api/hikNet/playBackVideo?startTime=${encodeURIComponent(props.startTime)}&endTime=${encodeURIComponent(props.endTime)}&channel=${props.channelId}`
 
-  try {
-    videoElement.value.src = apiUrl
-    videoElement.value.muted = isMuted.value
-    videoElement.value.load()
+  videoElement.value.src = apiUrl
+  videoElement.value.muted = isMuted.value
 
-    videoElement.value.onerror = () => {
-      errorMessage.value = '播放失败，请重试'
-      hasError.value = true
-      isLoading.value = false
-      isConnected.value = false
-    }
-
-    videoElement.value.onended = () => {
-      isEnded.value = true
-      isConnected.value = false
-      isPaused.value = false
-      isLoading.value = false
-    }
-  } catch (e) {
-    console.error('连接视频流失败:', e)
+  videoElement.value.onerror = (e) => {
+    console.error('视频加载失败:', e)
+    errorMessage.value = '播放失败，请重试'
     hasError.value = true
     isLoading.value = false
+    isConnected.value = false
+    isPlaying.value = false
   }
+
+  videoElement.value.onended = () => {
+    isEnded.value = true
+    isConnected.value = false
+    isPaused.value = false
+    isLoading.value = false
+  }
+
+  videoElement.value.play().catch((e) => {
+    console.error('play()失败:', e)
+    // 不设置 hasError，让 onerror 统一处理，避免重复设置状态
+    isLoading.value = false
+  })
+
+  isLoading.value = false
 }
 
 const stopStream = () => {
   if (videoElement.value) {
     videoElement.value.pause()
     videoElement.value.src = ''
-    videoElement.value.onloadedmetadata = null
-    videoElement.value.onerror = null
-    videoElement.value.onended = null
   }
+  isPlaying.value = false
   isConnected.value = false
   isLoading.value = false
+  isEnded.value = false
   isPaused.value = false
   currentTime.value = 0
-  duration.value = 0
+  totalSeconds.value = 0
   progressPercent.value = 0
 }
 
 const retryConnect = () => {
   hasError.value = false
   isPlaying.value = true
-  startStream()
 }
 
 const handlePlay = () => {
@@ -205,7 +205,6 @@ const handlePlay = () => {
 
 const handleReplay = () => {
   isEnded.value = false
-  isPlaying.value = false
   stopStream()
   nextTick(() => {
     isPlaying.value = true
@@ -224,10 +223,10 @@ const togglePause = () => {
 }
 
 const seekTo = (e) => {
-  if (!videoElement.value || !duration.value) return
+  if (!videoElement.value || !totalSeconds.value) return
   const rect = e.currentTarget.getBoundingClientRect()
   const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
-  videoElement.value.currentTime = ratio * duration.value
+  videoElement.value.currentTime = ratio * totalSeconds.value
 }
 
 const toggleMute = () => {
@@ -236,18 +235,19 @@ const toggleMute = () => {
   videoElement.value.muted = isMuted.value
 }
 
-watch(() => [props.channelId, props.startTime, props.endTime, isPlaying], async ([newId, newStart, newEnd, playing]) => {
-  if (newId && newStart && newEnd && playing) {
-    await nextTick()
-    startStream()
+watch(isPlaying, (playing) => {
+  if (playing && props.channelId && props.startTime && props.endTime) {
+    nextTick(() => startStream())
+  } else if (!playing) {
+    stopStream()
   }
-}, { immediate: false })
+})
 
 onUnmounted(() => {
   stopStream()
+  // 通知后端停止回放，释放 NVR 和 FFmpeg 资源
+  fetch('/api/hikNet/stopPlayback').catch(() => {})
 })
-
-defineExpose({})
 </script>
 
 <style scoped>
