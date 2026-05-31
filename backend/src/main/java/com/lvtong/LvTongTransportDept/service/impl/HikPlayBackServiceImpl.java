@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.time.LocalDateTime;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -24,6 +25,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * 2. FFmpeg 参数优化：去除无效参数，减少 probesize/analyzeduration，考虑 copy 模式
  * 3. 错误处理和超时机制：FFmpeg 启动失败清理海康资源，海康失败强制终止 FFmpeg
  * 4. 数据等待超时：FFmpeg 等待数据超时时安全释放资源
+ * 5. 多通道支持：使用 ConcurrentHashMap 管理每个通道的独立资源，支持多通道并发播放
+ * 6. SDK 连接复用：userId 作为单例只登录一次，多个通道共享连接
  */
 @Slf4j
 @Service
@@ -42,11 +45,16 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
     @Autowired
     private HCNetSDK hcNetSDK;
 
-    private volatile AtomicReference<PlaybackResources> currentResources = new AtomicReference<>();
-    private final ThreadLocal<PlaybackResources> threadResources = new ThreadLocal<>();
+    // 存储所有通道的资源，key 是 playHandle
+    private final ConcurrentHashMap<Integer, PlaybackResources> resourcesMap = new ConcurrentHashMap<>();
+
+    // SDK 连接单例
+    private volatile NativeLong sharedUserId = new NativeLong(-1);
+    private volatile boolean sdkInitialized = false;
+    private final Object sdkInitLock = new Object();
 
     private static class PlaybackResources {
-        NativeLong playHandle;
+        final NativeLong playHandle;
         final NativeLong userId;
         final CountDownLatch stopLatch;
         final AtomicReference<Process> ffmpegProcess = new AtomicReference<>();
@@ -70,39 +78,55 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
         }
     }
 
+    /**
+     * 确保 SDK 已初始化且已登录（复用已有连接）
+     */
+    private boolean ensureInitialized() {
+        if (sdkInitialized && sharedUserId.intValue() > 0) {
+            return true;
+        }
+        synchronized (sdkInitLock) {
+            if (sdkInitialized && sharedUserId.intValue() > 0) {
+                return true;
+            }
+            if (!hcNetSDK.NET_DVR_Init()) {
+                log.error("SDK初始化失败，错误码: {}", hcNetSDK.NET_DVR_GetLastError());
+                return false;
+            }
+            hcNetSDK.NET_DVR_SetConnectTime(2000, 1);
+            hcNetSDK.NET_DVR_SetReconnect(100000, true);
+
+            HCNetSDK.NET_DVR_DEVICEINFO_V30 deviceInfo = new HCNetSDK.NET_DVR_DEVICEINFO_V30();
+            sharedUserId = hcNetSDK.NET_DVR_Login_V30(NVR_IP, (short) NVR_PORT, NVR_USERNAME, NVR_PASSWORD, deviceInfo);
+            if (sharedUserId.intValue() == -1) {
+                log.error("登录失败，错误码: {}", hcNetSDK.NET_DVR_GetLastError());
+                hcNetSDK.NET_DVR_Cleanup();
+                return false;
+            }
+            log.info("SDK初始化并登录成功，userId={}", sharedUserId);
+            sdkInitialized = true;
+            return true;
+        }
+    }
+
     @Override
     public void playBackByTime(LocalDateTime startTime, LocalDateTime endTime, int channel, OutputStream outputStream) {
         log.info("流式回放开始: startTime={}, endTime={}, channel={}", startTime, endTime, channel);
 
+        if (!ensureInitialized()) {
+            log.error("SDK未初始化，无法进行回放");
+            return;
+        }
+
         CountDownLatch stopLatch = new CountDownLatch(1);
-
-        if (!hcNetSDK.NET_DVR_Init()) {
-            log.error("SDK初始化失败，错误码: {}", hcNetSDK.NET_DVR_GetLastError());
-            return;
-        }
-
-        hcNetSDK.NET_DVR_SetConnectTime(2000, 1);
-        hcNetSDK.NET_DVR_SetReconnect(100000, true);
-
-        HCNetSDK.NET_DVR_DEVICEINFO_V30 deviceInfo = new HCNetSDK.NET_DVR_DEVICEINFO_V30();
-        NativeLong userId = hcNetSDK.NET_DVR_Login_V30(NVR_IP, (short) NVR_PORT, NVR_USERNAME, NVR_PASSWORD, deviceInfo);
-        if (userId.intValue() == -1) {
-            log.error("登录失败，错误码: {}", hcNetSDK.NET_DVR_GetLastError());
-            hcNetSDK.NET_DVR_Cleanup();
-            return;
-        }
-        log.info("登录成功，userId={}", userId);
-
         NativeLong playHandle = new NativeLong(-1);
         Process ffmpegProcess = null;
-        final PlaybackResources[] resourcesHolder = new PlaybackResources[1];
+        PlaybackResources resources = null;
 
         try {
-            final NativeLong finalPlayHandle = playHandle;
-            PlaybackResources resources = new PlaybackResources(finalPlayHandle, userId, stopLatch);
-            resourcesHolder[0] = resources;
-            currentResources.set(resources);
-            threadResources.set(resources);
+            // 先创建 resources，用临时 playHandle=-1 存到 map
+            resources = new PlaybackResources(new NativeLong(-1), sharedUserId, stopLatch);
+            resourcesMap.put(-1, resources);
 
             log.info("启动 FFmpeg 进程（等待数据写入）...");
             ffmpegProcess = startFfmpegWithPipe(outputStream, resources);
@@ -112,8 +136,7 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
             if (!waitForFfmpegReady(ffmpegProcess, FFMPEG_START_TIMEOUT_SEC)) {
                 log.error("FFmpeg 启动超时（{}秒），强制终止", FFMPEG_START_TIMEOUT_SEC);
                 ffmpegProcess.destroyForcibly();
-                hcNetSDK.NET_DVR_Logout(userId);
-                hcNetSDK.NET_DVR_Cleanup();
+                resourcesMap.remove(-1);
                 return;
             }
             log.info("FFmpeg 已就绪，可以接受数据输入");
@@ -144,17 +167,23 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
 
             log.info("启动海康回放，通道={}, dwChannel={}", channel, vodPara.struIDInfo.dwChannel);
 
-            playHandle = hcNetSDK.NET_DVR_PlayBackByTime_V40(userId, vodPara);
-            resources.playHandle = playHandle;
+            // 使用共享的 userId
+            playHandle = hcNetSDK.NET_DVR_PlayBackByTime_V40(sharedUserId, vodPara);
 
             if (playHandle.intValue() == -1) {
                 log.error("按时间回放失败，错误码: {}", hcNetSDK.NET_DVR_GetLastError());
                 forceStopFfmpeg(ffmpegProcess);
-                hcNetSDK.NET_DVR_Logout(userId);
-                hcNetSDK.NET_DVR_Cleanup();
+                resourcesMap.remove(-1);
                 return;
             }
             log.info("回放句柄: {}", playHandle);
+
+            // 用真实的 playHandle 更新 resourcesMap
+            resourcesMap.remove(-1);
+            resources = new PlaybackResources(playHandle, sharedUserId, stopLatch);
+            resources.ffmpegStdinRef.set(ffmpegStdin);
+            resources.ffmpegProcess.set(ffmpegProcess);
+            resourcesMap.put(playHandle.intValue(), resources);
 
             IntByReference intInlen = new IntByReference(0);
             boolean bCtrl = hcNetSDK.NET_DVR_PlayBackControl_V40(playHandle, HCNetSDK.NET_DVR_PLAYSTART, Pointer.NULL, 0, Pointer.NULL, intInlen);
@@ -162,52 +191,61 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
                 log.error("NET_DVR_PLAYSTART失败，错误码: {}", hcNetSDK.NET_DVR_GetLastError());
                 hcNetSDK.NET_DVR_StopPlayBack(playHandle);
                 forceStopFfmpeg(ffmpegProcess);
-                hcNetSDK.NET_DVR_Logout(userId);
-                hcNetSDK.NET_DVR_Cleanup();
+                resourcesMap.remove(playHandle.intValue());
                 return;
             }
             log.info("PLAYSTART 指令发送成功");
 
-            final OutputStream ffmpegStdinRef = ffmpegStdin;
-            final AtomicLong bytesWritten = resources.bytesWritten;
-            final AtomicLong lastDataTimeRef = new AtomicLong(System.currentTimeMillis());
+            // 使用 final 变量避免编译错误
+            final NativeLong finalPlayHandle = playHandle;
+            final OutputStream finalFfmpegStdin = ffmpegStdin;
 
+            // 数据回调，使用 playHandle 作为 key
             HCNetSDK.FPlayDataCallBack callback = new HCNetSDK.FPlayDataCallBack() {
                 public void invoke(int lPlayHandle, int dwDataType, Pointer pBuffer, int dwBufSize, int dwUser) {
                     if (dwBufSize <= 0 || pBuffer == null) return;
-                    if (resources.isStopped()) return;
+                    PlaybackResources res = resourcesMap.get(lPlayHandle);
+                    if (res == null || res.isStopped()) return;
 
                     try {
                         ByteBuffer buf = pBuffer.getByteBuffer(0, dwBufSize);
                         byte[] data = new byte[dwBufSize];
                         buf.get(data);
 
-                        ffmpegStdinRef.write(data);
-                        ffmpegStdinRef.flush();
-
-                        lastDataTimeRef.set(System.currentTimeMillis());
-                        bytesWritten.addAndGet(dwBufSize);
+                        OutputStream stdin = res.ffmpegStdinRef.get();
+                        if (stdin != null) {
+                            synchronized (stdin) {
+                                stdin.write(data);
+                                stdin.flush();
+                            }
+                        }
+                        res.lastDataTime.set(System.currentTimeMillis());
+                        res.bytesWritten.addAndGet(dwBufSize);
                     } catch (IOException e) {
                         log.warn("FFmpeg stdin 写入异常: {}", e.getMessage());
-                        resources.markStopped();
+                        res.markStopped();
                     }
                 }
             };
-            hcNetSDK.NET_DVR_SetPlayDataCallBack(playHandle, callback, Pointer.NULL);
+            hcNetSDK.NET_DVR_SetPlayDataCallBack(finalPlayHandle, callback, Pointer.NULL);
             log.info("数据回调已设置，开始从第一帧采集数据");
 
+            // 启动超时监控线程
+            final int playHandleInt = finalPlayHandle.intValue();
             Thread dataTimeoutThread = new Thread(() -> {
-                while (!resources.isStopped() && !Thread.currentThread().isInterrupted()) {
+                while (!Thread.currentThread().isInterrupted()) {
+                    PlaybackResources r = resourcesMap.get(playHandleInt);
+                    if (r == null || r.isStopped()) break;
                     try {
                         Thread.sleep(2000);
                     } catch (InterruptedException e) {
                         break;
                     }
                     long now = System.currentTimeMillis();
-                    if (now - lastDataTimeRef.get() > FFMPEG_DATA_TIMEOUT_SEC * 1000L) {
+                    if (r.lastDataTime.get() > 0 && now - r.lastDataTime.get() > FFMPEG_DATA_TIMEOUT_SEC * 1000L) {
                         log.warn("FFmpeg 等待数据超时（{}秒），数据源无响应，强制停止", FFMPEG_DATA_TIMEOUT_SEC);
-                        resources.markStopped();
-                        resources.stopLatch.countDown();
+                        r.markStopped();
+                        r.stopLatch.countDown();
                         break;
                     }
                 }
@@ -233,7 +271,7 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
         } catch (Exception e) {
             log.error("回放异常: {}", e.getMessage());
         } finally {
-            cleanupResources(resourcesHolder[0], ffmpegProcess, userId);
+            cleanupResources(resources, ffmpegProcess, playHandle);
         }
 
         log.info("流式回放结束");
@@ -337,7 +375,6 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
 
         log.info("开始等待 FFmpeg 就绪，超时 {} 秒", timeoutSec);
 
-        // 单独线程持续读取 stderr，避免数据被截断
         Thread readerThread = new Thread(() -> {
             try {
                 byte[] buf = new byte[1024];
@@ -361,7 +398,6 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
         readerThread.setDaemon(true);
         readerThread.start();
 
-        // 等待 FFmpeg 输出就绪信号
         while (System.currentTimeMillis() < deadline) {
             if (!process.isAlive()) {
                 log.error("FFmpeg 进程启动期间退出，exitCode={}", process.exitValue());
@@ -417,18 +453,14 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
         }
     }
 
-    private void cleanupResources(PlaybackResources resources, Process ffmpegProcess, NativeLong userId) {
+    private void cleanupResources(PlaybackResources resources, Process ffmpegProcess, NativeLong playHandle) {
         log.info("Finally块开始执行，清理资源...");
 
-        if (resources != null && resources.playHandle != null && resources.playHandle.intValue() > 0) {
-            hcNetSDK.NET_DVR_StopPlayBack(resources.playHandle);
+        if (playHandle != null && playHandle.intValue() > 0) {
+            hcNetSDK.NET_DVR_StopPlayBack(playHandle);
+            resourcesMap.remove(playHandle.intValue());
+            log.info("已从 resourcesMap 移除 playHandle={}", playHandle.intValue());
         }
-
-        if (userId != null && userId.intValue() > 0) {
-            hcNetSDK.NET_DVR_Logout(userId);
-        }
-
-        hcNetSDK.NET_DVR_Cleanup();
 
         if (resources != null) {
             OutputStream stdin = resources.ffmpegStdinRef.get();
@@ -456,54 +488,24 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
             }
         }
 
-        threadResources.remove();
-        currentResources.set(null);
-
         log.info("资源清理完成");
     }
 
     @Override
     public void stopPlayback() {
-        PlaybackResources r = threadResources.get();
-        if (r == null) r = currentResources.get();
-        if (r == null) {
-            log.info("停止回放：无进行中的回放");
-            return;
-        }
-        log.info("停止回放: playHandle={}", r.playHandle);
-        r.markStopped();
-        r.stopLatch.countDown();
+        log.info("停止回放: 遍历 resourcesMap");
 
-        if (r.playHandle != null && r.playHandle.intValue() > 0) {
-            hcNetSDK.NET_DVR_StopPlayBack(r.playHandle);
-        }
-        if (r.userId != null && r.userId.intValue() > 0) {
-            hcNetSDK.NET_DVR_Logout(r.userId);
-        }
-        hcNetSDK.NET_DVR_Cleanup();
-
-        OutputStream stdin = r.ffmpegStdinRef.get();
-        if (stdin != null) {
-            try {
-                stdin.close();
-            } catch (IOException e) {
-                /* ignore */
-            }
-        }
-        Process p = r.ffmpegProcess.get();
-        if (p != null && p.isAlive()) {
-            p.destroy();
-            try {
-                if (!p.waitFor(2, TimeUnit.SECONDS)) {
-                    p.destroyForcibly();
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+        for (Integer playHandleInt : resourcesMap.keySet()) {
+            PlaybackResources r = resourcesMap.get(playHandleInt);
+            if (r != null) {
+                log.info("停止回放: playHandle={}", playHandleInt);
+                r.markStopped();
+                r.stopLatch.countDown();
+                hcNetSDK.NET_DVR_StopPlayBack(new NativeLong(playHandleInt));
+                resourcesMap.remove(playHandleInt);
             }
         }
 
-        threadResources.remove();
-        currentResources.set(null);
         log.info("停止回放完成");
     }
 }

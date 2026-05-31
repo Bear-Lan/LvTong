@@ -151,32 +151,32 @@ const startStream = () => {
 
   const apiUrl = `/api/hikNet/playBackVideo?startTime=${encodeURIComponent(props.startTime)}&endTime=${encodeURIComponent(props.endTime)}&channel=${props.channelId}`
 
-  videoElement.value.src = apiUrl
-  videoElement.value.muted = isMuted.value
+  nextTick(() => {
+    if (!videoElement.value) return
+    videoElement.value.src = apiUrl
+    videoElement.value.muted = isMuted.value
 
-  videoElement.value.onerror = (e) => {
-    console.error('视频加载失败:', e)
-    errorMessage.value = '播放失败，请重试'
-    hasError.value = true
-    isLoading.value = false
-    isConnected.value = false
-    isPlaying.value = false
-  }
+    videoElement.value.onerror = (e) => {
+      console.error('视频加载失败:', e)
+      errorMessage.value = '播放失败，请重试'
+      hasError.value = true
+      isLoading.value = false
+      isConnected.value = false
+      isPlaying.value = false
+    }
 
-  videoElement.value.onended = () => {
-    isEnded.value = true
-    isConnected.value = false
-    isPaused.value = false
-    isLoading.value = false
-  }
+    videoElement.value.onended = () => {
+      isEnded.value = true
+      isConnected.value = false
+      isPaused.value = false
+      isLoading.value = false
+    }
 
-  videoElement.value.play().catch((e) => {
-    console.error('play()失败:', e)
-    // 不设置 hasError，让 onerror 统一处理，避免重复设置状态
-    isLoading.value = false
+    videoElement.value.play().catch((e) => {
+      console.error('play()失败:', e)
+      isLoading.value = false
+    })
   })
-
-  isLoading.value = false
 }
 
 const stopStream = () => {
