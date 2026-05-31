@@ -2,7 +2,6 @@ package com.lvtong.LvTongTransportDept.service.impl;
 
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
-import com.alibaba.fastjson2.JSONWriter;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.lvtong.LvTongTransportDept.config.TransportDeptProperties;
 import com.lvtong.LvTongTransportDept.converter.TransportDeptConverter;
