@@ -6,8 +6,6 @@
         class="playback-video"
         :style="{ objectFit: fit }"
         playsinline
-        @timeupdate="onTimeUpdate"
-        @loadedmetadata="onLoadedMetadata"
       ></video>
     </div>
 
@@ -16,14 +14,20 @@
       <button class="ctrl-btn" @click.stop="togglePause" :title="isPaused ? '继续' : '暂停'">
         <el-icon><VideoPause v-if="!isPaused" /><VideoPlay v-else /></el-icon>
       </button>
-      <div class="progress-bar" @click.stop="seekTo">
+      <div class="progress-bar" @click.stop="seekTo"
+        @mousedown.prevent="onProgressMouseDown"
+      >
         <div class="progress-track">
-          <div class="progress-fill" :style="{ width: progressPercent + '%' }"></div>
+          <div class="progress-buffered" :style="{ width: (isDragging ? dragProgress : bufferedPercent) + '%' }"></div>
+          <div class="progress-fill" :style="{ width: (isDragging ? dragProgress : progressPercent) + '%' }"></div>
         </div>
       </div>
       <span class="time-label">{{ formatTime(currentTime) }} / {{ formatTime(totalSeconds) }}</span>
       <button class="ctrl-btn" @click.stop="toggleMute" :title="isMuted ? '取消静音' : '静音'">
         <el-icon><Mute v-if="isMuted" /><Microphone v-else /></el-icon>
+      </button>
+      <button class="ctrl-btn" @click.stop="toggleFullscreen" :title="isFullscreen ? '退出全屏' : '全屏'">
+        <el-icon><FullScreen /></el-icon>
       </button>
     </div>
 
@@ -66,7 +70,8 @@
 
 <script setup>
 import { ref, onUnmounted, watch, nextTick } from 'vue'
-import { VideoCamera, Microphone, Mute, Warning, VideoPlay, VideoPause } from '@element-plus/icons-vue'
+import { VideoCamera, Microphone, Mute, Warning, VideoPlay, VideoPause, FullScreen } from '@element-plus/icons-vue'
+import flvjs from 'flv.js'
 
 const props = defineProps({
   channelKey: { type: String, required: true },
@@ -79,8 +84,18 @@ const props = defineProps({
   isRotated: { type: Boolean, default: false }
 })
 
+// 计算总时长（秒），基于传入的时间范围而非视频流 duration
+const calcTotalSeconds = () => {
+  if (!props.startTime || !props.endTime) return 0
+  const start = new Date(props.startTime).getTime()
+  const end = new Date(props.endTime).getTime()
+  if (isNaN(start) || isNaN(end) || end <= start) return 0
+  return Math.round((end - start) / 1000)
+}
+
 const videoElement = ref(null)
 const videoWrapper = ref(null)
+const flvPlayer = ref(null)
 const isPlaying = ref(false)
 const isConnected = ref(false)
 const isLoading = ref(false)
@@ -90,8 +105,14 @@ const isPaused = ref(false)
 const errorMessage = ref('播放失败')
 const isMuted = ref(true)
 const currentTime = ref(0)
-const totalSeconds = ref(0)
+const totalSeconds = ref(calcTotalSeconds())
 const progressPercent = ref(0)
+const isFullscreen = ref(false)
+const bufferedPercent = ref(0)
+
+// 拖动进度条相关状态
+const isDragging = ref(false)
+const dragProgress = ref(0)
 
 const formatTime = (seconds) => {
   if (!seconds || isNaN(seconds)) return '00:00'
@@ -101,21 +122,45 @@ const formatTime = (seconds) => {
 }
 
 const onTimeUpdate = () => {
-  if (!videoElement.value) return
-  currentTime.value = videoElement.value.currentTime
+  if (!flvPlayer.value) return
+  currentTime.value = flvPlayer.value.currentTime
   if (totalSeconds.value > 0) {
     progressPercent.value = Math.min(100, (currentTime.value / totalSeconds.value) * 100)
   }
+  // 更新已缓冲进度
+  const buffered = flvPlayer.value.buffered
+  if (buffered && buffered.length > 0 && totalSeconds.value > 0) {
+    const bufferedEnd = buffered.end(buffered.length - 1)
+    bufferedPercent.value = Math.min(100, (bufferedEnd / totalSeconds.value) * 100)
+  }
 }
 
-const onLoadedMetadata = () => {
-  if (!videoElement.value) return
-  totalSeconds.value = videoElement.value.duration || 0
-  isConnected.value = true
-  isPaused.value = false
-  isLoading.value = false
-  updateRotatedStyle()
-  videoElement.value.play().catch(() => {})
+const onProgressMouseDown = () => {
+  isDragging.value = true
+  dragProgress.value = progressPercent.value
+  document.addEventListener('mousemove', onProgressMouseMove)
+  document.addEventListener('mouseup', onProgressMouseUp)
+}
+
+const onProgressMouseMove = (e) => {
+  const bar = document.querySelector('.progress-bar')
+  if (!bar) return
+  const rect = bar.getBoundingClientRect()
+  const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+  dragProgress.value = Math.round(ratio * 100)
+}
+
+const onProgressMouseUp = (e) => {
+  document.removeEventListener('mousemove', onProgressMouseMove)
+  document.removeEventListener('mouseup', onProgressMouseUp)
+  const bar = document.querySelector('.progress-bar')
+  if (!bar) return
+  const rect = bar.getBoundingClientRect()
+  const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+  if (flvPlayer.value && totalSeconds.value > 0) {
+    flvPlayer.value.currentTime = ratio * totalSeconds.value
+  }
+  isDragging.value = false
 }
 
 const updateRotatedStyle = () => {
@@ -142,97 +187,186 @@ const startStream = () => {
   isEnded.value = false
   isPaused.value = false
   currentTime.value = 0
-  totalSeconds.value = 0
+  totalSeconds.value = calcTotalSeconds()
   progressPercent.value = 0
+  bufferedPercent.value = 0
+  isDragging.value = false
 
-  videoElement.value.pause()
-  videoElement.value.src = ''
-  videoElement.value.load()
+  if (flvPlayer.value) {
+    flvPlayer.value.pause()
+    flvPlayer.value.unload()
+    flvPlayer.value.detachMediaElement()
+    flvPlayer.value.destroy()
+    flvPlayer.value = null
+  }
+  if (videoElement.value) {
+    videoElement.value.pause()
+    videoElement.value.src = ''
+  }
+  isConnected.value = false
 
   const apiUrl = `/api/hikNet/playBackVideo?startTime=${encodeURIComponent(props.startTime)}&endTime=${encodeURIComponent(props.endTime)}&channel=${props.channelId}`
 
   nextTick(() => {
     if (!videoElement.value) return
-    videoElement.value.src = apiUrl
-    videoElement.value.muted = isMuted.value
 
-    videoElement.value.onerror = (e) => {
-      console.error('视频加载失败:', e)
-      errorMessage.value = '播放失败，请重试'
+    if (flvjs.isSupported()) {
+      const player = flvjs.createPlayer({
+        type: 'flv',
+        url: apiUrl,
+        hasAudio: false,
+        hasVideo: true,
+        isLive: false,
+        enableStashBuffer: false,
+        stashInitialSize: 128,
+      }, {
+        enableWorker: false,
+        enableStashBuffer: false,
+        stashInitialSize: 128,
+        autoCleanupSourceBuffer: true,
+        autoCleanupMinBackwardDuration: 2,
+        autoCleanupMaxBackwardDuration: 5,
+      })
+
+      flvPlayer.value = player
+      player.attachMediaElement(videoElement.value)
+      player.load()
+
+      player.on(flvjs.Events.ERROR, (errType, errDetail) => {
+        console.error('flv.js error:', errType, errDetail)
+        if (!isConnected.value) {
+          errorMessage.value = '播放失败，请重试'
+          hasError.value = true
+          isLoading.value = false
+          isConnected.value = false
+          isPlaying.value = false
+        }
+      })
+
+      player.on(flvjs.Events.LOADED_METADATA, () => {
+        isConnected.value = true
+        isPaused.value = false
+        isLoading.value = false
+        updateRotatedStyle()
+        document.addEventListener('fullscreenchange', onFullscreenChange)
+      })
+
+      player.on(flvjs.Events.FIRST_VIDEO_FRAME_DECODED, () => {
+        console.log('[flv.js] first video frame decoded, start playback')
+        player.play().catch(() => {})
+      })
+
+      player.on(flvjs.Events.TIME_UPDATE, () => {
+        onTimeUpdate()
+      })
+
+      player.on(flvjs.Events.ENDED, () => {
+        isEnded.value = true
+        isConnected.value = false
+        isPaused.value = false
+        isLoading.value = false
+      })
+
+      player.play().catch(() => {
+        // play() 失败可能是暂时的，忽略
+      })
+    } else {
+      errorMessage.value = '当前浏览器不支持 FLV 播放'
       hasError.value = true
       isLoading.value = false
-      isConnected.value = false
-      isPlaying.value = false
     }
-
-    videoElement.value.onended = () => {
-      isEnded.value = true
-      isConnected.value = false
-      isPaused.value = false
-      isLoading.value = false
-    }
-
-    videoElement.value.play().catch((e) => {
-      console.error('play()失败:', e)
-      isLoading.value = false
-    })
   })
 }
 
 const stopStream = () => {
+  if (flvPlayer.value) {
+    flvPlayer.value.pause()
+    flvPlayer.value.unload()
+    flvPlayer.value.detachMediaElement()
+    flvPlayer.value.destroy()
+    flvPlayer.value = null
+  }
   if (videoElement.value) {
     videoElement.value.pause()
     videoElement.value.src = ''
   }
-  isPlaying.value = false
   isConnected.value = false
   isLoading.value = false
   isEnded.value = false
   isPaused.value = false
   currentTime.value = 0
-  totalSeconds.value = 0
   progressPercent.value = 0
+  bufferedPercent.value = 0
 }
 
 const retryConnect = () => {
   hasError.value = false
+  isLoading.value = true
   isPlaying.value = true
 }
 
 const handlePlay = () => {
+  console.log('[VideoPlayback] handlePlay clicked, channelId:', props.channelId, 'startTime:', props.startTime, 'endTime:', props.endTime)
+  isLoading.value = true
   isPlaying.value = true
 }
 
 const handleReplay = () => {
   isEnded.value = false
-  stopStream()
+  if (flvPlayer.value) {
+    flvPlayer.value.pause()
+    flvPlayer.value.unload()
+    flvPlayer.value.detachMediaElement()
+    flvPlayer.value.destroy()
+    flvPlayer.value = null
+  }
+  if (videoElement.value) {
+    videoElement.value.pause()
+    videoElement.value.src = ''
+  }
+  isConnected.value = false
   nextTick(() => {
     isPlaying.value = true
   })
 }
 
 const togglePause = () => {
-  if (!videoElement.value) return
+  if (!flvPlayer.value) return
   if (isPaused.value) {
-    videoElement.value.play()
+    flvPlayer.value.play()
     isPaused.value = false
   } else {
-    videoElement.value.pause()
+    flvPlayer.value.pause()
     isPaused.value = true
   }
 }
 
 const seekTo = (e) => {
-  if (!videoElement.value || !totalSeconds.value) return
+  if (!flvPlayer.value || !totalSeconds.value) return
   const rect = e.currentTarget.getBoundingClientRect()
   const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
-  videoElement.value.currentTime = ratio * totalSeconds.value
+  flvPlayer.value.currentTime = ratio * totalSeconds.value
 }
 
 const toggleMute = () => {
   if (!videoElement.value) return
   isMuted.value = !isMuted.value
   videoElement.value.muted = isMuted.value
+}
+
+const toggleFullscreen = async () => {
+  if (!videoElement.value) return
+  if (!document.fullscreenElement) {
+    await videoElement.value.requestFullscreen()
+    isFullscreen.value = true
+  } else {
+    await document.exitFullscreen()
+    isFullscreen.value = false
+  }
+}
+
+const onFullscreenChange = () => {
+  isFullscreen.value = !!document.fullscreenElement
 }
 
 watch(isPlaying, (playing) => {
@@ -245,7 +379,7 @@ watch(isPlaying, (playing) => {
 
 onUnmounted(() => {
   stopStream()
-  // 通知后端停止回放，释放 NVR 和 FFmpeg 资源
+  document.removeEventListener('fullscreenchange', onFullscreenChange)
   fetch('/api/hikNet/stopPlayback').catch(() => {})
 })
 </script>
@@ -284,6 +418,28 @@ onUnmounted(() => {
 .playback-video {
   width: 100%;
   height: 100%;
+}
+
+/* 全屏模式 */
+.video-playback:fullscreen {
+  background: #000;
+}
+
+.video-playback:fullscreen .video-wrapper {
+  width: 100%;
+  height: 100%;
+}
+
+.video-playback:fullscreen .playback-video {
+  width: 100%;
+  height: 100%;
+}
+
+.video-playback:fullscreen .video-controls {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
 }
 
 /* 底部控制栏 */
@@ -328,6 +484,8 @@ onUnmounted(() => {
   height: 100%;
   display: flex;
   align-items: center;
+  position: relative;
+  cursor: pointer;
   cursor: pointer;
 }
 
@@ -344,6 +502,19 @@ onUnmounted(() => {
   background: #409eff;
   border-radius: 2px;
   transition: width 0.1s linear;
+  position: relative;
+  z-index: 2;
+}
+
+.progress-buffered {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.35);
+  border-radius: 2px;
+  transition: width 0.3s linear;
+  z-index: 1;
 }
 
 .time-label {

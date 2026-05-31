@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * 海康威视 NVR 回放服务
  * 关键改进：
  * 1. 启动顺序：先启动 FFmpeg（等待就绪），再启动海康回放，避免数据丢失
- * 2. FFmpeg 参数优化：去除无效参数，减少 probesize/analyzeduration，考虑 copy 模式
+ * 2. FFmpeg 参数优化：去除无效参数，减少 probesize/analyzeduration
  * 3. 错误处理和超时机制：FFmpeg 启动失败清理海康资源，海康失败强制终止 FFmpeg
  * 4. 数据等待超时：FFmpeg 等待数据超时时安全释放资源
  * 5. 多通道支持：使用 ConcurrentHashMap 管理每个通道的独立资源，支持多通道并发播放
@@ -61,6 +61,7 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
         final AtomicReference<OutputStream> ffmpegStdinRef = new AtomicReference<>();
         final AtomicLong bytesWritten = new AtomicLong(0);
         final AtomicLong lastDataTime = new AtomicLong(System.currentTimeMillis());
+        final AtomicLong firstOutputTime = new AtomicLong(0);
         final AtomicLong stopped = new AtomicLong(0);
 
         PlaybackResources(NativeLong playHandle, NativeLong userId, CountDownLatch stopLatch) {
@@ -83,10 +84,12 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
      */
     private boolean ensureInitialized() {
         if (sdkInitialized && sharedUserId.intValue() > 0) {
+            log.info("SDK 已在之前初始化且已登录，userId={}", sharedUserId);
             return true;
         }
         synchronized (sdkInitLock) {
             if (sdkInitialized && sharedUserId.intValue() > 0) {
+                log.info("SDK 已在之前初始化且已登录，userId={}", sharedUserId);
                 return true;
             }
             if (!hcNetSDK.NET_DVR_Init()) {
@@ -220,7 +223,10 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
                             }
                         }
                         res.lastDataTime.set(System.currentTimeMillis());
-                        res.bytesWritten.addAndGet(dwBufSize);
+                        long prevWritten = res.bytesWritten.getAndAdd(dwBufSize);
+                        if (prevWritten == 0) {
+                            log.info("NVR 开始输出数据，首包大小: {} bytes", dwBufSize);
+                        }
                     } catch (IOException e) {
                         log.warn("FFmpeg stdin 写入异常: {}", e.getMessage());
                         res.markStopped();
@@ -290,8 +296,7 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
                 "-crf", "23",
                 "-vf", "scale='min(1920,iw)':-2",
                 "-an",
-                "-movflags", "frag_keyframe+empty_moov+faststart",
-                "-f", "mp4",
+                "-f", "flv",
                 "pipe:1"
         };
 
@@ -305,7 +310,7 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
             try {
                 String line;
                 while ((line = br.readLine()) != null) {
-                    log.debug("FFmpeg stderr: {}", line);
+                    log.info("FFmpeg stderr: {}", line);
                 }
             } catch (IOException e) {
                 // ignore
@@ -324,6 +329,11 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
                 int bytesRead;
                 while ((bytesRead = process.getInputStream().read(buffer)) != -1) {
                     if (res.isStopped()) break;
+                    // 记录首次输出时间
+                    if (res.firstOutputTime.get() == 0) {
+                        res.firstOutputTime.set(System.currentTimeMillis());
+                        log.info("FFmpeg 开始输出数据");
+                    }
                     try {
                         outputStream.write(buffer, 0, bytesRead);
                         outputStream.flush();
@@ -365,7 +375,6 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
         });
         monitorThread.setDaemon(true);
         monitorThread.start();
-
         return process;
     }
 
