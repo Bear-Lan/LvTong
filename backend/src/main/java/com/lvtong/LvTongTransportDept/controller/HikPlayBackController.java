@@ -44,6 +44,8 @@ public class HikPlayBackController {
             @RequestParam(defaultValue = "1") int channel,
             HttpServletResponse response) {
 
+        log.info("=== 收到回放请求: channel={}, startTime={}, endTime={} ===", channel, startTime, endTime);
+
         if (startTime.isAfter(endTime)) {
             try {
                 response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
@@ -68,10 +70,10 @@ public class HikPlayBackController {
         try (OutputStream out = response.getOutputStream()) {
             hikPlayBackService.playBackByTime(startTime, endTime, channel, out);
         } catch (Exception e) {
-            log.error("回放异常: {}", e.getMessage());
+            log.error("回放异常: {}", e.getMessage(), e);
         }
+        log.info("=== 回放请求处理完成: channel={} ===", channel);
     }
-
     @GetMapping("/stopPlayback")
     @Operation(summary = "停止回放", description = "停止当前进行中的录像回放，释放资源")
     public void stopPlayback() {

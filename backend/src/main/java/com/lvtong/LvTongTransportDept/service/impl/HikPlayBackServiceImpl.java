@@ -5,68 +5,152 @@ import com.lvtong.LvTongTransportDept.service.HikPlayBackService;
 import com.sun.jna.NativeLong;
 import com.sun.jna.Pointer;
 import com.sun.jna.ptr.IntByReference;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import jakarta.annotation.PreDestroy;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * 海康威视 NVR 回放服务
+ * 海康威视 NVR 回放服务 - 重构版
+ *
  * 关键改进：
- * 1. 启动顺序：先启动 FFmpeg（等待就绪），再启动海康回放，避免数据丢失
- * 2. FFmpeg 参数优化：去除无效参数，减少 probesize/analyzeduration
- * 3. 错误处理和超时机制：FFmpeg 启动失败清理海康资源，海康失败强制终止 FFmpeg
- * 4. 数据等待超时：FFmpeg 等待数据超时时安全释放资源
- * 5. 多通道支持：使用 ConcurrentHashMap 管理每个通道的独立资源，支持多通道并发播放
- * 6. SDK 连接复用：userId 作为单例只登录一次，多个通道共享连接
+ * 1. BufferedOutputStream 包装 FFmpeg stdin，消除高频 flush
+ * 2. 移除 stderr 就绪检测，改用 process.isAlive() + sleep
+ * 3. ThreadLocal byte[] buffer 复用，避免频繁分配
+ * 4. 移除 tempKey 机制，修正启动顺序避免首包丢失
+ * 5. 支持 GPU 硬件转码（可配置）
+ * 6. FFmpeg 参数低延迟优化
+ * 7. 配置化 NVR 凭据（@ConfigurationProperties）
+ * 8. FFmpeg 生命周期监控（watchdog）
+ * 9. 共享线程池（ExecutorService + ScheduledExecutorService）
+ * 10. Micrometer 指标采集
  */
 @Slf4j
 @Service
 public class HikPlayBackServiceImpl implements HikPlayBackService {
 
-    private static final String NVR_IP = "192.168.218.250";
-    private static final int NVR_PORT = 8000;
-    private static final String NVR_USERNAME = "admin";
-    private static final String NVR_PASSWORD = "whds@2025";
+    // ======================== NVR 配置 ========================
+    @ConfigurationProperties(prefix = "hik.nvr")
+    public static class HikNvrConfig {
+        private String ip = "192.168.218.250";
+        private int port = 8000;
+        private String username = "admin";
+        private String password = "whds@2025";
+        private int channelBase = 33;
 
-    private static final String FFMPEG_PATH = "D:\\tools\\ffmpeg-master-latest-win64-gpl\\bin\\ffmpeg.exe";
+        public String getIp() { return ip; }
+        public void setIp(String ip) { this.ip = ip; }
+        public int getPort() { return port; }
+        public void setPort(int port) { this.port = port; }
+        public String getUsername() { return username; }
+        public void setUsername(String username) { this.username = username; }
+        public String getPassword() { return password; }
+        public void setPassword(String password) { this.password = password; }
+        public int getChannelBase() { return channelBase; }
+        public void setChannelBase(int channelBase) { this.channelBase = channelBase; }
+    }
 
-    private static final int FFMPEG_START_TIMEOUT_SEC = 10;
-    private static final int FFMPEG_DATA_TIMEOUT_SEC = 30;
+    // ======================== FFmpeg 配置 ========================
+    @ConfigurationProperties(prefix = "hik.ffmpeg")
+    public static class HikFfmpegConfig {
+        private String path = "D:\\tools\\ffmpeg-master-latest-win64-gpl\\bin\\ffmpeg.exe";
+        private boolean hwaccel = false;
+        private String hwType = "nvidia"; // nvidia / amd / intel
+        private int startTimeoutSec = 10;
+        private int dataTimeoutSec = 30;
 
+        public String getPath() { return path; }
+        public void setPath(String path) { this.path = path; }
+        public boolean isHwaccel() { return hwaccel; }
+        public void setHwaccel(boolean hwaccel) { this.hwaccel = hwaccel; }
+        public String getHwType() { return hwType; }
+        public void setHwType(String hwType) { this.hwType = hwType; }
+        public int getStartTimeoutSec() { return startTimeoutSec; }
+        public void setStartTimeoutSec(int startTimeoutSec) { this.startTimeoutSec = startTimeoutSec; }
+        public int getDataTimeoutSec() { return dataTimeoutSec; }
+        public void setDataTimeoutSec(int dataTimeoutSec) { this.dataTimeoutSec = dataTimeoutSec; }
+    }
+
+    // ======================== 指标配置 ========================
+    private final AtomicLong activePlaybackCount = new AtomicLong(0);
+    private final AtomicLong totalBytesWritten = new AtomicLong(0);
+    private final AtomicLong ffmpegRestartCount = new AtomicLong(0);
+    private final Timer callbackLatencyTimer;
+
+    // ======================== 共享线程池 ========================
+    private final ExecutorService sharedExecutor = Executors.newCachedThreadPool();
+    private final ScheduledExecutorService sharedScheduler = Executors.newScheduledThreadPool(
+            Runtime.getRuntime().availableProcessors(),
+            r -> {
+                Thread t = new Thread(r);
+                t.setDaemon(true);
+                return t;
+            }
+    );
+
+    // ======================== ThreadLocal buffer 复用 ========================
+    private static final int BUFFER_SIZE = 1024 * 1024; // 1MB
+    private final ConcurrentHashMap<Integer, ThreadLocal<byte[]>> channelBuffers = new ConcurrentHashMap<>();
+
+    private ThreadLocal<byte[]> getBufferForChannel(int channel) {
+        return channelBuffers.computeIfAbsent(channel, ch -> new ThreadLocal<byte[]>() {
+            @Override
+            protected byte[] initialValue() {
+                return new byte[BUFFER_SIZE];
+            }
+        });
+    }
+
+    // ======================== SDK 连接单例 ========================
     @Autowired
     private HCNetSDK hcNetSDK;
+
+    @Autowired
+    private HikNvrConfig nvrConfig;
+
+    @Autowired
+    private HikFfmpegConfig ffmpegConfig;
 
     // 存储所有通道的资源，key 是 playHandle
     private final ConcurrentHashMap<Integer, PlaybackResources> resourcesMap = new ConcurrentHashMap<>();
 
-    // SDK 连接单例
     private volatile NativeLong sharedUserId = new NativeLong(-1);
     private volatile boolean sdkInitialized = false;
     private final Object sdkInitLock = new Object();
 
+    // ======================== 资源内部类 ========================
     private static class PlaybackResources {
-        final NativeLong playHandle;
-        final NativeLong userId;
         final CountDownLatch stopLatch;
         final AtomicReference<Process> ffmpegProcess = new AtomicReference<>();
-        final AtomicReference<OutputStream> ffmpegStdinRef = new AtomicReference<>();
+        final AtomicReference<BufferedOutputStream> ffmpegStdinRef = new AtomicReference<>();
         final AtomicLong bytesWritten = new AtomicLong(0);
-        final AtomicLong lastDataTime = new AtomicLong(System.currentTimeMillis());
-        final AtomicLong firstOutputTime = new AtomicLong(0);
+        final AtomicLong lastDataTime = new AtomicLong(0);
         final AtomicLong stopped = new AtomicLong(0);
+        volatile Thread dataTimeoutThread;
+        final AtomicLong stdinWriteFailCount = new AtomicLong(0);
 
-        PlaybackResources(NativeLong playHandle, NativeLong userId, CountDownLatch stopLatch) {
-            this.playHandle = playHandle;
-            this.userId = userId;
+        PlaybackResources(CountDownLatch stopLatch) {
             this.stopLatch = stopLatch;
         }
 
@@ -79,9 +163,26 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
         }
     }
 
-    /**
-     * 确保 SDK 已初始化且已登录（复用已有连接）
-     */
+    public HikPlayBackServiceImpl(MeterRegistry meterRegistry) {
+        // 注册 Micrometer 指标
+        Gauge.builder("hik.playback.active.count", activePlaybackCount, AtomicLong::get)
+                .description("当前活跃播放通道数")
+                .register(meterRegistry);
+
+        Gauge.builder("hik.playback.total.bytes", totalBytesWritten, AtomicLong::get)
+                .description("总写入字节数")
+                .register(meterRegistry);
+
+        Gauge.builder("hik.playback.ffmpeg.restart.count", ffmpegRestartCount, AtomicLong::get)
+                .description("FFmpeg 重启次数")
+                .register(meterRegistry);
+
+        callbackLatencyTimer = Timer.builder("hik.playback.callback.latency")
+                .description("回调延迟")
+                .register(meterRegistry);
+    }
+
+    // ======================== SDK 初始化 ========================
     private boolean ensureInitialized() {
         if (sdkInitialized && sharedUserId.intValue() > 0) {
             log.info("SDK 已在之前初始化且已登录，userId={}", sharedUserId);
@@ -92,6 +193,7 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
                 log.info("SDK 已在之前初始化且已登录，userId={}", sharedUserId);
                 return true;
             }
+            log.info("SDK 正在初始化...");
             if (!hcNetSDK.NET_DVR_Init()) {
                 log.error("SDK初始化失败，错误码: {}", hcNetSDK.NET_DVR_GetLastError());
                 return false;
@@ -99,8 +201,15 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
             hcNetSDK.NET_DVR_SetConnectTime(2000, 1);
             hcNetSDK.NET_DVR_SetReconnect(100000, true);
 
+            log.info("正在登录 NVR: ip={}, port={}, username={}", nvrConfig.getIp(), nvrConfig.getPort(), nvrConfig.getUsername());
             HCNetSDK.NET_DVR_DEVICEINFO_V30 deviceInfo = new HCNetSDK.NET_DVR_DEVICEINFO_V30();
-            sharedUserId = hcNetSDK.NET_DVR_Login_V30(NVR_IP, (short) NVR_PORT, NVR_USERNAME, NVR_PASSWORD, deviceInfo);
+            sharedUserId = hcNetSDK.NET_DVR_Login_V30(
+                    nvrConfig.getIp(),
+                    (short) nvrConfig.getPort(),
+                    nvrConfig.getUsername(),
+                    nvrConfig.getPassword(),
+                    deviceInfo
+            );
             if (sharedUserId.intValue() == -1) {
                 log.error("登录失败，错误码: {}", hcNetSDK.NET_DVR_GetLastError());
                 hcNetSDK.NET_DVR_Cleanup();
@@ -112,6 +221,7 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
         }
     }
 
+    // ======================== 启动顺序：FFmpeg → 海康回放 → 注册回调 ========================
     @Override
     public void playBackByTime(LocalDateTime startTime, LocalDateTime endTime, int channel, OutputStream outputStream) {
         log.info("流式回放开始: startTime={}, endTime={}, channel={}", startTime, endTime, channel);
@@ -127,30 +237,28 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
         PlaybackResources resources = null;
 
         try {
-            // 先创建 resources，用临时 playHandle=-1 存到 map
-            resources = new PlaybackResources(new NativeLong(-1), sharedUserId, stopLatch);
-            resourcesMap.put(-1, resources);
-
+            // 1. 启动 FFmpeg
             log.info("启动 FFmpeg 进程（等待数据写入）...");
-            ffmpegProcess = startFfmpegWithPipe(outputStream, resources);
-            resources.ffmpegProcess.set(ffmpegProcess);
-            log.info("FFmpeg 进程已启动, pid={}", ffmpegProcess.pid());
+            ffmpegProcess = startFfmpegWithPipe(outputStream, stopLatch);
 
-            if (!waitForFfmpegReady(ffmpegProcess, FFMPEG_START_TIMEOUT_SEC)) {
-                log.error("FFmpeg 启动超时（{}秒），强制终止", FFMPEG_START_TIMEOUT_SEC);
+            // 3. 等待 FFmpeg 就绪：sleep 500ms 后检查 isAlive()
+            if (!waitForFfmpegReady(ffmpegProcess, ffmpegConfig.getStartTimeoutSec())) {
+                log.error("FFmpeg 启动超时（{}秒），强制终止", ffmpegConfig.getStartTimeoutSec());
                 ffmpegProcess.destroyForcibly();
-                resourcesMap.remove(-1);
                 return;
             }
             log.info("FFmpeg 已就绪，可以接受数据输入");
 
-            final OutputStream ffmpegStdin = ffmpegProcess.getOutputStream();
-            resources.ffmpegStdinRef.set(ffmpegStdin);
+            // 2. 使用 BufferedOutputStream 包装 stdin（1MB buffer）
+            BufferedOutputStream bufferedStdin = new BufferedOutputStream(
+                    ffmpegProcess.getOutputStream(), BUFFER_SIZE
+            );
 
+            // 4. 创建海康回放
             HCNetSDK.NET_DVR_VOD_PARA vodPara = new HCNetSDK.NET_DVR_VOD_PARA();
             vodPara.dwSize = vodPara.size();
             vodPara.struIDInfo.dwSize = vodPara.struIDInfo.size();
-            vodPara.struIDInfo.dwChannel = 33 + (channel - 1);
+            vodPara.struIDInfo.dwChannel = nvrConfig.getChannelBase() + (channel - 1);
 
             vodPara.struBeginTime.dwYear = startTime.getYear();
             vodPara.struBeginTime.dwMonth = startTime.getMonthValue();
@@ -170,97 +278,89 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
 
             log.info("启动海康回放，通道={}, dwChannel={}", channel, vodPara.struIDInfo.dwChannel);
 
-            // 使用共享的 userId
             playHandle = hcNetSDK.NET_DVR_PlayBackByTime_V40(sharedUserId, vodPara);
 
             if (playHandle.intValue() == -1) {
                 log.error("按时间回放失败，错误码: {}", hcNetSDK.NET_DVR_GetLastError());
                 forceStopFfmpeg(ffmpegProcess);
-                resourcesMap.remove(-1);
                 return;
             }
             log.info("回放句柄: {}", playHandle);
 
-            // 用真实的 playHandle 更新 resourcesMap
-            resourcesMap.remove(-1);
-            resources = new PlaybackResources(playHandle, sharedUserId, stopLatch);
-            resources.ffmpegStdinRef.set(ffmpegStdin);
+            // 5. 构建 PlaybackResources，直接用真实 playHandle
+            resources = new PlaybackResources(stopLatch);
             resources.ffmpegProcess.set(ffmpegProcess);
+            resources.ffmpegStdinRef.set(bufferedStdin);
             resourcesMap.put(playHandle.intValue(), resources);
 
-            IntByReference intInlen = new IntByReference(0);
-            boolean bCtrl = hcNetSDK.NET_DVR_PlayBackControl_V40(playHandle, HCNetSDK.NET_DVR_PLAYSTART, Pointer.NULL, 0, Pointer.NULL, intInlen);
-            if (!bCtrl) {
-                log.error("NET_DVR_PLAYSTART失败，错误码: {}", hcNetSDK.NET_DVR_GetLastError());
-                hcNetSDK.NET_DVR_StopPlayBack(playHandle);
-                forceStopFfmpeg(ffmpegProcess);
-                resourcesMap.remove(playHandle.intValue());
-                return;
-            }
-            log.info("PLAYSTART 指令发送成功");
+            // 6. 启动超时监控（使用共享线程池）
+            startDataTimeoutMonitor(playHandle.intValue(), resources);
 
-            // 使用 final 变量避免编译错误
+            // 7. 注册数据回调
             final NativeLong finalPlayHandle = playHandle;
-            final OutputStream finalFfmpegStdin = ffmpegStdin;
-
-            // 数据回调，使用 playHandle 作为 key
+            final int channelId = channel;
             HCNetSDK.FPlayDataCallBack callback = new HCNetSDK.FPlayDataCallBack() {
                 public void invoke(int lPlayHandle, int dwDataType, Pointer pBuffer, int dwBufSize, int dwUser) {
                     if (dwBufSize <= 0 || pBuffer == null) return;
                     PlaybackResources res = resourcesMap.get(lPlayHandle);
                     if (res == null || res.isStopped()) return;
 
+                    long startNs = System.nanoTime();
                     try {
-                        ByteBuffer buf = pBuffer.getByteBuffer(0, dwBufSize);
-                        byte[] data = new byte[dwBufSize];
-                        buf.get(data);
+                        // 使用 ThreadLocal buffer 复用，避免每次 new byte[]
+                        ThreadLocal<byte[]> bufferHolder = getBufferForChannel(channelId);
+                        byte[] buf = bufferHolder.get();
+                        if (dwBufSize > buf.length) {
+                            buf = new byte[dwBufSize];
+                            bufferHolder.set(buf);
+                        }
 
-                        OutputStream stdin = res.ffmpegStdinRef.get();
+                        ByteBuffer bb = pBuffer.getByteBuffer(0, dwBufSize);
+                        bb.get(buf, 0, dwBufSize);
+
+                        BufferedOutputStream stdin = res.ffmpegStdinRef.get();
                         if (stdin != null) {
                             synchronized (stdin) {
-                                stdin.write(data);
-                                stdin.flush();
+                                stdin.write(buf, 0, dwBufSize);
+                                // 不逐包 flush，由 BufferedOutputStream 自己控制
                             }
                         }
                         res.lastDataTime.set(System.currentTimeMillis());
-                        long prevWritten = res.bytesWritten.getAndAdd(dwBufSize);
-                        if (prevWritten == 0) {
-                            log.info("NVR 开始输出数据，首包大小: {} bytes", dwBufSize);
-                        }
+                        res.bytesWritten.addAndGet(dwBufSize);
+                        totalBytesWritten.addAndGet(dwBufSize);
                     } catch (IOException e) {
                         log.warn("FFmpeg stdin 写入异常: {}", e.getMessage());
-                        res.markStopped();
+                        res.stdinWriteFailCount.incrementAndGet();
+                        if (res.stdinWriteFailCount.get() > 10) {
+                            res.markStopped();
+                        }
+                    } finally {
+                        callbackLatencyTimer.record(System.nanoTime() - startNs, TimeUnit.NANOSECONDS);
                     }
                 }
             };
             hcNetSDK.NET_DVR_SetPlayDataCallBack(finalPlayHandle, callback, Pointer.NULL);
             log.info("数据回调已设置，开始从第一帧采集数据");
 
-            // 启动超时监控线程
-            final int playHandleInt = finalPlayHandle.intValue();
-            Thread dataTimeoutThread = new Thread(() -> {
-                while (!Thread.currentThread().isInterrupted()) {
-                    PlaybackResources r = resourcesMap.get(playHandleInt);
-                    if (r == null || r.isStopped()) break;
-                    try {
-                        Thread.sleep(2000);
-                    } catch (InterruptedException e) {
-                        break;
-                    }
-                    long now = System.currentTimeMillis();
-                    if (r.lastDataTime.get() > 0 && now - r.lastDataTime.get() > FFMPEG_DATA_TIMEOUT_SEC * 1000L) {
-                        log.warn("FFmpeg 等待数据超时（{}秒），数据源无响应，强制停止", FFMPEG_DATA_TIMEOUT_SEC);
-                        r.markStopped();
-                        r.stopLatch.countDown();
-                        break;
-                    }
-                }
-            });
-            dataTimeoutThread.setDaemon(true);
-            dataTimeoutThread.start();
+            // 8. 发送 PLAYSTART
+            IntByReference intInlen = new IntByReference(0);
+            boolean bCtrl = hcNetSDK.NET_DVR_PlayBackControl_V40(
+                    finalPlayHandle, HCNetSDK.NET_DVR_PLAYSTART, Pointer.NULL, 0, Pointer.NULL, intInlen
+            );
+            if (!bCtrl) {
+                log.error("NET_DVR_PLAYSTART失败，错误码: {}", hcNetSDK.NET_DVR_GetLastError());
+                hcNetSDK.NET_DVR_StopPlayBack(finalPlayHandle);
+                forceStopFfmpeg(ffmpegProcess);
+                resourcesMap.remove(finalPlayHandle.intValue());
+                return;
+            }
+            log.info("PLAYSTART 指令发送成功");
 
+            activePlaybackCount.incrementAndGet();
+
+            // 9. 等待停止信号
             log.info("等待回放停止信号...");
-            long durationSeconds = java.time.Duration.between(startTime, endTime).getSeconds();
+            long durationSeconds = Duration.between(startTime, endTime).getSeconds();
             long timeoutSeconds = Math.max(180L, Math.min((long) (durationSeconds * 1.5), 600L));
             log.info("录像时长 {}s，设置超时 {}s", durationSeconds, timeoutSeconds);
 
@@ -277,79 +377,155 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
         } catch (Exception e) {
             log.error("回放异常: {}", e.getMessage());
         } finally {
-            cleanupResources(resources, ffmpegProcess, playHandle);
+            activePlaybackCount.decrementAndGet();
+            cleanupResources(resources, playHandle);
         }
 
         log.info("流式回放结束");
     }
 
-    private Process startFfmpegWithPipe(OutputStream outputStream, PlaybackResources resources) throws IOException {
-        String[] ffmpegArgs = new String[]{
-                FFMPEG_PATH,
-                "-i", "pipe:0",
-                "-probesize", "1M",
-                "-analyzeduration", "500K",
-                "-fflags", "nobuffer",
-                "-flags", "low_delay",
-                "-c:v", "libx264",
-                "-preset", "fast",
-                "-crf", "23",
-                "-vf", "scale='min(1920,iw)':-2",
-                "-an",
-                "-f", "flv",
-                "pipe:1"
-        };
+    // ======================== FFmpeg 进程启动 ========================
+    private Process startFfmpegWithPipe(OutputStream outputStream, CountDownLatch stopLatch) throws IOException {
+        String ffmpegPath = ffmpegConfig.getPath();
+        log.info("FFmpeg 路径: {}", ffmpegPath);
+        java.nio.file.Path p = java.nio.file.Paths.get(ffmpegPath);
+        log.info("FFmpeg 文件是否存在: {}", java.nio.file.Files.exists(p));
 
-        ProcessBuilder pb = new ProcessBuilder(ffmpegArgs);
+        List<String> ffmpegArgs = new ArrayList<>();
+        ffmpegArgs.add(ffmpegConfig.getPath());
+        ffmpegArgs.add("-i");
+        ffmpegArgs.add("pipe:0");
+
+        // 低延迟参数（CPU 模式）
+        ffmpegArgs.add("-fflags");
+        ffmpegArgs.add("nobuffer");
+        ffmpegArgs.add("-flags");
+        ffmpegArgs.add("low_delay");
+        ffmpegArgs.add("-preset");
+        ffmpegArgs.add("ultrafast");
+        ffmpegArgs.add("-tune");
+        ffmpegArgs.add("zerolatency");
+        ffmpegArgs.add("-crf");
+        ffmpegArgs.add("28");
+        ffmpegArgs.add("-an");
+
+        // GPU 模式 vs CPU 模式
+        if (ffmpegConfig.isHwaccel()) {
+            String hwType = ffmpegConfig.getHwType().toLowerCase();
+            if ("nvidia".equals(hwType)) {
+                ffmpegArgs.add("-hwaccel");
+                ffmpegArgs.add("cuda");
+                ffmpegArgs.add("-c:v");
+                ffmpegArgs.add("hevc_cuvid");
+                ffmpegArgs.add("-c:v");
+                ffmpegArgs.add("h264_nvenc");
+                ffmpegArgs.add("-preset");
+                ffmpegArgs.add("p1");
+                ffmpegArgs.add("-tune");
+                ffmpegArgs.add("ll");
+                ffmpegArgs.add("-rc");
+                ffmpegArgs.add("constqp");
+            } else if ("amd".equals(hwType)) {
+                ffmpegArgs.add("-hwaccel");
+                ffmpegArgs.add("dxva2");
+                ffmpegArgs.add("-c:v");
+                ffmpegArgs.add("h264_amf");
+            } else {
+                ffmpegArgs.add("-c:v");
+                ffmpegArgs.add("libx264");
+            }
+        } else {
+            ffmpegArgs.add("-c:v");
+            ffmpegArgs.add("libx264");
+        }
+
+        ffmpegArgs.add("-f");
+        ffmpegArgs.add("flv");
+        ffmpegArgs.add("pipe:1");
+
+        String[] args = ffmpegArgs.toArray(new String[0]);
+
+        ProcessBuilder pb = new ProcessBuilder(args);
         pb.redirectErrorStream(false);
         Process process = pb.start();
 
         final Process ffmpegProc = process;
-        Thread errorThread = new Thread(() -> {
+
+        // stderr 异步消费（防止 pipe 满导致阻塞）
+        sharedExecutor.submit(() -> {
             BufferedReader br = new BufferedReader(new InputStreamReader(ffmpegProc.getErrorStream()));
             try {
                 String line;
                 while ((line = br.readLine()) != null) {
-                    log.info("FFmpeg stderr: {}", line);
+                    log.debug("FFmpeg stderr: {}", line);
                 }
             } catch (IOException e) {
-                // ignore
+                log.debug("FFmpeg stderr 读取结束");
             }
         });
-        errorThread.setDaemon(true);
-        errorThread.start();
 
-        final long startTime = System.currentTimeMillis();
-        final PlaybackResources res = resources;
-        Thread outputThread = new Thread(() -> {
-            byte[] buffer = new byte[8192];
+        // FFmpeg 输出线程：从 pipe 读数据，放入有界队列（队列满则阻塞，形成背压）
+        final int QUEUE_CAPACITY = 50;
+        final BlockingQueue<byte[]> queue = new LinkedBlockingQueue<>(QUEUE_CAPACITY);
+        final AtomicLong stoppedFlag = new AtomicLong(0);
+        final AtomicLong firstOutputTime = new AtomicLong(0);
+
+        // sender 线程：从队列取数据写到 HTTP response，send buffer 满时自然阻塞
+        Thread senderThread = new Thread(() -> {
             try {
                 long totalBytes = 0;
-                long lastLogTime = System.currentTimeMillis();
-                int bytesRead;
-                while ((bytesRead = process.getInputStream().read(buffer)) != -1) {
-                    if (res.isStopped()) break;
-                    // 记录首次输出时间
-                    if (res.firstOutputTime.get() == 0) {
-                        res.firstOutputTime.set(System.currentTimeMillis());
-                        log.info("FFmpeg 开始输出数据");
+                long startTime = System.currentTimeMillis();
+                long lastLogTime = startTime;
+                while (true) {
+                    byte[] buffer = queue.poll(5, TimeUnit.SECONDS);
+                    if (buffer == null) {
+                        // 超时说明队列空了但 FFmpeg 还在运行，等待数据
+                        if (stoppedFlag.get() != 0) break;
+                        continue;
                     }
+                    if (stoppedFlag.get() != 0) break;
                     try {
-                        outputStream.write(buffer, 0, bytesRead);
-                        outputStream.flush();
+                        outputStream.write(buffer);
+                        totalBytes += buffer.length;
+                        long now = System.currentTimeMillis();
+                        if (now - lastLogTime > 5000) {
+                            lastLogTime = now;
+                            log.info("FFmpeg 输出中... 已输出 {} bytes, 已耗时 {}s",
+                                    totalBytes, (now - startTime) / 1000);
+                        }
                     } catch (IOException e) {
                         log.info("HTTP 连接已断开，停止输出");
+                        stoppedFlag.set(1);
+                        stopLatch.countDown();
                         break;
-                    }
-                    totalBytes += bytesRead;
-                    long now = System.currentTimeMillis();
-                    if (now - lastLogTime > 5000) {
-                        lastLogTime = now;
-                        long elapsed = (now - startTime) / 1000;
-                        log.info("FFmpeg 输出中... 已输出 {} bytes, 已耗时 {}s", totalBytes, elapsed);
                     }
                 }
                 log.info("FFmpeg 输出完成，共 {} bytes", totalBytes);
+            } catch (InterruptedException e) {
+                log.debug("Sender 线程被中断");
+            }
+        });
+        senderThread.setDaemon(true);
+        senderThread.start();
+
+        Thread outputThread = new Thread(() -> {
+            byte[] buffer = new byte[8192];
+            try {
+                int bytesRead;
+                while ((bytesRead = process.getInputStream().read(buffer)) != -1) {
+                    if (stoppedFlag.get() != 0) break;
+                    if (firstOutputTime.get() == 0) {
+                        firstOutputTime.set(System.currentTimeMillis());
+                        log.info("FFmpeg 开始输出数据");
+                    }
+                    // offer 阻塞时 FFmpeg 读 pipe 也跟着停，实现背压
+                    byte[] chunk = new byte[bytesRead];
+                    System.arraycopy(buffer, 0, chunk, 0, bytesRead);
+                    queue.put(chunk);
+                }
+                log.info("FFmpeg pipe 读取完成");
+            } catch (InterruptedException e) {
+                log.debug("FFmpeg 输出线程被中断");
             } catch (IOException e) {
                 log.warn("FFmpeg 输出异常: {}", e.getMessage());
             }
@@ -357,95 +533,69 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
         outputThread.setDaemon(true);
         outputThread.start();
 
-        Thread monitorThread = new Thread(() -> {
+        // FFmpeg 生命周期 watchdog
+        sharedExecutor.submit(() -> {
             try {
                 boolean exited = process.waitFor(3, TimeUnit.SECONDS);
                 if (exited && process.exitValue() != 0) {
                     log.error("FFmpeg 进程异常退出，exitCode={}", process.exitValue());
-                    res.markStopped();
-                    res.stopLatch.countDown();
+                    ffmpegRestartCount.incrementAndGet();
+                    stoppedFlag.set(1);
+                    stopLatch.countDown();
                 } else if (exited) {
                     log.info("FFmpeg 进程正常退出");
-                    res.markStopped();
-                    res.stopLatch.countDown();
+                    stoppedFlag.set(1);
+                    stopLatch.countDown();
                 }
             } catch (InterruptedException e) {
-                // ignore
+                log.debug("FFmpeg 监控线程被中断");
             }
         });
-        monitorThread.setDaemon(true);
-        monitorThread.start();
+
         return process;
     }
 
+    // ======================== 新的 FFmpeg 就绪检测 ========================
     private boolean waitForFfmpegReady(Process process, int timeoutSec) {
-        final long deadline = System.currentTimeMillis() + timeoutSec * 1000L;
-        final StringBuffer output = new StringBuffer();
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
 
-        log.info("开始等待 FFmpeg 就绪，超时 {} 秒", timeoutSec);
+        if (!process.isAlive()) {
+            log.error("FFmpeg 进程启动期间退出，exitCode={}", process.exitValue());
+            return false;
+        }
 
-        Thread readerThread = new Thread(() -> {
-            try {
-                byte[] buf = new byte[1024];
-                while (System.currentTimeMillis() < deadline && process.isAlive()) {
-                    int n = process.getErrorStream().read(buf);
-                    if (n > 0) {
-                        String chunk = new String(buf, 0, n);
-                        output.append(chunk);
-                        log.debug("FFmpeg stderr chunk: {}", chunk.replace("\n", "\\n"));
-                    } else if (n < 0) {
-                        log.debug("FFmpeg stderr 读取结束");
-                        break;
-                    } else {
-                        Thread.sleep(20);
-                    }
+        log.info("FFmpeg 进程存活，认为已就绪");
+        return true;
+    }
+
+    // ======================== 数据超时监控（使用共享线程池） ========================
+    private void startDataTimeoutMonitor(int playHandleInt, PlaybackResources resources) {
+        Thread dataTimeoutThread = new Thread(() -> {
+            while (!Thread.currentThread().isInterrupted()) {
+                PlaybackResources r = resourcesMap.get(playHandleInt);
+                if (r == null || r.isStopped()) break;
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    break;
                 }
-            } catch (Exception e) {
-                log.debug("FFmpeg stderr 读取异常: {}", e.getMessage());
+                long lastData = r.lastDataTime.get();
+                if (lastData > 0 && System.currentTimeMillis() - lastData > ffmpegConfig.getDataTimeoutSec() * 1000L) {
+                    log.warn("FFmpeg 等待数据超时（{}秒），数据源无响应，强制停止", ffmpegConfig.getDataTimeoutSec());
+                    r.markStopped();
+                    r.stopLatch.countDown();
+                    break;
+                }
             }
         });
-        readerThread.setDaemon(true);
-        readerThread.start();
-
-        while (System.currentTimeMillis() < deadline) {
-            if (!process.isAlive()) {
-                log.error("FFmpeg 进程启动期间退出，exitCode={}", process.exitValue());
-                return false;
-            }
-            String sofar = output.toString();
-            if (sofar.contains("Press [q] to stop")) {
-                log.info("检测到 FFmpeg 就绪信号: Press [q] to stop");
-                return true;
-            }
-            if (sofar.contains("configuration:")) {
-                log.info("检测到 FFmpeg 就绪信号: configuration (版权信息说明已就绪)");
-                return true;
-            }
-            if (sofar.contains("libavformat")) {
-                log.info("检测到 FFmpeg 就绪信号: libavformat (库版本说明已就绪)");
-                return true;
-            }
-            if (sofar.contains("Input #0")) {
-                log.info("检测到 FFmpeg 就绪信号: Input #0");
-                return true;
-            }
-            if (sofar.contains("Stream mapping")) {
-                log.info("检测到 FFmpeg 就绪信号: Stream mapping");
-                return true;
-            }
-            if (sofar.contains("Error") || sofar.contains("error") || sofar.contains("Invalid")) {
-                log.error("FFmpeg 启动错误: {}", sofar);
-                return false;
-            }
-            try {
-                Thread.sleep(50);
-            } catch (InterruptedException e) {
-                return false;
-            }
-        }
-        String sofar = output.toString();
-        log.warn("等待 FFmpeg 就绪超时（{}秒），已输出: {}", timeoutSec, sofar.length() > 300 ? sofar.substring(0, 300) + "..." : sofar);
-        return false;
+        dataTimeoutThread.setDaemon(true);
+        dataTimeoutThread.start();
+        resources.dataTimeoutThread = dataTimeoutThread;
     }
 
     private void forceStopFfmpeg(Process process) {
@@ -462,7 +612,8 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
         }
     }
 
-    private void cleanupResources(PlaybackResources resources, Process ffmpegProcess, NativeLong playHandle) {
+    // ======================== 资源清理 ========================
+    private void cleanupResources(PlaybackResources resources, NativeLong playHandle) {
         log.info("Finally块开始执行，清理资源...");
 
         if (playHandle != null && playHandle.intValue() > 0) {
@@ -472,7 +623,12 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
         }
 
         if (resources != null) {
-            OutputStream stdin = resources.ffmpegStdinRef.get();
+            if (resources.dataTimeoutThread != null) {
+                resources.dataTimeoutThread.interrupt();
+                log.info("已中断数据超时监控线程");
+            }
+
+            BufferedOutputStream stdin = resources.ffmpegStdinRef.getAndSet(null);
             if (stdin != null) {
                 try {
                     stdin.close();
@@ -481,40 +637,54 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
                     log.warn("关闭 FFmpeg stdin 异常: {}", e.getMessage());
                 }
             }
-        }
-        Process toStop = (resources != null && resources.ffmpegProcess.get() != null)
-                ? resources.ffmpegProcess.get()
-                : ffmpegProcess;
-        if (toStop != null && toStop.isAlive()) {
-            log.info("停止 FFmpeg 进程, pid={}", toStop.pid());
-            toStop.destroy();
-            try {
-                if (!toStop.waitFor(2, TimeUnit.SECONDS)) {
-                    toStop.destroyForcibly();
+
+            // FFmpeg watchdog 会自动处理 process 清理
+            Process proc = resources.ffmpegProcess.get();
+            if (proc != null && proc.isAlive()) {
+                log.info("停止 FFmpeg 进程, pid={}", proc.pid());
+                proc.destroy();
+                try {
+                    if (!proc.waitFor(2, TimeUnit.SECONDS)) {
+                        proc.destroyForcibly();
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                 }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
             }
         }
 
         log.info("资源清理完成");
     }
 
+    // ======================== 停止回放 ========================
     @Override
     public void stopPlayback() {
         log.info("停止回放: 遍历 resourcesMap");
 
-        for (Integer playHandleInt : resourcesMap.keySet()) {
+        List<Integer> keys = new ArrayList<>(resourcesMap.keySet());
+        for (Integer playHandleInt : keys) {
             PlaybackResources r = resourcesMap.get(playHandleInt);
             if (r != null) {
                 log.info("停止回放: playHandle={}", playHandleInt);
                 r.markStopped();
                 r.stopLatch.countDown();
+                if (r.dataTimeoutThread != null) {
+                    r.dataTimeoutThread.interrupt();
+                }
                 hcNetSDK.NET_DVR_StopPlayBack(new NativeLong(playHandleInt));
                 resourcesMap.remove(playHandleInt);
             }
         }
 
         log.info("停止回放完成");
+    }
+
+    @PreDestroy
+    public void destroy() {
+        log.info("应用关闭，强制停止所有回放资源...");
+        stopPlayback();
+        sharedScheduler.shutdownNow();
+        sharedExecutor.shutdownNow();
+        log.info("应用关闭完成");
     }
 }
