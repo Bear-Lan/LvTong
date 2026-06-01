@@ -92,6 +92,9 @@ public interface HCNetSDK extends Library {
     int NET_DVR_PLAYFRAME = 8;
     int NET_DVR_PLAYSTARTAUDIO = 9;
     int NET_DVR_PLAYSTOPAUDIO = 10;
+    int NET_DVR_PLAYGETPOS = 104;
+    int NET_DVR_PLAYGETBUF = 105;
+    int NET_DVR_PLAYSETPOS = 106;
 
     // ========== SDK基础接口 ==========
 

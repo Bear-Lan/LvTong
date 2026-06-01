@@ -16,6 +16,8 @@ import org.springframework.stereotype.Service;
 
 import java.io.*;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -79,6 +81,7 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
         private String hwType = "nvidia"; // nvidia / amd / intel
         private int startTimeoutSec = 10;
         private int dataTimeoutSec = 30;
+        private boolean transcodeToH264 = true; // true=H.265重编码为H.264 MP4，false=仅封装为H.265 MP4(-c copy)
 
         public String getPath() { return path; }
         public void setPath(String path) { this.path = path; }
@@ -90,6 +93,8 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
         public void setStartTimeoutSec(int startTimeoutSec) { this.startTimeoutSec = startTimeoutSec; }
         public int getDataTimeoutSec() { return dataTimeoutSec; }
         public void setDataTimeoutSec(int dataTimeoutSec) { this.dataTimeoutSec = dataTimeoutSec; }
+        public boolean isTranscodeToH264() { return transcodeToH264; }
+        public void setTranscodeToH264(boolean transcodeToH264) { this.transcodeToH264 = transcodeToH264; }
     }
 
     // ======================== 指标配置 ========================
@@ -654,6 +659,465 @@ public class HikPlayBackServiceImpl implements HikPlayBackService {
         }
 
         log.info("资源清理完成");
+    }
+
+    // ======================== 下载会话状态（用于事件驱动等待） ========================
+    private static class DownloadSession {
+        final CountDownLatch playbackDone = new CountDownLatch(1);
+        final AtomicReference<Exception> error = new AtomicReference<>();
+        final AtomicLong lastDataTime = new AtomicLong(0);
+        final Path rawFile;
+        final Path mp4File;
+        volatile boolean finished = false;
+        volatile boolean hasReceivedData = false;
+        final AtomicLong bytesWritten = new AtomicLong(0);
+        final AtomicLong lastBytesSnapshot = new AtomicLong(0);
+        final AtomicLong lastBytesSnapshotTime = new AtomicLong(0);
+        FileOutputStream rawFos;
+
+        DownloadSession(Path rawFile, Path mp4File) {
+            this.rawFile = rawFile;
+            this.mp4File = mp4File;
+        }
+
+        void markError(Exception e) {
+            error.set(e);
+            finished = true;
+            playbackDone.countDown();
+        }
+
+        void markDone() {
+            finished = true;
+            playbackDone.countDown();
+        }
+    }
+
+    // ======================== 下载录像 ========================
+    @Override
+    public boolean downloadVideo(LocalDateTime startTime, LocalDateTime endTime, int channel, OutputStream outputStream) throws IOException {
+        log.info("下载录像开始: startTime={}, endTime={}, channel={}", startTime, endTime, channel);
+
+        if (!ensureInitialized()) {
+            log.error("SDK未初始化，无法进行下载");
+            return false;
+        }
+
+        // 通道有效性检查
+        int dwChannel = nvrConfig.getChannelBase() + (channel - 1);
+        int maxChannel = nvrConfig.getChannelBase() + 31; // 假设最多32通道
+        if (channel < 1 || dwChannel > maxChannel) {
+            log.error("通道号无效: channel={} (有效范围 1-{}), dwChannel={}", channel, maxChannel - nvrConfig.getChannelBase() + 1, dwChannel);
+            return false;
+        }
+
+        long durationSeconds = Duration.between(startTime, endTime).getSeconds();
+        if (durationSeconds <= 0) {
+            log.error("结束时间必须晚于开始时间");
+            return false;
+        }
+
+        Path rawFile = null;
+        Path mp4File = null;
+        DownloadSession session = null;
+
+        try {
+            // 1. 创建临时文件
+            rawFile = Files.createTempFile("hik_raw_", ".h265");
+            mp4File = Files.createTempFile("hik_converted_", ".mp4");
+            log.info("原始文件: {}, MP4文件: {}", rawFile, mp4File);
+
+            session = new DownloadSession(rawFile, mp4File);
+            session.rawFos = new FileOutputStream(rawFile.toFile());
+
+            // 2. 创建海康回放
+            HCNetSDK.NET_DVR_VOD_PARA vodPara = new HCNetSDK.NET_DVR_VOD_PARA();
+            vodPara.dwSize = vodPara.size();
+            vodPara.struIDInfo.dwSize = vodPara.struIDInfo.size();
+            vodPara.struIDInfo.dwChannel = dwChannel;
+
+            vodPara.struBeginTime.dwYear = startTime.getYear();
+            vodPara.struBeginTime.dwMonth = startTime.getMonthValue();
+            vodPara.struBeginTime.dwDay = startTime.getDayOfMonth();
+            vodPara.struBeginTime.dwHour = startTime.getHour();
+            vodPara.struBeginTime.dwMinute = startTime.getMinute();
+            vodPara.struBeginTime.dwSecond = startTime.getSecond();
+
+            vodPara.struEndTime.dwYear = endTime.getYear();
+            vodPara.struEndTime.dwMonth = endTime.getMonthValue();
+            vodPara.struEndTime.dwDay = endTime.getDayOfMonth();
+            vodPara.struEndTime.dwHour = endTime.getHour();
+            vodPara.struEndTime.dwMinute = endTime.getMinute();
+            vodPara.struEndTime.dwSecond = endTime.getSecond();
+            vodPara.hWnd = null;
+            vodPara.write();
+
+            log.info("启动海康下载回放，通道={}, dwChannel={}", channel, dwChannel);
+
+            NativeLong playHandle = hcNetSDK.NET_DVR_PlayBackByTime_V40(sharedUserId, vodPara);
+            int playHandleInt = playHandle.intValue();
+            if (playHandleInt == -1) {
+                log.error("按时间回放失败，错误码: {}", hcNetSDK.NET_DVR_GetLastError());
+                return false;
+            }
+            log.info("下载回放句柄: {}", playHandleInt);
+
+            // 3. 注册数据回调：写入原始数据（不解析IMKH），让 FFmpeg 自己处理 PS 流解析
+            final DownloadSession sess = session;
+            HCNetSDK.FPlayDataCallBack callback = new HCNetSDK.FPlayDataCallBack() {
+                public void invoke(int lPlayHandle, int dwDataType, Pointer pBuffer, int dwBufSize, int dwUser) {
+                    if (sess.finished || sess.error.get() != null) return;
+                    if (dwBufSize <= 0 || pBuffer == null) return;
+
+                    try {
+                        byte[] raw = new byte[dwBufSize];
+                        ByteBuffer bb = pBuffer.getByteBuffer(0, dwBufSize);
+                        bb.get(raw, 0, dwBufSize);
+
+                        synchronized (sess) {
+                            if (sess.rawFos != null) {
+                                sess.rawFos.write(raw);
+                                sess.rawFos.flush();
+                            }
+                        }
+                        sess.lastDataTime.set(System.currentTimeMillis());
+                        sess.hasReceivedData = true;
+                        sess.bytesWritten.addAndGet(dwBufSize);
+                    } catch (IOException e) {
+                        log.warn("写入原始文件异常: {}", e.getMessage());
+                        sess.markError(e);
+                    }
+                }
+            };
+            hcNetSDK.NET_DVR_SetPlayDataCallBack(playHandle, callback, Pointer.NULL);
+
+            // 4. 发送 PLAYSTART
+            IntByReference intInlen = new IntByReference(0);
+            boolean bCtrl = hcNetSDK.NET_DVR_PlayBackControl_V40(
+                    playHandle, HCNetSDK.NET_DVR_PLAYSTART, Pointer.NULL, 0, Pointer.NULL, intInlen
+            );
+            if (!bCtrl) {
+                log.error("NET_DVR_PLAYSTART失败，错误码: {}", hcNetSDK.NET_DVR_GetLastError());
+                hcNetSDK.NET_DVR_StopPlayBack(playHandle);
+                return false;
+            }
+            log.info("PLAYSTART 指令发送成功");
+
+            // 5. 事件驱动等待：数据超时 + 总时长双保险
+            // 初始阶段（前60s）允许较长数据超时，给 NVR 足够时间建立稳定码流
+            long timeoutMs = Math.max(durationSeconds * 1000L + 300_000L, 180_000L); // 录像时长 + 5分钟，最少3分钟
+            log.info("录像时长 {}s，总超时 {}ms，开始事件驱动等待", durationSeconds, timeoutMs);
+            long startMs = System.currentTimeMillis();
+            long lastLogMs = startMs;
+            boolean playbackEndedByEvent = false;
+
+            while (System.currentTimeMillis() - startMs < timeoutMs) {
+                if (session.error.get() != null) {
+                    log.error("下载过程发生异常: {}", session.error.get().getMessage());
+                    break;
+                }
+
+                long elapsedMs = System.currentTimeMillis() - startMs;
+                long lastData = session.lastDataTime.get();
+
+                // 数据超时判断：分阶段动态计算
+                // 阶段1（elapsed < 60s）：初始建立期，超时 = max(60s, 录像时长*0.5) 避免太短
+                // 阶段2（elapsed >= 60s）：正常传输期，超时 = max(录像时长*0.5, 180s)
+                //    使用 0.5 而非 0.3，避免在录像时长较大时数据超时阈值过小导致提前退出
+                long dataTimeoutMs;
+                if (elapsedMs < 60_000) {
+                    dataTimeoutMs = Math.max(60_000L, durationSeconds * 500L);
+                } else {
+                    dataTimeoutMs = Math.max(durationSeconds * 500L, 180_000L);
+                }
+
+                if (lastData > 0 && System.currentTimeMillis() - lastData > dataTimeoutMs) {
+                    log.warn("数据接收超时（最后数据到达 {}s 前，超时阈值 {}s），强制停止等待",
+                            (System.currentTimeMillis() - lastData) / 1000, dataTimeoutMs / 1000);
+                    break;
+                }
+
+                // 已等待时间超过(录像时长+60s)则认为数据接收完成
+                if (session.hasReceivedData && elapsedMs > durationSeconds * 1000L + 60_000L) {
+                    log.info("已等待 {}s（录像时长 {}s + 60s buffer），认为数据已接收完成", elapsedMs / 1000, durationSeconds);
+                    playbackEndedByEvent = true;
+                    break;
+                }
+
+                // 当写入字节数达到录像估算大小时（即数据已传完），立即结束
+                // 估算：bitrate=1591kb/s（来自之前探测值）
+                long bytesNow = session.bytesWritten.get();
+                long estimatedTotalBytes = durationSeconds * 1591L * 1000 / 8;
+                if (session.hasReceivedData && bytesNow > estimatedTotalBytes * 0.95) {
+                    log.info("数据已传完，写入 {}MB（估算总量约 {}MB），停止等待",
+                            String.format("%.1f", bytesNow / 1024.0 / 1024.0),
+                            String.format("%.1f", estimatedTotalBytes / 1024.0 / 1024.0));
+                    playbackEndedByEvent = true;
+                    break;
+                }
+
+                // 每 10 秒打印一次进度，同时检测字节数是否停止增长
+                long now = System.currentTimeMillis();
+                if (now - lastLogMs > 10_000) {
+                    long elapsed = (now - startMs) / 1000;
+                    long lastDataAge = lastData > 0 ? (now - lastData) / 1000 : -1;
+                    double mb = bytesNow / 1024.0 / 1024.0;
+                    // 进度基于实际写入字节数估算
+                    double estimatedPct = estimatedTotalBytes > 0
+                            ? Math.min(100, bytesNow * 100.0 / estimatedTotalBytes) : 0;
+                    log.info("下载进行中... 已等待 {}s，数据最后到达 {}s 前，超时阈值 {}s，已写入 {}MB（估算总量 {}MB），进度 {}%",
+                            elapsed, lastDataAge, dataTimeoutMs / 1000,
+                            String.format("%.1f", mb),
+                            String.format("%.1f", estimatedTotalBytes / 1024.0 / 1024.0),
+                            String.format("%.1f", estimatedPct));
+                    lastLogMs = now;
+
+                    // 检测字节数是否停止增长（最后30秒无新数据写入）
+                    if (session.hasReceivedData && bytesNow > 0) {
+                        long lastBytes = session.lastBytesSnapshot.get();
+                        long snapshotIntervalMs = now - session.lastBytesSnapshotTime.get();
+                        if (bytesNow == lastBytes && snapshotIntervalMs > 30_000) {
+                            log.info("检测到字节数 {}s 内无增长（写入 {}MB），认为数据已传完，停止等待",
+                                    snapshotIntervalMs / 1000, String.format("%.1f", mb));
+                            playbackEndedByEvent = true;
+                            break;
+                        }
+                        session.lastBytesSnapshot.set(bytesNow);
+                        session.lastBytesSnapshotTime.set(now);
+                    }
+                }
+
+                Thread.sleep(2000); // 每 2 秒检查一次
+            }
+
+            if (!playbackEndedByEvent) {
+                log.info("等待结束（未通过事件触发，通过超时或其他条件退出）");
+            }
+
+            // 6. 停止回放
+            hcNetSDK.NET_DVR_StopPlayBack(playHandle);
+            log.info("已停止回放");
+
+            // 7. 关闭原始文件
+            synchronized (session) {
+                if (session.rawFos != null) {
+                    session.rawFos.close();
+                    session.rawFos = null;
+                }
+            }
+
+            // 检查是否有错误
+            if (session.error.get() != null) {
+                throw new IOException("数据写入失败: " + session.error.get().getMessage(), session.error.get());
+            }
+
+            // 8. 启动 FFmpeg 转换本地文件
+            log.info("启动 FFmpeg 转换（transcodeToH264={}）...", ffmpegConfig.isTranscodeToH264());
+            Process ffmpegProcess = startFfmpegConvertLocal(rawFile, mp4File, ffmpegConfig.isTranscodeToH264());
+
+            // 9. 等待 FFmpeg 完成：超时按录像时长的1.5倍计算（转码耗时通常是时长的1-1.5倍），最少5分钟
+            long ffmpegTimeoutSec = Math.max(durationSeconds * 1, 300);
+            log.info("等待 FFmpeg 转换完成，超时 {}s（录像时长 {}s）", ffmpegTimeoutSec, durationSeconds);
+            boolean ffmpegDone = ffmpegProcess.waitFor(ffmpegTimeoutSec, TimeUnit.SECONDS);
+            if (!ffmpegDone) {
+                log.error("FFmpeg 转换超时，强制终止");
+                ffmpegProcess.destroyForcibly();
+                throw new IOException("FFmpeg 转换超时");
+            }
+
+            if (ffmpegProcess.exitValue() != 0) {
+                log.error("FFmpeg 转换失败，exitCode={}", ffmpegProcess.exitValue());
+                throw new IOException("FFmpeg 转换失败，exitCode=" + ffmpegProcess.exitValue());
+            }
+
+            // 10. 发送 MP4 文件给用户
+            long fileSize = Files.size(mp4File);
+            log.info("转换完成，MP4 文件大小 {} bytes", fileSize);
+            try (InputStream fis = Files.newInputStream(mp4File)) {
+                byte[] buf = new byte[8192];
+                int read;
+                while ((read = fis.read(buf)) != -1) {
+                    outputStream.write(buf, 0, read);
+                }
+                outputStream.flush();
+            }
+            log.info("文件已发送给用户");
+            return true;
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.error("下载被中断");
+            return false;
+        } catch (IOException e) {
+            log.error("下载 IO 异常: {}", e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("下载异常: {}", e.getMessage());
+            throw new IOException("下载异常: " + e.getMessage(), e);
+        } finally {
+            // 确保临时文件被清理，即使转换失败也要删除
+            if (session != null) {
+                synchronized (session) {
+                    if (session.rawFos != null) {
+                        try { session.rawFos.close(); } catch (IOException ignored) {}
+                        session.rawFos = null;
+                    }
+                }
+            }
+            if (rawFile != null) {
+                try { Files.deleteIfExists(rawFile); log.info("已删除临时文件: {}", rawFile); } catch (IOException e) { log.warn("删除临时文件失败: {}: {}", rawFile, e.getMessage()); }
+            }
+            if (mp4File != null) {
+                try { Files.deleteIfExists(mp4File); log.info("已删除临时文件: {}", mp4File); } catch (IOException e) { log.warn("删除临时文件失败: {}: {}", mp4File, e.getMessage()); }
+            }
+        }
+    }
+
+    // ======================== 本地文件转换 ========================
+    private Process startFfmpegConvertLocal(Path inputFile, Path outputFile, boolean transcodeToH264) throws IOException {
+        List<String> ffmpegArgs = new ArrayList<>();
+        ffmpegArgs.add(ffmpegConfig.getPath());
+        ffmpegArgs.add("-y"); // 覆盖输出文件
+        ffmpegArgs.add("-i");
+        ffmpegArgs.add(inputFile.toString());
+
+        if (transcodeToH264) {
+            // H.265 -> H.264 重编码
+            ffmpegArgs.add("-c:v");
+            ffmpegArgs.add("libx264");
+            ffmpegArgs.add("-preset");
+            ffmpegArgs.add("ultrafast");
+            ffmpegArgs.add("-crf");
+            ffmpegArgs.add("28");
+        } else {
+            // H.265 -> H.265 重编码（保持原生编码格式，避免 Annex-B 封装问题）
+            ffmpegArgs.add("-c:v");
+            ffmpegArgs.add("libx265");
+            ffmpegArgs.add("-preset");
+            ffmpegArgs.add("ultrafast");
+            ffmpegArgs.add("-crf");
+            ffmpegArgs.add("28");
+        }
+        ffmpegArgs.add("-an");
+
+        ffmpegArgs.add("-f");
+        ffmpegArgs.add("mp4");
+        ffmpegArgs.add(outputFile.toString());
+
+        String[] args = ffmpegArgs.toArray(new String[0]);
+        ProcessBuilder pb = new ProcessBuilder(args);
+        pb.redirectErrorStream(false);
+        Process process = pb.start();
+
+        // stderr 消费线程
+        sharedExecutor.submit(() -> {
+            BufferedReader br = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+            try {
+                String line;
+                while ((line = br.readLine()) != null) {
+                    log.info("FFmpeg convert stderr: {}", line);
+                }
+            } catch (IOException e) {
+                log.debug("FFmpeg convert stderr 结束");
+            }
+        });
+
+        return process;
+    }
+
+    // ======================== IMKH 私有格式 -> Annex-B H.265 ========================
+    // IMKH 是海康私有封装：IMKH(4B) + version(1B) + frameType(1B) + timestamp(8B) + dataLen(4B) + NAL数据
+    private static final byte[] IMKH_MAGIC = {0x49, 0x4d, 0x4b, 0x48}; // "IMKH"
+    private static final byte[] ANNEX_B_START_CODE = {0x00, 0x00, 0x00, 0x01};
+
+    private byte[] parseImkhToAnnexB(byte[] data, int length) {
+        if (length < 20) return null;
+
+        // 检查 IMKH 魔数
+        if (data[0] != IMKH_MAGIC[0] || data[1] != IMKH_MAGIC[1]
+                || data[2] != IMKH_MAGIC[2] || data[3] != IMKH_MAGIC[3]) {
+            // 不是 IMKH，搜索 start code
+            return findH265StartCode(data, length);
+        }
+
+        // IMKH 帧头结构：
+        // 0-3:   "IMKH" 魔数
+        // 4:     版本
+        // 5-8:   保留
+        // 9:     帧类型
+        // 10-17: 时间戳 (8字节)
+        // 18-21: 数据长度 (little-endian)
+        // 22+:   NAL 单元数据
+
+        // 解析帧类型（字节9）
+        int frameType = data[9] & 0xFF;
+        // 0=视频I帧, 1=视频P帧, 2=视频B帧, 3=视频S帧/关键帧，其他=音频/封装，跳过
+        if (frameType > 3) {
+            log.debug("跳过非视频帧，frameType={}, size={}", frameType, length);
+            return null;
+        }
+
+        // 解析数据长度 (字节18-21, little-endian)
+        int dataLen = (data[18] & 0xFF) | ((data[19] & 0xFF) << 8)
+                | ((data[20] & 0xFF) << 16) | ((data[21] & 0xFF) << 24);
+
+        log.debug("IMKH: frameType={}, dataLen={}, length={}", frameType, dataLen, length);
+
+        int nalOffset = 22;
+        if (dataLen > 0 && nalOffset + dataLen <= length) {
+            // 检查 NAL 数据是否全为0（无实际视频内容）
+            boolean allZeros = true;
+            for (int i = nalOffset; i < nalOffset + Math.min(dataLen, 16); i++) {
+                if (data[i] != 0) { allZeros = false; break; }
+            }
+            if (allZeros) {
+                log.debug("IMKH dataLen={} 但 NAL 数据全为0，跳过", dataLen);
+                return null;
+            }
+            // 有实际内容，直接提取 NAL 并加上 start code
+            byte[] result = new byte[ANNEX_B_START_CODE.length + dataLen];
+            System.arraycopy(ANNEX_B_START_CODE, 0, result, 0, ANNEX_B_START_CODE.length);
+            System.arraycopy(data, nalOffset, result, ANNEX_B_START_CODE.length, dataLen);
+            return result;
+        }
+
+        // dataLen 无效或为0，搜索 H.265 start code
+        logBinary("IMKH dataLen fallback，data", data, Math.min(48, length));
+        if (nalOffset < length - 4) {
+            for (int i = nalOffset; i < length - 4; i++) {
+                if (data[i] == 0x00 && data[i+1] == 0x00 && data[i+2] == 0x00 && data[i+3] == 0x01) {
+                    byte[] nal = new byte[length - i];
+                    System.arraycopy(data, i, nal, 0, length - i);
+                    return nal;
+                }
+            }
+        }
+
+        // 搜不到，返回原始数据加 start code
+        return findH265StartCode(data, length);
+    }
+
+    private byte[] findH265StartCode(byte[] data, int length) {
+        for (int i = 0; i < length - 4; i++) {
+            if (data[i] == 0x00 && data[i+1] == 0x00 && data[i+2] == 0x00 && data[i+3] == 0x01) {
+                byte[] nal = new byte[length - i];
+                System.arraycopy(data, i, nal, 0, length - i);
+                return nal;
+            }
+        }
+        byte[] result = new byte[ANNEX_B_START_CODE.length + length];
+        System.arraycopy(ANNEX_B_START_CODE, 0, result, 0, ANNEX_B_START_CODE.length);
+        System.arraycopy(data, 0, result, ANNEX_B_START_CODE.length, length);
+        return result;
+    }
+
+    private void logBinary(String prefix, byte[] data, int len) {
+        StringBuilder sb = new StringBuilder(prefix).append(": ");
+        int limit = Math.min(len, data.length);
+        for (int i = 0; i < limit; i++) {
+            sb.append(String.format("%02X ", data[i]));
+            if ((i + 1) % 16 == 0 && i < limit - 1) sb.append("\n");
+        }
+        log.info(sb.toString());
     }
 
     // ======================== 停止回放 ========================

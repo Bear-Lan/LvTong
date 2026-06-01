@@ -80,4 +80,56 @@ public class HikPlayBackController {
         log.info("收到停止回放请求");
         hikPlayBackService.stopPlayback();
     }
+
+    @GetMapping("/downloadVideo")
+    @Operation(summary = "下载录像", description = "按时间范围下载指定通道的录像，转码为H.264 MP4格式")
+    public void downloadVideo(
+            @Parameter(description = "开始时间 yyyy-MM-dd HH:mm:ss")
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime startTime,
+            @Parameter(description = "结束时间 yyyy-MM-dd HH:mm:ss")
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime endTime,
+            @Parameter(description = "通道号 1-5")
+            @RequestParam(defaultValue = "1") int channel,
+            @Parameter(description = "下载文件名")
+            @RequestParam(defaultValue = "video.mp4") String fileName,
+            HttpServletResponse response) {
+
+        log.info("=== 收到下载请求: channel={}, startTime={}, endTime={}, fileName={} ===", channel, startTime, endTime, fileName);
+
+        if (startTime.isAfter(endTime)) {
+            try {
+                response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                response.getWriter().write("开始时间不能大于结束时间");
+            } catch (IOException e) {
+                log.error("响应写入异常", e);
+            }
+            return;
+        }
+        if (startTime.plusHours(MAX_DURATION_HOURS).isBefore(endTime)) {
+            try {
+                response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                response.getWriter().write("时间区间不能超过一小时");
+            } catch (IOException e) {
+                log.error("响应写入异常", e);
+            }
+            return;
+        }
+
+        String encodedFileName;
+        try {
+            encodedFileName = new String(fileName.getBytes("UTF-8"), "ISO-8859-1");
+        } catch (java.io.UnsupportedEncodingException e) {
+            encodedFileName = "video.mp4";
+        }
+        response.setContentType("video/mp4");
+        response.setHeader("Content-Disposition", "attachment; filename=\"" + encodedFileName + "\"");
+        response.setStatus(HttpServletResponse.SC_OK);
+
+        try (OutputStream out = response.getOutputStream()) {
+            hikPlayBackService.downloadVideo(startTime, endTime, channel, out);
+        } catch (Exception e) {
+            log.error("下载异常: {}", e.getMessage(), e);
+        }
+        log.info("=== 下载请求处理完成: channel={} ===", channel);
+    }
 }
