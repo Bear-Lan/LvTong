@@ -81,6 +81,19 @@ public interface HCNetSDK extends Library {
         public byte[] byRes2 = new byte[20];
     }
 
+    // NET_DVR_PLAYCOND - 按时间下载条件结构（与官方一致）
+    int STREAM_ID_LEN = 32;
+    @FieldOrder({"dwChannel", "struStartTime", "struStopTime", "byDrawFrame", "byStreamType", "byStreamID", "byRes"})
+    class NET_DVR_PLAYCOND extends Structure {
+        public int dwChannel;                        // 通道号
+        public NET_DVR_TIME struStartTime = new NET_DVR_TIME();  // 开始时间
+        public NET_DVR_TIME struStopTime = new NET_DVR_TIME();     // 结束时间
+        public byte byDrawFrame;                      // 0:不抽帧，1：抽帧
+        public byte byStreamType;                    // 码流类型，0-主码流 1-子码流 2-码流三
+        public byte[] byStreamID = new byte[32];     // 流ID
+        public byte[] byRes = new byte[30];          // 保留
+    }
+
     // ========== 常量定义 ==========
     int NET_DVR_PLAYSTART = 1;
     int NET_DVR_PLAYSTOP = 2;
@@ -127,6 +140,9 @@ public interface HCNetSDK extends Library {
     // 回放控制V40
     boolean NET_DVR_PlayBackControl_V40(NativeLong lPlayHandle, int dwControlCode, Pointer lpInBuffer, int dwInBufferLen, Pointer lpOutBuffer, IntByReference lpOutBufferLen);
 
+    // 回放控制（简化版，用于下载开始/停止/进度获取）
+    boolean NET_DVR_PlayBackControl(NativeLong lPlayHandle, int dwControlCode, int dwInBufferLen, Pointer lpInBuffer);
+
     // 设置回放数据回调
     boolean NET_DVR_SetPlayDataCallBack(NativeLong lPlayHandle, FPlayDataCallBack fPlayDataCallBack, Pointer pUser);
 
@@ -135,4 +151,15 @@ public interface HCNetSDK extends Library {
 
     // 获取回放进度
     boolean NET_DVR_PlayBackGetCube(NativeLong lPlayHandle, IntByReference pCube);
+
+    // ========== 下载相关接口 ==========
+
+    // 按时间下载V40（SDK直接写文件到指定路径）
+    NativeLong NET_DVR_GetFileByTime_V40(NativeLong lUserID, String sFileName, NET_DVR_PLAYCOND lpPlayCond);
+
+    // 停止下载
+    int NET_DVR_StopGetFile(NativeLong lFileHandle);
+
+    // 获取下载进度（通过NET_DVR_PLAYGETPOS命令）
+    int NET_DVR_GetDownloadPos(NativeLong lFileHandle);
 }

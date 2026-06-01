@@ -37,3 +37,8 @@ deploy.zip
 # ============================
 frontend/public/GreenChannel/allModel/
 frontend/src/assets/GreenChannel/moxing/
+
+# ============================
+# ClientDemo（海康SDK Demo，无须提交）
+# ============================
+ClientDemo/

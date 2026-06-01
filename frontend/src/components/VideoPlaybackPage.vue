@@ -55,13 +55,36 @@ const endTime = ref('')
 const activeTab = ref('lane')
 const downloading = ref(false)
 
-const downloadVideo = () => {
+const downloadVideo = async () => {
   if (downloading.value) return
-  downloading.value = true
   const ch = currentChannel.value
-  const fileName = `${ch.name}_${startTime.value.replace(/[/:]/g, '-')}.mp4`
-  window.location.href = `/api/hikNet/downloadVideo?startTime=${encodeURIComponent(startTime.value)}&endTime=${encodeURIComponent(endTime.value)}&channel=${ch.id}&fileName=${encodeURIComponent(fileName)}`
-  setTimeout(() => { downloading.value = false }, 3000)
+  if (!ch.id) {
+    console.error('[VideoPlaybackPage] 无效通道')
+    return
+  }
+  downloading.value = true
+  try {
+    const fileName = `${ch.name}_${startTime.value.replace(/[/:]/g, '-')}.mp4`
+    const url = `/api/hikNet/downloadVideo?startTime=${encodeURIComponent(startTime.value)}&endTime=${encodeURIComponent(endTime.value)}&channel=${ch.id}&fileName=${encodeURIComponent(fileName)}`
+    const response = await fetch(url)
+    if (!response.ok) {
+      throw new Error(`下载失败: ${response.status}`)
+    }
+    const blob = await response.blob()
+    const blobUrl = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = blobUrl
+    a.download = fileName
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(blobUrl)
+  } catch (e) {
+    console.error('[VideoPlaybackPage] 下载异常:', e)
+    alert('下载失败: ' + e.message)
+  } finally {
+    downloading.value = false
+  }
 }
 
 const currentChannel = computed(() => {
