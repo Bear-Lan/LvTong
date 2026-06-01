@@ -3,6 +3,9 @@
     <div class="page-header">
       <h1 class="page-title">录像回放</h1>
       <span class="page-time-range">{{ startTime }} ~ {{ endTime }}</span>
+      <button class="download-btn" :disabled="downloading" @click="downloadVideo">
+        {{ downloading ? '下载中...' : '下载录像' }}
+      </button>
     </div>
     <div class="video-tab-container">
       <div class="video-tabs">
@@ -50,6 +53,16 @@ const channelMap = ref({})
 const startTime = ref('')
 const endTime = ref('')
 const activeTab = ref('lane')
+const downloading = ref(false)
+
+const downloadVideo = () => {
+  if (downloading.value) return
+  downloading.value = true
+  const ch = currentChannel.value
+  const fileName = `${ch.name}_${startTime.value.replace(/[/:]/g, '-')}.mp4`
+  window.location.href = `/api/hikNet/downloadVideo?startTime=${encodeURIComponent(startTime.value)}&endTime=${encodeURIComponent(endTime.value)}&channel=${ch.id}&fileName=${encodeURIComponent(fileName)}`
+  setTimeout(() => { downloading.value = false }, 3000)
+}
 
 const currentChannel = computed(() => {
   const ch = channelMap.value[activeTab.value]
@@ -129,6 +142,22 @@ onUnmounted(() => {
 .page-time-range {
   font-size: 13px;
   color: #a0a8b6;
+}
+
+.download-btn {
+  margin-left: auto;
+  padding: 8px 20px;
+  background: #409eff;
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.download-btn:disabled {
+  background: #6a6a6a;
+  cursor: not-allowed;
 }
 
 .video-tab-container {
