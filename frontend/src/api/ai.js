@@ -2,120 +2,140 @@ import request from '@/utils/request'
 
 /**
  * 车辆照片识别
- * 识别车厢类型、车轮数量
- * @param {File} file - 车辆图片文件
- * @returns {Promise}
  */
 export function detectVehicle(file) {
   const formData = new FormData()
   formData.append('image', file)
-
   return request({
     url: '/ai/vehicle',
     method: 'post',
     data: formData,
-    headers: {
-      'Content-Type': 'multipart/form-data'
-    }
+    headers: { 'Content-Type': 'multipart/form-data' }
   })
 }
 
 /**
  * 货物类型识别
- * 识别货物类型
- * @param {File} file - 货物图片文件
- * @returns {Promise}
  */
 export function detectGoods(file) {
   const formData = new FormData()
   formData.append('real_image', file)
-
   return request({
     url: '/ai/goods',
     method: 'post',
     data: formData,
-    headers: {
-      'Content-Type': 'multipart/form-data'
-    }
+    headers: { 'Content-Type': 'multipart/form-data' }
   })
 }
 
 /**
  * 行驶证识别
- * 识别行驶证正反面信息
- * @param {File} file - 行驶证图片文件
- * @returns {Promise}
  */
-export function detectDriverLicense(file) {
+export function detectOCR(file) {
   const formData = new FormData()
   formData.append('file', file)
-
   return request({
     url: '/ai/driver-license',
     method: 'post',
     data: formData,
-    headers: {
-      'Content-Type': 'multipart/form-data'
-    }
+    headers: { 'Content-Type': 'multipart/form-data' }
   })
 }
 
 /**
  * 车轴识别
- * 识别车轴数量和位置
- * @param {File} file - 车轴图片文件
- * @returns {Promise}
  */
 export function detectAxle(file) {
   const formData = new FormData()
   formData.append('image', file)
-
   return request({
     url: '/ai/axle',
     method: 'post',
     data: formData,
-    headers: {
-      'Content-Type': 'multipart/form-data'
-    }
+    headers: { 'Content-Type': 'multipart/form-data' }
   })
 }
 
 /**
  * 车厢识别
- * 识别车厢类型
- * @param {File} file - 车厢图片文件
- * @returns {Promise}
  */
 export function detectCarriage(file) {
   const formData = new FormData()
   formData.append('image', file)
-
   return request({
     url: '/ai/carriage',
     method: 'post',
     data: formData,
-    headers: {
-      'Content-Type': 'multipart/form-data'
-    }
+    headers: { 'Content-Type': 'multipart/form-data' }
   })
 }
 
 /**
- * OCR行驶证识别
- * 识别行驶证正反面信息
- * @param {File} file - 行驶证图片文件
- * @returns {Promise}
+ * 货物透视图识别 - product_xray
  */
-export function detectOCR(file) {
+export function detectProductXray(file) {
   const formData = new FormData()
-  formData.append('file', file)
-
+  formData.append('image', file)
   return request({
-    url: '/ai/driver-license',
+    url: '/ai/product-xray',
     method: 'post',
     data: formData,
-    headers: {
-      'Content-Type': 'multipart/form-data'
-    }
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+}
+
+/**
+ * 雷达车头识别 - truck_lidar
+ */
+export function detectTruckLidarHead(file) {
+  const formData = new FormData()
+  formData.append('image', file)
+  return request({
+    url: '/ai/truck-lidar-head',
+    method: 'post',
+    data: formData,
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+}
+
+/**
+ * 雷达车高识别 - truck_lidar
+ */
+export function detectTruckLidarHeight(file) {
+  const formData = new FormData()
+  formData.append('image', file)
+  return request({
+    url: '/ai/truck-lidar-height',
+    method: 'post',
+    data: formData,
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+}
+
+/**
+ * 车厢混装识别 - product_xray
+ */
+export function detectMixedLoad(file) {
+  const formData = new FormData()
+  formData.append('image', file)
+  return request({
+    url: '/ai/mixed-load',
+    method: 'post',
+    data: formData,
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+}
+
+/**
+ * 车厢货物装载率识别 - truck_xray_box
+ */
+export function detectTruckXrayBox(file) {
+  const formData = new FormData()
+  formData.append('image', file)
+  return request({
+    url: '/ai/truck-xray-box',
+    method: 'post',
+    data: formData,
+    headers: { 'Content-Type': 'multipart/form-data' }
   })
 }

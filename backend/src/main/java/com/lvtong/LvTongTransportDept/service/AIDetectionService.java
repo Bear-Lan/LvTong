@@ -55,4 +55,34 @@ public interface AIDetectionService {
      * @return 识别结果，包含车厢类型中文描述
      */
     Map<String, Object> detectCarriage(MultipartFile file);
+
+    /**
+     * 货物透视图识别
+     * task=product_xray
+     */
+    Map<String, Object> detectProductXray(MultipartFile file);
+
+    /**
+     * 雷达车头识别
+     * task=truck_lidar
+     */
+    Map<String, Object> detectTruckLidarHead(MultipartFile file);
+
+    /**
+     * 雷达车高识别
+     * task=truck_lidar
+     */
+    Map<String, Object> detectTruckLidarHeight(MultipartFile file);
+
+    /**
+     * 车厢混装识别
+     * task=product_xray
+     */
+    Map<String, Object> detectMixedLoad(MultipartFile file);
+
+    /**
+     * 车厢货物装载率识别
+     * task=truck_xray_box
+     */
+    Map<String, Object> detectTruckXrayBox(MultipartFile file);
 }

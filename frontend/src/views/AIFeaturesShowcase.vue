@@ -275,6 +275,50 @@
               </div>
             </template>
 
+            <!-- 货物透视图识别 / 雷达车头识别 / 雷达车高识别 / 车厢混装识别 / 车厢货物装载率识别 -->
+            <template v-else-if="detectionResult && ['xray', 'vehicle', 'height', 'mixed', 'loading'].includes(currentFeature?.action)">
+              <div class="result-info">
+                <template v-if="detectionResult.wheel_count !== undefined">
+                  <div class="info-item">
+                    <span class="info-label">轮胎总数</span>
+                    <span class="info-value highlight">{{ detectionResult.wheel_count }}</span>
+                  </div>
+                </template>
+                <template v-if="detectionResult.cratetype">
+                  <div class="info-item">
+                    <span class="info-label">车厢类型</span>
+                    <span class="info-value">{{ detectionResult.cratetype }}</span>
+                  </div>
+                </template>
+                <template v-if="detectionResult.mixed_load_labels && detectionResult.mixed_load_labels.length > 0">
+                  <div class="info-item">
+                    <span class="info-label">混装货物</span>
+                    <span class="info-value">{{ detectionResult.mixed_load_labels.join(', ') }}</span>
+                  </div>
+                </template>
+              </div>
+              <div class="result-table" v-if="detectionResult.data && detectionResult.data.length > 0">
+                <div class="table-header">
+                  <span>序号</span>
+                  <span>类型</span>
+                  <span>置信度</span>
+                </div>
+                <div
+                  v-for="(item, index) in detectionResult.data"
+                  :key="index"
+                  class="table-row"
+                >
+                  <span>{{ index + 1 }}</span>
+                  <span>{{ formatAxleLabel(item.label) }}</span>
+                  <span>{{ (item.score * 100).toFixed(1) }}%</span>
+                </div>
+              </div>
+              <div v-else class="empty-result">
+                <el-icon class="empty-icon"><Document /></el-icon>
+                <span class="empty-text">未识别到有效数据</span>
+              </div>
+            </template>
+
             <!-- 待开发状态 -->
             <template v-else-if="detectionResult?.status === '待开发'">
               <div class="empty-result" style="min-height: 200px;">
@@ -307,7 +351,7 @@
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { UploadFilled, MagicStick, Picture, List, Document, Clock } from '@element-plus/icons-vue'
-import { detectGoods, detectAxle, detectCarriage, detectOCR } from '@/api/ai'
+import { detectGoods, detectAxle, detectCarriage, detectOCR, detectProductXray, detectTruckLidarHead, detectTruckLidarHeight, detectMixedLoad, detectTruckXrayBox } from '@/api/ai'
 
 const showDialog = ref(false)
 const currentFeature = ref(null)
@@ -331,7 +375,12 @@ const apiMapping = {
   goods: { api: detectGoods, hasBoxes: false },
   axle: { api: detectAxle, hasBoxes: true },
   carriage: { api: detectCarriage, hasBoxes: true },
-  license: { api: detectOCR, hasBoxes: false }
+  license: { api: detectOCR, hasBoxes: false },
+  xray: { api: detectProductXray, hasBoxes: true },
+  vehicle: { api: detectTruckLidarHead, hasBoxes: true },
+  height: { api: detectTruckLidarHeight, hasBoxes: true },
+  mixed: { api: detectMixedLoad, hasBoxes: true },
+  loading: { api: detectTruckXrayBox, hasBoxes: true }
 }
 
 // 左侧功能（数据输入）
@@ -426,7 +475,19 @@ const rightFeatures = [
 const axleLabelMap = {
   'wheel': '轮胎',
   'locomotive': '车头',
-  'box_truck_block': '车厢'
+  'box_truck_block': '车厢',
+  // 货物透视图识别标签 (product_xray)
+  'boluo': '波萝', 'caihua': '菜花', 'cheng': '橙', 'dabaicai': '大白菜',
+  'donggua': '冬瓜', 'fanqie': '番茄', 'ganshu': '甘薯', 'huanggua': '黄瓜',
+  'huluobo': '胡萝卜', 'huolongguo': '火龙果', 'jiangdou': '豇豆', 'jieqiuganlan': '芥蓝',
+  'lajiao': '辣椒', 'li': '梨', 'lianou': '莲藕', 'lizhi': '荔枝',
+  'luobo': '萝卜', 'malingshu': '马铃薯', 'mangguo': '芒果', 'maodou': '毛豆',
+  'mihoutao': '猕猴桃', 'nangua': '南瓜', 'pinggu': '苹果', 'pingguo': '苹果',
+  'putao': '葡萄', 'putongbaicai': '普通白菜', 'qiezi': '茄子', 'qincai': '芹菜',
+  'qingjiao': '青椒', 'shanyao': '山药', 'shengcai': '生菜', 'shengjiang': '生姜',
+  'sijidou': '四季豆', 'tao': '桃', 'tiangua': '甜瓜', 'wosun': '莴笋',
+  'xialei': '虾', 'xiangcai': '香菜', 'xiangcong': '香葱', 'xiangjiao': '香蕉',
+  'xianyumi': '鲜玉米', 'xigua': '西瓜', 'yangcong': '洋葱', 'yezi': '叶子'
 }
 
 // 格式化车轴标签

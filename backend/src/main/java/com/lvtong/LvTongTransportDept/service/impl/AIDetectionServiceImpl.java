@@ -31,6 +31,9 @@ public class AIDetectionServiceImpl implements AIDetectionService {
 
     private static final String VEHICLE_GOODS_URL = "http://192.168.88.245:8895/detect";
     private static final String DRIVER_LICENSE_URL = "http://192.168.88.245:8894/dl_ocr/front_and_back";
+    private static final String PRODUCT_XRAY_URL = "http://192.168.88.245:8890/detect";
+    private static final String TRUCK_LIDAR_URL = "http://192.168.88.245:8890/detect";
+    private static final String TRUCK_XRAY_BOX_URL = "http://192.168.88.245:8890/detect";
 
     private static final int CONNECT_TIMEOUT = 30000;
     private static final int READ_TIMEOUT = 120000;
@@ -169,6 +172,146 @@ public class AIDetectionServiceImpl implements AIDetectionService {
         } catch (Exception e) {
             log.error("车厢识别失败", e);
             throw new RuntimeException("车厢识别失败: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public Map<String, Object> detectProductXray(MultipartFile file) {
+        try {
+            String params = "task=product_xray&return_image=1";
+            String response = doMultipartPostWithParams(PRODUCT_XRAY_URL, file.getInputStream(), file.getOriginalFilename(), "image", params);
+
+            JSONObject jsonResponse = JSON.parseObject(response);
+            Map<String, Object> result = new HashMap<>();
+            if (jsonResponse.containsKey("wheel_count")) {
+                result.put("wheel_count", jsonResponse.get("wheel_count"));
+            }
+            if (jsonResponse.containsKey("cratetype")) {
+                result.put("cratetype", jsonResponse.getString("cratetype"));
+            }
+            if (jsonResponse.containsKey("mixed_load")) {
+                result.put("mixed_load", jsonResponse.getBoolean("mixed_load"));
+            }
+            if (jsonResponse.containsKey("mixed_load_labels")) {
+                result.put("mixed_load_labels", jsonResponse.get("mixed_load_labels"));
+            }
+            if (jsonResponse.containsKey("data")) {
+                result.put("data", jsonResponse.get("data"));
+            }
+            if (jsonResponse.containsKey("result_image")) {
+                result.put("result_image", jsonResponse.get("result_image"));
+            }
+
+            return result;
+        } catch (Exception e) {
+            log.error("货物透视图识别失败", e);
+            throw new RuntimeException("货物透视图识别失败: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public Map<String, Object> detectTruckLidarHead(MultipartFile file) {
+        try {
+            String params = "task=truck_lidar&return_image=1";
+            String response = doMultipartPostWithParams(TRUCK_LIDAR_URL, file.getInputStream(), file.getOriginalFilename(), "image", params);
+
+            JSONObject jsonResponse = JSON.parseObject(response);
+            Map<String, Object> result = new HashMap<>();
+            if (jsonResponse.containsKey("wheel_count")) {
+                result.put("wheel_count", jsonResponse.get("wheel_count"));
+            }
+            if (jsonResponse.containsKey("cratetype")) {
+                result.put("cratetype", jsonResponse.getString("cratetype"));
+            }
+            if (jsonResponse.containsKey("data")) {
+                result.put("data", jsonResponse.get("data"));
+            }
+            if (jsonResponse.containsKey("result_image")) {
+                result.put("result_image", jsonResponse.get("result_image"));
+            }
+
+            return result;
+        } catch (Exception e) {
+            log.error("雷达车头识别失败", e);
+            throw new RuntimeException("雷达车头识别失败: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public Map<String, Object> detectTruckLidarHeight(MultipartFile file) {
+        try {
+            String params = "task=truck_lidar&return_image=1";
+            String response = doMultipartPostWithParams(TRUCK_LIDAR_URL, file.getInputStream(), file.getOriginalFilename(), "image", params);
+
+            JSONObject jsonResponse = JSON.parseObject(response);
+            Map<String, Object> result = new HashMap<>();
+            if (jsonResponse.containsKey("wheel_count")) {
+                result.put("wheel_count", jsonResponse.get("wheel_count"));
+            }
+            if (jsonResponse.containsKey("cratetype")) {
+                result.put("cratetype", jsonResponse.getString("cratetype"));
+            }
+            if (jsonResponse.containsKey("data")) {
+                result.put("data", jsonResponse.get("data"));
+            }
+            if (jsonResponse.containsKey("result_image")) {
+                result.put("result_image", jsonResponse.get("result_image"));
+            }
+
+            return result;
+        } catch (Exception e) {
+            log.error("雷达车高识别失败", e);
+            throw new RuntimeException("雷达车高识别失败: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public Map<String, Object> detectMixedLoad(MultipartFile file) {
+        try {
+            String params = "task=product_xray&return_image=1";
+            String response = doMultipartPostWithParams(PRODUCT_XRAY_URL, file.getInputStream(), file.getOriginalFilename(), "image", params);
+
+            JSONObject jsonResponse = JSON.parseObject(response);
+            Map<String, Object> result = new HashMap<>();
+            if (jsonResponse.containsKey("mixed_load")) {
+                result.put("mixed_load", jsonResponse.getBoolean("mixed_load"));
+            }
+            if (jsonResponse.containsKey("mixed_load_labels")) {
+                result.put("mixed_load_labels", jsonResponse.get("mixed_load_labels"));
+            }
+            if (jsonResponse.containsKey("data")) {
+                result.put("data", jsonResponse.get("data"));
+            }
+            if (jsonResponse.containsKey("result_image")) {
+                result.put("result_image", jsonResponse.get("result_image"));
+            }
+
+            return result;
+        } catch (Exception e) {
+            log.error("车厢混装识别失败", e);
+            throw new RuntimeException("车厢混装识别失败: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public Map<String, Object> detectTruckXrayBox(MultipartFile file) {
+        try {
+            String params = "task=truck_xray_box&return_image=1";
+            String response = doMultipartPostWithParams(TRUCK_XRAY_BOX_URL, file.getInputStream(), file.getOriginalFilename(), "image", params);
+
+            JSONObject jsonResponse = JSON.parseObject(response);
+            Map<String, Object> result = new HashMap<>();
+            if (jsonResponse.containsKey("data")) {
+                result.put("data", jsonResponse.get("data"));
+            }
+            if (jsonResponse.containsKey("result_image")) {
+                result.put("result_image", jsonResponse.get("result_image"));
+            }
+
+            return result;
+        } catch (Exception e) {
+            log.error("车厢货物装载率识别失败", e);
+            throw new RuntimeException("车厢货物装载率识别失败: " + e.getMessage(), e);
         }
     }
 

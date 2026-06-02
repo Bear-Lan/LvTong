@@ -128,4 +128,104 @@ public class AIDetectionController {
             return ApiResponse.error(500, "车厢识别失败: " + e.getMessage());
         }
     }
+
+    /**
+     * 货物透视图识别
+     * task=product_xray
+     */
+    @PostMapping("/product-xray")
+    @Operation(summary = "货物透视图识别", description = "上传图片，AI透视图识别货物")
+    public ApiResponse<Map<String, Object>> detectProductXray(
+            @Parameter(description = "图片文件")
+            @RequestParam("image") MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return ApiResponse.error(400, "请选择要上传的图片文件");
+        }
+        try {
+            Map<String, Object> result = aiDetectionService.detectProductXray(file);
+            return ApiResponse.success(result);
+        } catch (Exception e) {
+            return ApiResponse.error(500, "货物透视图识别失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 雷达车头识别
+     * task=truck_lidar
+     */
+    @PostMapping("/truck-lidar-head")
+    @Operation(summary = "雷达车头识别", description = "上传图片，雷达车头识别")
+    public ApiResponse<Map<String, Object>> detectTruckLidarHead(
+            @Parameter(description = "图片文件")
+            @RequestParam("image") MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return ApiResponse.error(400, "请选择要上传的图片文件");
+        }
+        try {
+            Map<String, Object> result = aiDetectionService.detectTruckLidarHead(file);
+            return ApiResponse.success(result);
+        } catch (Exception e) {
+            return ApiResponse.error(500, "雷达车头识别失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 雷达车高识别
+     * task=truck_lidar
+     */
+    @PostMapping("/truck-lidar-height")
+    @Operation(summary = "雷达车高识别", description = "上传图片，雷达车高识别")
+    public ApiResponse<Map<String, Object>> detectTruckLidarHeight(
+            @Parameter(description = "图片文件")
+            @RequestParam("image") MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return ApiResponse.error(400, "请选择要上传的图片文件");
+        }
+        try {
+            Map<String, Object> result = aiDetectionService.detectTruckLidarHeight(file);
+            return ApiResponse.success(result);
+        } catch (Exception e) {
+            return ApiResponse.error(500, "雷达车高识别失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 车厢混装识别
+     * task=product_xray
+     */
+    @PostMapping("/mixed-load")
+    @Operation(summary = "车厢混装识别", description = "上传图片，AI检测车厢混装")
+    public ApiResponse<Map<String, Object>> detectMixedLoad(
+            @Parameter(description = "图片文件")
+            @RequestParam("image") MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return ApiResponse.error(400, "请选择要上传的图片文件");
+        }
+        try {
+            Map<String, Object> result = aiDetectionService.detectMixedLoad(file);
+            return ApiResponse.success(result);
+        } catch (Exception e) {
+            return ApiResponse.error(500, "车厢混装识别失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 车厢货物装载率识别
+     * task=truck_xray_box
+     */
+    @PostMapping("/truck-xray-box")
+    @Operation(summary = "车厢货物装载率识别", description = "上传图片，AI识别车厢货物装载率")
+    public ApiResponse<Map<String, Object>> detectTruckXrayBox(
+            @Parameter(description = "图片文件")
+            @RequestParam("image") MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return ApiResponse.error(400, "请选择要上传的图片文件");
+        }
+        try {
+            Map<String, Object> result = aiDetectionService.detectTruckXrayBox(file);
+            return ApiResponse.success(result);
+        } catch (Exception e) {
+            return ApiResponse.error(500, "车厢货物装载率识别失败: " + e.getMessage());
+        }
+    }
 }
